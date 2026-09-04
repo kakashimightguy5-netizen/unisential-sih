@@ -1,0 +1,8 @@
+[tool.pytest.ini_options]
+# `ml/` is a flat module dir (features_txt, features_windowed, rules, iforest_detector),
+# not a package; put it on the path so tests can import it directly.
+pythonpath = ["ml"]
+testpaths = ["tests"]
+markers = [
+    "slow: runs the full detector on the 209k-row TXT (~7s); deselect with -m 'not slow'",
+]

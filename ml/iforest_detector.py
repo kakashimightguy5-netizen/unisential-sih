@@ -20,6 +20,7 @@ Run:  .venv/bin/python ml/iforest_detector.py
 from __future__ import annotations
 
 import io
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
@@ -88,8 +89,52 @@ def delta(now, was):
     return f"{now:.3f} ({'+' if d >= 0 else ''}{d:.3f} vs EXP-0001 {was:.3f})"
 
 
-def main() -> None:
-    wins = build_windows()
+@dataclass
+class DetectorResult:
+    """Everything a report or a test needs from one detector run. TEST-block arrays
+    are all aligned and 0/1 int unless noted."""
+    n_windows: int
+    n_train: int
+    n_val: int
+    n_test: int
+    n_train_normal: int
+    threshold: float
+    valid_func_codes: frozenset
+    valid_addresses: frozenset
+    mu: np.ndarray = field(repr=False)             # train-normal mean, over WINDOW_FEATURES
+    sd: np.ndarray = field(repr=False)             # train-normal std (0 -> 1), over WINDOW_FEATURES
+    if_idx: list = field(repr=False)               # indices into WINDOW_FEATURES that the IF uses
+    y_test: np.ndarray            # 0/1 attack label
+    cat_test: np.ndarray          # dominant categorized_attack 0..7
+    base_pred: np.ndarray         # Stage 0 naive baseline
+    rule_pred: np.ndarray         # deterministic rule layer
+    if_pred: np.ndarray           # Isolation Forest (thresholded)
+    comb_pred: np.ndarray         # rule OR IF  (EXP-0002 headline)
+    if_scores: np.ndarray         # raw IF anomaly score (higher = more anomalous)
+    rule_hits: list               # list[RuleHit], aligned to TEST windows
+    test_windows: list = field(repr=False, default_factory=list)
+
+    def metrics(self, pred: np.ndarray) -> dict:
+        return binmetrics(self.y_test, pred)
+
+    def percat(self, pred: np.ndarray) -> dict:
+        return percat(self.cat_test, pred)
+
+    def category_flag_rate(self, name: str, pred: np.ndarray | None = None) -> float:
+        pred = self.comb_pred if pred is None else pred
+        m = self.cat_test == CATEGORY_NAMES.index(name)
+        return float(pred[m].mean()) if m.any() else float("nan")
+
+
+def run_detector(windows=None, target_fpr: float = TARGET_FPR,
+                 seed: int = SEED) -> DetectorResult:
+    """Run the full EXP-0002 detector once and return its results.
+
+    `windows` lets a caller (e.g. a test) pass a pre-built list of
+    `features_windowed.Window`; default builds from the raw TXT egress stream.
+    Deterministic given the same windows + seed.
+    """
+    wins = build_windows() if windows is None else list(windows)
     wins.sort(key=lambda w: w.w_index)
     n = len(wins)
     Xraw = np.array([[w.features[f] for f in WINDOW_FEATURES] for w in wins], dtype=float)
@@ -106,15 +151,16 @@ def main() -> None:
 
     # ---- deterministic rule layer ----
     rule = DeterministicRuleLayer().fit(train_normal_windows)
-    rule_pred_te = np.array([rule.evaluate(wins[i]).fired for i in te], dtype=int)
+    rule_hits_te = [rule.evaluate(wins[i]) for i in te]
+    rule_pred_te = np.array([h.fired for h in rule_hits_te], dtype=int)
 
     # ---- Stage 1 Isolation Forest (headline: IF_FEATURES, entropy included) ----
     clf = IsolationForest(n_estimators=300, max_samples="auto",
-                          contamination="auto", random_state=SEED, n_jobs=-1)
+                          contamination="auto", random_state=seed, n_jobs=-1)
     clf.fit(Xz[np.ix_(tr_normal_mask, if_idx)])
     s_va = -clf.score_samples(Xz[np.ix_(va, if_idx)])
     s_te = -clf.score_samples(Xz[np.ix_(te, if_idx)])
-    thr = np.quantile(s_va[y[va] == 0], 1 - TARGET_FPR)
+    thr = float(np.quantile(s_va[y[va] == 0], 1 - target_fpr))
     if_pred_te = (s_te >= thr).astype(int)
 
     # ---- Stage 0 naive baseline (rate rules only; unchanged from EXP-0001) ----
@@ -130,7 +176,30 @@ def main() -> None:
     # ---- combined operational detector: rule OR IF ----
     comb_pred_te = (rule_pred_te | if_pred_te).astype(int)
 
-    y_te, cat_te = y[te], cat[te]
+    return DetectorResult(
+        n_windows=n, n_train=len(tr), n_val=len(va), n_test=len(te),
+        n_train_normal=len(tr_normal_mask), threshold=thr,
+        valid_func_codes=rule.valid_func_codes, valid_addresses=rule.valid_addresses,
+        mu=mu, sd=sd, if_idx=if_idx,
+        y_test=y[te], cat_test=cat[te],
+        base_pred=base_pred_te, rule_pred=rule_pred_te, if_pred=if_pred_te,
+        comb_pred=comb_pred_te, if_scores=s_te, rule_hits=rule_hits_te,
+        test_windows=[wins[i] for i in te],
+    )
+
+
+def main() -> None:
+    R = run_detector()
+    n = R.n_windows
+
+    # feature matrix for the TEST windows only (for the explainability section)
+    Xte = np.array([[w.features[f] for f in WINDOW_FEATURES] for w in R.test_windows], dtype=float)
+    mu, sd, if_idx = R.mu, R.sd, R.if_idx
+    y_te, cat_te = R.y_test, R.cat_test
+    rule_pred_te, if_pred_te = R.rule_pred, R.if_pred
+    comb_pred_te, base_pred_te, s_te = R.comb_pred, R.base_pred, R.if_scores
+    thr = R.threshold
+
     buf = io.StringIO()
     p = lambda *a: print(*a, file=buf)
 
@@ -144,16 +213,16 @@ def main() -> None:
 
     p("## Setup\n")
     p(f"- Egress stream: `destination == 1`, 5 s tumbling windows. {n:,} windows.")
-    p(f"- Contiguous split: train {len(tr):,} / val {len(va):,} / test {len(te):,} "
+    p(f"- Contiguous split: train {R.n_train:,} / val {R.n_val:,} / test {R.n_test:,} "
       f"({GUARD_WINDOWS}-window guard gap).")
-    p(f"- Train-normal windows (fit IF + standardiser + rule profile): {len(tr_normal_mask):,}.")
+    p(f"- Train-normal windows (fit IF + standardiser + rule profile): {R.n_train_normal:,}.")
     p(f"- Test block: {int((y_te == 0).sum()):,} normal / {int((y_te == 1).sum()):,} attack.")
     p(f"- **IF feature set ({len(if_idx)})**, entropy included: {', '.join(IF_FEATURES)}")
     p(f"- **Rule-layer fields (not IF inputs):** {', '.join(RULE_LAYER_FEATURES)}, plus "
       f"slave `address`.")
     p(f"- Rule profile learned from train-normal: valid function codes "
-      f"{sorted(hex(c) for c in rule.valid_func_codes)}, "
-      f"valid addresses {sorted(rule.valid_addresses)}.")
+      f"{sorted(hex(c) for c in R.valid_func_codes)}, "
+      f"valid addresses {sorted(R.valid_addresses)}.")
     p(f"- Threshold = val-normal {1 - TARGET_FPR:.0%} quantile = {thr:.4f}. TEST scored once.\n")
 
     # ---- results table ----
@@ -216,24 +285,25 @@ def main() -> None:
     # ---- explainability ----
     p("\n## Explainability — sample flagged TEST windows\n")
     p("```")
+    if_idx_arr = np.array(if_idx)
     flagged = np.where(comb_pred_te == 1)[0]
     order = flagged[np.argsort(-np.where(np.isin(flagged, np.where(if_pred_te == 1)[0]),
                                          s_te[flagged], 1e9))]
     shown, seen = [], set()
     for j in order:
-        gi = te[j]
-        obs = Xraw[gi, if_idx]
-        z = np.where(sd[if_idx] > 1e-9, (obs - mu[if_idx]) / np.where(sd[if_idx] > 1e-9, sd[if_idx], 1), 0.0)
-        rh = rule.evaluate(wins[gi])
+        obs = Xte[j, if_idx_arr]
+        base_sd = sd[if_idx_arr]
+        z = np.where(base_sd > 1e-9, (obs - mu[if_idx_arr]) / np.where(base_sd > 1e-9, base_sd, 1), 0.0)
+        rh = R.rule_hits[j]
         top = np.argsort(-np.abs(z))[:3]
-        key = (cat[gi], rh.fired, tuple(np.round(obs[top], 1)))
+        key = (cat_te[j], rh.fired, tuple(np.round(obs[top], 1)))
         if key in seen:
             continue
         seen.add(key)
         shown.append(j)
-        truth = CATEGORY_NAMES[cat[gi]] if y[gi] else "Normal (FALSE POSITIVE)"
+        truth = CATEGORY_NAMES[cat_te[j]] if y_te[j] else "Normal (FALSE POSITIVE)"
         src = "RULE" + ("+IF" if if_pred_te[j] else "") if rh.fired else "IF"
-        p(f"window @t={wins[gi].t_start:.0f}s  truth={truth}  fired_by={src}"
+        p(f"window @t={R.test_windows[j].t_start:.0f}s  truth={truth}  fired_by={src}"
           + (f"  score={s_te[j]:.3f}/thr {thr:.3f}" if if_pred_te[j] else ""))
         if rh.fired:
             p(f"    RULE: {'; '.join(rh.reasons)}")

@@ -1,8 +1,11 @@
 # 09 — Test & Validation Plan
 
 Covers Tier 1 (MVP) only. Tier 2 tests are added if/when Tier 2 features are built.
-Status legend: `planned` / `implemented` / `tested` / `validated` — all cases below
-are `planned`.
+Status legend: `planned` / `implemented` / `tested` / `validated`.
+
+**Status:** T-01 and T-02 are **tested** — `tests/test_detector.py` (full pipeline,
+`slow`) and `tests/test_rules.py` (rule-layer mechanism, fast); green as of EXP-0002.
+All other cases (T-03..T-18) remain `planned`.
 
 Each case: **Input · Expected processing · Expected output · Pass/fail condition.**
 
@@ -13,27 +16,54 @@ Test data lives under `data/processed/test_fixtures/` (small, hand-checked, egre
 
 ## A — Functional / pipeline correctness
 
-### T-01 · NORMAL traffic
-- **Input:** an egress-filtered clip of dataset windows drawn from the TRAIN-normal
-  time range (but held out of training).
+### T-01 · NORMAL traffic  — *tested* (`tests/test_detector.py`)
+- **Input:** the held-out TEST-block NORMAL egress windows (3,610 windows), none
+  used in training.
 - **Expected processing:** parse → all egress kept → 5 s windows → Tier 1 features →
-  IF score low → below threshold.
-- **Expected output:** 0 alerts; `SystemHealth.state = OK`; dashboard green.
-- **Pass/fail:** PASS if alert count == 0 and every window's `if_score_norm` <
-  `threshold_norm`. FAIL on any alert.
+  IF score → threshold chosen from VALIDATION-normal only.
+- **Expected output:** normal traffic is not broadly false-flagged.
 
-### T-02 · PROTOCOL anomaly (TS-1)
-- **Input:** normal clip with a subset of windows carrying `function` codes outside
-  the learned valid set / a strongly shifted function-code distribution.
+- **Why the original pass condition changed (structural, not a lowered bar).** The
+  first draft of T-01 read *"PASS if alert count == 0 and every window's
+  `if_score_norm` < `threshold_norm`."* That is **not an achievable target for a
+  score-thresholded anomaly detector, and never was a bug to fix**:
+  - An Isolation Forest assigns a *continuous* anomaly score to **every** window.
+    Turning that into a yes/no alert needs a threshold, and the threshold is
+    deliberately placed at a **non-zero-FPR operating point** — here the 99th
+    percentile of VALIDATION-normal scores, i.e. a 1 % target FPR *by construction*.
+  - Forcing zero false positives on held-out normal would mean pushing the
+    threshold above the highest-scoring normal window — an essentially unbounded
+    threshold — which drives **recall to zero**. A non-zero FPR on held-out normal
+    *is* the operating point, not a defect.
+  - "0 alerts" is only ever reachable against a hand-curated clip chosen to contain
+    no high-scoring windows; against the full held-out normal set it is not a
+    meaningful pass condition.
+- **Pass/fail (implemented).** The test asserts the **aggregate false-positive rate
+  over all 3,610 held-out normal TEST windows**, at the exact recorded operating
+  point (EXP-0002):
+  - **rule layer: exactly 0 %** — it is a membership test, no score, no threshold.
+  - **IF / combined: 3.05 %** — *higher* than the 1 % target because test-normal
+    drifts slightly from validation-normal over the 3.2-day capture. That gap is an
+    honest recorded property, not tuned away; the test caps it at a 5 % operating
+    ceiling and pins the exact value.
+
+### T-02 · PROTOCOL anomaly (TS-1)  — *tested* (`tests/test_rules.py`, `tests/test_detector.py`)
+- **Input:** real MFCI and Reconnaissance TEST windows (which carry Modbus function
+  codes outside the train-normal set `{0x03, 0x10}`), plus synthetic windows in the
+  unit test.
 - **Expected processing:** the **deterministic rule layer** (`ml/rules.py`) fires on
   any window containing a function code outside the learned valid set or a novel
-  address (independent of the IF — EXP-0002); a shifted-but-valid function-code *mix*
-  instead raises `function_code_dist_divergence` and the IF score.
-- **Expected output:** alerts on the affected windows; `reasons[0]` is the rule hit
-  (`invalid_function_code=0x..` / `novel_address=..`) or, for a mix shift,
-  `function_code_dist_divergence` with observed vs baseline.
-- **Pass/fail:** PASS if ≥ 1 affected window alerts **and** the top reason is the
-  function-code rule hit or the distribution-divergence feature. FAIL otherwise.
+  address, independent of the IF (EXP-0002).
+- **Expected output:** alerts on the affected windows; the reason is the rule hit
+  (`invalid_function_code=0x..` / `novel_address=..`).
+- **Pass/fail (implemented):**
+  - unit: profile frozen from train-normal; fires on out-of-profile code / novel
+    address; silent on in-profile traffic; both reasons reported when both anomalous.
+  - full pipeline: rule layer flags **100 %** of MFCI TEST windows and **100 %** of
+    Recon TEST windows, every reason contains `invalid_function_code=`, and it fires
+    on **0 / 3,610** Normal TEST windows. Matches EXP-0002.
+- **Not yet covered:** the shifted-but-valid function-code *mix* path
+  (`function_code_dist_divergence` via the IF) — no fixture for it yet.
 
 ### T-03 · PORT / destination-service anomaly (TS-2)
 - **Input:** synthetic PCAP fixture (not the gas dataset — see
@@ -184,7 +214,11 @@ Test data lives under `data/processed/test_fixtures/` (small, hand-checked, egre
 
 ## Test execution
 
-- `tests/` holds automated cases for T-01..T-11 (fixture-driven) and T-12..T-16
-  (pipeline assertions). T-17/T-18 are report checks run at evaluation time.
+- `tests/` holds automated cases. Run: `.venv/bin/python -m pytest` (all, ~9 s) or
+  `-m "not slow"` for the fast fixture-level subset (~0.05 s). Config in
+  `pyproject.toml`; dev deps in `requirements-dev.txt`.
+- Implemented so far: T-01, T-02 (`tests/test_detector.py`, `tests/test_rules.py`).
+  T-03..T-11 (fixture-driven) and T-12..T-16 (pipeline assertions) remain to be
+  written. T-17/T-18 are report checks run at evaluation time.
 - CI is local/offline. No test reaches the network.
 - A test run writes a summary to `EXPERIMENT_LOG.md` when it accompanies a model run.

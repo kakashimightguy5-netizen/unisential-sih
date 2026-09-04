@@ -1,0 +1,14 @@
+# Runtime dependencies for the ml/ detector pipeline.
+#
+# Reference environment (EXP-0001 / EXP-0002 numbers, and the exact-match
+# assertions in tests/test_detector.py, were produced with these):
+#   Python 3.14 · numpy 2.5.2 · scikit-learn 1.9.0 · scipy 1.18.1 · xgboost 3.4.1
+#
+# Lower bounds below are permissive for convenience. A version bump that perturbs
+# a floating-point reduction will fail the exact-reproduction tests on purpose —
+# rerun ml/iforest_detector.py, diff against docs/EXPERIMENT_LOG.md EXP-0002, and
+# rebaseline deliberately (new EXPERIMENT_LOG entry). Pin exactly for a release.
+numpy>=2.0
+scikit-learn>=1.5
+scipy>=1.13
+xgboost>=2.0        # only for ml/xgb_txt_diagnostic.py (non-headline DIAG-0001)
