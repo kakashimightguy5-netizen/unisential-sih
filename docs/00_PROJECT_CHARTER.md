@@ -148,7 +148,10 @@ and a subtly-wrong implementation is worse than an honest omission.
   leakage-controlled train/validation/test split (`04_DATASET_PLAN.md`).
 - Per-attack-type detection rates reported honestly (`06_AI_MODEL_EVALUATION_PLAN.md`,
   `EXPERIMENT_LOG.md`) — including attack types the Tier 1 feature set *cannot*
-  reasonably be expected to catch.
+  reasonably be expected to catch. Recall on this dataset is **structurally bimodal**
+  (protocol-manipulation ~100 %; payload-manipulation ~0 % by egress-only design;
+  see `06_AI_MODEL_EVALUATION_PLAN.md`); an aggregate recall number is never reported
+  without that breakdown.
 - Naive baseline implemented and compared against the model.
 - Every alert carries a feature-level explanation.
 - Demo script in `10_DEMO_SUCCESS_CRITERIA.md` runs green → red with explanation and

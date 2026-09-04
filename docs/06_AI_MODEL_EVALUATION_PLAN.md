@@ -97,6 +97,29 @@ rate. `EXPERIMENT_LOG.md` must contain an explicit table of *which attack types 
 MVP can and cannot reasonably be expected to catch*, written **before** the numbers
 are seen, so the split is not post-hoc.
 
+### Recall is structurally bimodal by attack category — not a tuning gap (EXP-0002)
+
+The headline combined detector (`EXPERIMENT_LOG.md` EXP-0002) has a window-level
+**recall of ≈ 0.14** on the TEST block. That single number is **not a target to be
+raised by tuning.** It is the class-mix-weighted average of two structurally distinct
+regimes, and which regime an attack falls into is fixed by the **one-way,
+egress-only observability model**, not by hyperparameters, feature scaling, or IF
+settings:
+
+| Category | EXP-0002 TEST recall (combined) | Regime | Why |
+|---|---|---|---|
+| **MFCI**, **Recon** | ~100 % | **at the achievable ceiling** | These manipulate the *protocol* itself — out-of-profile Modbus function codes, device / function-code scans. Directly wire-observable; caught deterministically by the rule layer (`ml/rules.py`), not the IF. Nothing above 100 % to gain. |
+| **MSCI**, **MPCI**, **CMRI**, **NMRI** | ~2 – 10 % | **near-zero by design** | The discriminating signal is the *payload content* — a manipulated setpoint / gain / pump / solenoid state, or a fabricated sensor value, inside an otherwise well-formed frame at a normal rate. The diode-observer model **deliberately excludes payload values** (`04_DATASET_PLAN.md` §Novelty; `05_FEATURE_ENGINEERING_SPEC.md`). No IF tuning recovers a signal the feature set does not carry. The small non-zero rate is incidental framing/timing perturbation, not detection of the attack's intent. |
+| **DoS** (Bad-CRC) | ~1 % | **near-zero — pending verification** | Recorded as **CANNOT (egress)** in the pre-registered CAN/CANNOT table: the Bad-CRC flood is entirely *inbound*, and the RTU's egress replies during a DoS episode are byte-identical to normal replies. Whether any egress-side *timing* signature exists is being measured in **EXP-0003** before this verdict is treated as final. |
+
+**Basis:** the EXP-0002 combined per-category table, and the EXP-0002 decision line —
+> *"No further IF tuning without a genuinely new signal."*
+
+**Reporting rule:** an aggregate or "headline" recall figure **must** be presented
+together with this per-category breakdown. An un-annotated *"recall = 0.14"* is a
+misleading number — it invites the reader to treat a design boundary as an
+unfinished optimisation.
+
 ### Comparison reporting
 
 Every metric is reported **twice** side by side: **naive baseline** vs **Isolation
@@ -111,8 +134,10 @@ case where the baseline misses or false-alarms and the Isolation Forest is corre
   (`04_DATASET_PLAN.md`), never on TEST, never on TRAIN.
 - **Method:** choose the threshold at a target **false-positive rate** on the
   validation-normal windows (e.g. the 99th or 99.5th percentile of validation-normal
-  anomaly scores), then report the recall that this FPR buys on TEST. Exact target
-  FPR `[TBD — pending experiment]`.
+  anomaly scores), then report the recall this FPR buys on TEST — **broken out per
+  attack category**, never as an aggregate alone (see "Recall is structurally bimodal
+  …" above). EXP-0002 used the 99th percentile (1 % target FPR; ≈ 3 % observed on
+  TEST-normal, the difference being validation→test drift over the 3.2-day capture).
 - If validation-block labels are available, an alternative is a precision/recall
   trade-off point on validation; the choice and its justification are recorded in
   `EXPERIMENT_LOG.md`.
@@ -148,12 +173,21 @@ per-tree path contributions are Tier 3.)
 
 ## Realistic-Expectations Statement
 
-- We do not promise any accuracy figure before experiments exist.
-- We expect the Isolation Forest to outperform the naive baseline on volume,
-  function-mix, and gross-timing attacks, and to struggle on anything the Tier 1
-  features cannot see.
-- We expect the artifact audit to constrain which features are legitimately usable,
-  possibly reducing apparent performance — this is correct behaviour, not a
-  regression.
-- Any result that looks "too clean" (near-perfect separation) is treated as a
-  suspected instrumentation artifact until the audit explains it.
+- No accuracy figure is quoted unless a recorded `EXPERIMENT_LOG.md` run produced it.
+- **Measured (EXP-0002):** the combined detector reliably catches only the
+  protocol-manipulation categories (**MFCI, Recon** — ~100 %, via the deterministic
+  rule layer). **MSCI / MPCI / CMRI / NMRI** sit near zero because their signal is
+  payload content the egress-only view excludes by design; **DoS** near zero because
+  the attack is inbound-only (pending EXP-0003). This split is **structural**, it
+  matched the pre-registered CAN/CANNOT table, and it is not closed by tuning — see
+  "Recall is structurally bimodal …" above.
+- The Isolation Forest, once entropy was admitted and dead features removed
+  (EXP-0002), went from recall 0.027 to 0.136 standalone but still barely beats the
+  naive baseline on the combined number — the ceiling is the feature set, not the
+  model.
+- The instrumentation-artifact audit may still rule features out and *reduce* the
+  numbers above — that is correct behaviour, not a regression.
+- A result that looks "too clean" (near-perfect separation) is treated as a suspected
+  instrumentation artifact until the audit explains it. The MFCI/Recon ~100 % is
+  *explained*: an out-of-profile function code on the wire is a real, deterministic
+  signal, not an artifact.

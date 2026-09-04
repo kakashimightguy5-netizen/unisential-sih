@@ -61,10 +61,14 @@ anomaly-score trace crossing the threshold marker. The baseline-vs-ML comparison
 
 - **Normal clip** — egress-filtered windows from the normal time range, held out of
   training.
-- **Attack clip(s)** — egress-filtered windows from attack-labelled time ranges,
-  chosen from attack types the Tier 1 feature set can plausibly catch (volume,
-  function-mix, gross timing; entropy on a payload fixture). Labelled: *simulated
-  unidirectional view of a bidirectional dataset — not real diode data.*
+- **Attack clip(s)** — egress-filtered windows from attack-labelled time ranges.
+  On the gas-pipeline dataset the reliably-detected categories are **MFCI** and
+  **Recon** (~100 %, rule layer); the demo attack clip **must** be drawn from those,
+  since S-3 requires an alert (`06_AI_MODEL_EVALUATION_PLAN.md`, "Recall is
+  structurally bimodal …"). MSCI/MPCI/CMRI/NMRI/DoS clips may be shown *alongside* as
+  the honest "not detectable from one direction" demonstration for S-7, not for S-3.
+  An entropy-on-payload fixture covers TS-5. Labelled: *simulated unidirectional view
+  of a bidirectional dataset — not real diode data.*
 - **Comparison window** — one pre-identified window where baseline ≠ correct and IF =
   correct (from `EXPERIMENT_LOG.md` T-18).
 - A one-slide statement of the **novelty claim** and the **honest limitations**
