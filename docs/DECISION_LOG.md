@@ -175,6 +175,12 @@ Format: **DATE · DECISION · OPTIONS CONSIDERED · WHY CHOSEN · IMPACT**
 - **Impact:** authoritative across `00`, `02`, `03`, `05`, `06`, `07`, `09`, `10`,
   and the README. Any promotion of a Tier 2/3 item into the MVP requires a new
   decision-log entry and explicit user approval.
+- **Update (2026-09-04, EXP-0003):** the Tier 2 **IAT** items (histogram distance,
+  per-source rolling profile) are no longer a candidate recall lever — EXP-0003
+  measured no egress timing signal for DoS, and the same reasoning applies to
+  CMRI/NMRI. They remain documented as stretch, but pursuing them for detection
+  recall is foreclosed. See `06_AI_MODEL_EVALUATION_PLAN.md` and the 2026-09-04
+  EXP-0003 entry above.
 
 ---
 

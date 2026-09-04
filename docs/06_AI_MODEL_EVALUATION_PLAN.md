@@ -178,9 +178,9 @@ per-tree path contributions are Tier 3.)
   protocol-manipulation categories (**MFCI, Recon** — ~100 %, via the deterministic
   rule layer). **MSCI / MPCI / CMRI / NMRI** sit near zero because their signal is
   payload content the egress-only view excludes by design; **DoS** near zero because
-  the attack is inbound-only (pending EXP-0003). This split is **structural**, it
-  matched the pre-registered CAN/CANNOT table, and it is not closed by tuning — see
-  "Recall is structurally bimodal …" above.
+  the attack is inbound-only (**confirmed by EXP-0003**). This split is
+  **structural**, it matched the pre-registered CAN/CANNOT table, and it is not
+  closed by tuning — see "Recall is structurally bimodal …" above.
 - The Isolation Forest, once entropy was admitted and dead features removed
   (EXP-0002), went from recall 0.027 to 0.136 standalone but still barely beats the
   naive baseline on the combined number — the ceiling is the feature set, not the
@@ -191,3 +191,26 @@ per-tree path contributions are Tier 3.)
   instrumentation artifact until the audit explains it. The MFCI/Recon ~100 % is
   *explained*: an out-of-profile function code on the wire is a real, deterministic
   signal, not an artifact.
+
+### EXP-0003 forecloses the Tier 2 IAT rationale for the payload-content categories
+
+The stretch plan (`DECISION_LOG.md` 2026-09-02 tiering entry) listed Tier 2 IAT
+features — IAT histogram distance, per-source rolling profile — as the next lever for
+the low-recall categories. **EXP-0003 removes that rationale:**
+
+- **DoS:** measured — no egress inter-arrival-time separation at all (Cohen's d
+  ≤ 0.15 on every IAT statistic; raw inter-frame-gap distributions identical,
+  Kolmogorov–Smirnov p = 0.65). A finer IAT feature has nothing finer to find.
+- **CMRI / NMRI:** by the same logic. Their attack signal is a manipulated *value*
+  inside a well-formed frame emitted at the normal polling cadence — there is no
+  timing perturbation for an IAT-histogram or rolling-profile feature to pick up any
+  more than the mean/std already do. (CMRI is *designed* to hold timing constant;
+  NMRI's occasional hits in EXP-0002 come from frame-length / rare-code artefacts,
+  not timing.)
+
+**Consequence.** Tier 2 IAT work is **not pursued** (Phase 4 held). Meaningful recall
+on MSCI / MPCI / CMRI / NMRI / DoS would require a **new signal type that has not
+been identified** — not incremental tuning or elaboration of the existing rate/timing/
+function-code/entropy features. Recorded so this is not re-litigated as an
+optimisation task. If a new signal is proposed it gets its own pre-registered
+experiment.

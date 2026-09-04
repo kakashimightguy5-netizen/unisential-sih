@@ -301,7 +301,9 @@ scope; they do not validate anything.
 - **Decision:** EXP-0002 is the current headline detector. Next lever would be Tier 2
   features (IAT histogram distance, per-source rolling profile) for the value-manip
   categories — but per EXP-0001 those are fundamentally payload-limited; expect small
-  gains. No further IF tuning without a new signal.
+  gains. No further IF tuning without a new signal. *(The Tier 2 IAT lever is
+  **withdrawn** by EXP-0003 below — measured: no egress timing signal for DoS, and
+  the same logic applies to CMRI/NMRI.)*
 
 ---
 
