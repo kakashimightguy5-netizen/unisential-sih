@@ -44,7 +44,7 @@ DoS/Recon and this table is final.
 | **NMRI (1)** — naive response injection (specific 29–32) | **PARTIAL / CAN** | Often shifts value patterns and sometimes rate/timing; Tier 1 sees rate/timing, not value semantics. |
 | **CMRI (2)** — complex response injection (specific 25–28,33–35) | **PARTIAL** | Designed to look normal; Tier 1 catches it only if framing/timing/rate drift. |
 | **Recon (7)** — reconnaissance (specific 20,23,24) | **CAN** | Typically raises packet rate / address spread / function-code spread. |
-| **DoS (6)** — denial of service (specific 18) | **CANNOT (egress)** | Revised by EXP-0001. The Bad-CRC attack is entirely *inbound* (toward the RTU); the RTU's egress replies during a DoS episode are byte-identical to normal replies, and window rate / IAT are unchanged. A data diode blocks the inbound flood in hardware, so there is no egress signature to detect. Originally pre-registered "CAN" on an assumption of rate deviation that the data does not show. |
+| **DoS (6)** — denial of service (specific 18) | **CANNOT (egress) — MEASURED (EXP-0003)** | Revised by EXP-0001 (threat-model reasoning), **verified by EXP-0003** (direct measurement, TEST split): no egress IAT separation — Cohen's d = +0.135 / +0.120 / +0.009 / +0.146 on `iat_mean/std/min/max`, raw inter-frame-gap distributions identical (d = +0.036, Kolmogorov–Smirnov p = 0.65). Best IAT threshold buys 8.7 % DoS recall at +5 % Normal FPR (= noise). The 203 Bad-CRC egress frames are byte-identical to a normal `0x10` echo response. The attack is entirely *inbound*; a data diode blocks the flood in hardware, so there is no egress signature. Originally pre-registered "CAN" on an assumption of rate deviation the data does not show. |
 | TS-5 — payload entropy anomaly | **NOT EVALUABLE** | Mechanism demonstrated on fixtures/TXT frames; no join key to labels (BLOCKER 3). Excluded from headline recall; entropy features not in the headline model. |
 | Covert timing channel shaped to mimic normal IAT distribution | **CANNOT (reliably)** | Tier 1 IAT mean/std can be held constant by the attacker; histogram-distance (Tier 2) and Tier 3 timing features are needed. |
 | Covert storage channel (header/protocol field encoding) | **CANNOT** | Not implemented (Tier 3). |
@@ -302,3 +302,58 @@ scope; they do not validate anything.
   features (IAT histogram distance, per-source rolling profile) for the value-manip
   categories — but per EXP-0001 those are fundamentally payload-limited; expect small
   gains. No further IF tuning without a new signal.
+
+---
+
+### EXP-0003 · DoS egress-timing measurement — 2026-09-04 (investigation only, no architecture change)
+- **References:** EXP-0002; pre-registered CAN/CANNOT table above (DoS row);
+  `DECISION_LOG.md` 2026-09-04. Code: `ml/exp0003_dos_timing.py`.
+- **Question.** EXP-0001/0002 recorded DoS (Bad-CRC, specific 18) as **CANNOT
+  (egress)** on threat-model *reasoning* (the flood is inbound; egress replies look
+  normal). This experiment tests that verdict directly: is there any egress
+  inter-arrival-time (IAT) signature separating DoS windows from Normal windows?
+- **Pre-registration (fixed before the numbers were seen — script header):**
+  - **SEPARATION** = ≥1 IAT statistic with |Cohen's d| > 0.5 **and** a one-sided
+    threshold on it flags ≥30 % of DoS windows at ≤5 pp added Normal FPR.
+  - **NO SEPARATION** = |d| < 0.2 on all four IAT stats **and** the raw inter-frame-gap
+    distributions overlap (effect size decides, not p).
+  - **AMBIGUOUS** = anything between → no verdict change without a fuller experiment.
+  - Scope: measurement only, no detector code change, no new feature, **TEST split
+    only** (3,610 pure-Normal windows; 138 windows containing ≥1 DoS frame — the
+    "contains-a-DoS-frame" set, broader than EXP-0002's 91 dominant-DoS, chosen to be
+    generous to the hypothesis).
+- **Measurement (TEST split):**
+
+  | IAT statistic (per 5 s window) | Normal mean ± std | DoS-window mean ± std | Cohen's d | Mann–Whitney p |
+  |---|---|---|---|---|
+  | `iat_mean` | 1.6654 ± 0.0312 | 1.6696 ± 0.0279 | **+0.135** | 0.11 |
+  | `iat_std`  | 0.0868 ± 0.0313 | 0.0905 ± 0.0262 | **+0.120** | 0.24 |
+  | `iat_min`  | 1.5786 ± 0.0360 | 1.5789 ± 0.0340 | **+0.009** | 0.70 |
+  | `iat_max`  | 1.7529 ± 0.0508 | 1.7603 ± 0.0422 | **+0.146** | 0.16 |
+
+  - **Raw consecutive inter-frame gaps** within those windows (Normal n = 7,195; DoS
+    n = 277): mean 1.6659 vs 1.6695, std 0.0976 vs 0.0983. **Cohen's d = +0.036**,
+    Mann–Whitney p = 0.45, **Kolmogorov–Smirnov p = 0.65** — the two gap
+    distributions are the same distribution.
+  - **Best single-threshold** on any IAT stat at ≤5 pp added Normal FPR:
+    `iat_mean ≥ 1.7072` → **8.7 % DoS recall** (12 / 138 windows) for +5.0 % Normal
+    FPR (~180 new false positives). Every other stat sits at the ~5 % FPR floor = noise.
+  - **DoS frame content:** the 203 Bad-CRC frames (specific 18) in these windows are
+    **1 distinct frame** — function code `0x10`, 8 bytes — byte-identical to a normal
+    `0x10` echo response. DoS windows carry the same `{0x03, 0x10}` code mix, the same
+    lengths, and the same ~3 frames/window as Normal windows.
+- **Verdict: NO SEPARATION** (pre-registered criterion met on every axis: all four
+  |d| < 0.2; raw-gap KS p = 0.65). **The DoS "CANNOT (egress)" verdict is now
+  MEASURED, not assumed.** DoS is not weakly detectable on the egress side — it is
+  *indistinguishable* from normal traffic across window-level timing, raw inter-frame
+  gaps, and frame content. Consistent with the threat model: the diode blocks the
+  inbound flood in hardware; the RTU keeps answering normally.
+- **Decision.**
+  1. Pre-registered CAN/CANNOT table (DoS row) updated to cite these effect sizes.
+  2. `DECISION_LOG.md` 2026-09-04 entry extended with the measured result.
+  3. **No new feature or rule.** The same "no egress timing signal" logic applies to
+     CMRI/NMRI (their signal is payload value, not timing), so EXP-0003 also
+     forecloses the Tier 2 IAT-feature rationale for those categories — see
+     `06_AI_MODEL_EVALUATION_PLAN.md` Realistic-Expectations. Further recall on
+     payload-content categories needs a **new signal type, not identified yet** — not
+     incremental tuning of existing features.

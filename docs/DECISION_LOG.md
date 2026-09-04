@@ -4,6 +4,33 @@ Format: **DATE · DECISION · OPTIONS CONSIDERED · WHY CHOSEN · IMPACT**
 
 ---
 
+### 2026-09-04 · DoS "CANNOT (egress)" verdict verified by measurement (EXP-0003)
+- **Decision:** the DoS (Bad-CRC, specific 18) detection verdict, previously
+  **CANNOT (egress)** on threat-model *reasoning* (EXP-0001), is now **CANNOT
+  (egress) — MEASURED**. No detector or feature change; the verdict's basis is
+  upgraded from "assumed" to "measured".
+- **Options considered:** (a) leave the verdict as reasoning-only; (b) run a scoped
+  measurement of egress timing before treating it as final; (c) speculatively add a
+  Tier 2 IAT feature for DoS.
+- **Why chosen (b):** a "CANNOT" that gates scope decisions should be measured, not
+  inferred. EXP-0003 compared egress inter-arrival timing for DoS vs Normal windows
+  on the **TEST split only** against a pre-registered decision rule. Result: **NO
+  SEPARATION** — Cohen's d = +0.135 / +0.120 / +0.009 / +0.146 on
+  `iat_mean`/`iat_std`/`iat_min`/`iat_max` (all < the 0.2 "no separation" threshold);
+  raw inter-frame-gap distributions identical (d = +0.036, Mann–Whitney p = 0.45,
+  Kolmogorov–Smirnov p = 0.65); best IAT threshold buys 8.7 % DoS recall at +5 %
+  Normal FPR (noise). The 203 Bad-CRC egress frames are byte-identical to a normal
+  `0x10` echo response. Option (c) is rejected by the same evidence.
+- **Impact:** `EXPERIMENT_LOG.md` gains **EXP-0003** and the pre-registered
+  CAN/CANNOT table DoS row is updated with the effect sizes / KS p-value.
+  `06_AI_MODEL_EVALUATION_PLAN.md` Realistic-Expectations notes that EXP-0003 also
+  forecloses the Tier 2 IAT rationale for CMRI/NMRI (same no-timing-signal logic).
+  `ml/exp0003_dos_timing.py` added (measurement script, reproducible). **Phase 4
+  (Tier 2 IAT features) is not pursued** — payload-content recall would need a new
+  signal type, not identified.
+
+---
+
 ### 2026-09-04 · Payload entropy admitted to the headline model; `function_code_valid` moved to a deterministic rule
 - **Decision (two linked amendments, basis EXP-0001):**
   1. **Lift the payload-entropy exclusion.** `payload_entropy_mean` / `payload_entropy_std`
