@@ -89,8 +89,7 @@ for test_index in flagged_indices:
     window = result.test_windows[test_index]
     timeline_rows.append({
         "alert": len(timeline_rows) + 1,
-        "test_index": test_index,
-        "window_index": int(window.w_index),
+        "test_window_index": test_index,
         "timestamp_utc": utc_timestamp(window.t_start),
         "category": CATEGORY_NAMES[int(result.cat_test[test_index])],
         "mechanism": firing_mechanism(result, test_index),
@@ -109,7 +108,7 @@ st.scatter_chart(
     width="stretch",
 )
 st.dataframe(
-    timeline.drop(columns=["test_index"]),
+    timeline,
     width="stretch",
     hide_index=True,
 )
@@ -129,7 +128,7 @@ explanation = explain_alert(result, selected_test_index, top_k=top_k)
 s1, s2, s3 = st.columns(3)
 s1.metric("Fired by IF", "Yes" if explanation.fired_by_if else "No")
 s2.metric("Fired by rule", "Yes" if explanation.fired_by_rule else "No")
-s3.metric("Window index", f"{explanation.window_index:,}")
+s3.metric("TEST window index", f"{explanation.test_index:,}")
 
 if explanation.rule_reasons:
     st.warning("Deterministic rule hit: " + "; ".join(explanation.rule_reasons))
