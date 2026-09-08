@@ -47,6 +47,37 @@ Format: **DATE · DECISION · OPTIONS CONSIDERED · WHY CHOSEN · IMPACT**
 
 ---
 
+### 2026-09-08 · PLANNED — separate Layer A pre-diode DoS proof of concept (EXP-0005)
+
+- **PLANNED — decision:** add an isolated OT-side Layer A proof of concept that observes
+  the verified Turnipseed stream before direction filtering and emits only a sanitized
+  DoS alert verdict outward. Keep EXP-0004 Layer B unchanged as the egress-only detector
+  after the diode.
+- **PLANNED — options considered:** (a) merge bidirectional features into Layer B;
+  (b) leave DoS entirely out of software detection because Layer B cannot observe it;
+  (c) add a separate pre-diode Layer A detector. Choose (c).
+- **PLANNED — why:** merging would invalidate Layer B's unidirectional observer contract
+  and disguise the observation-point difference. Omitting Layer A would fail to show
+  that conventional detection remains possible inside OT where both directions are
+  legitimately visible. Layer A does not send raw traffic across the diode, so it does
+  not weaken the one-way boundary. Its potential capability comes precisely from
+  visibility that Layer B is architecturally denied; this is complementary, not a
+  contradiction or a reversal of EXP-0004.
+- **PLANNED — scope/impact:** implement only `ml/layer_a_detector.py`, isolated tests,
+  and a machine-readable result for EXP-0005. Dashboard/API/SQLite integration is
+  deferred because the solo-developer deadline is 2026-09-15. Do not modify the Layer B
+  detector, explainability, rules, or dashboard. Actual performance remains unmeasured
+  until EXP-0005 runs; no claim that Layer A solves DoS detection is authorized.
+- **VALIDATED — outcome (EXP-0005):** the isolated proof of concept ran once under its
+  pre-registration and found 0/193 DoS-containing TEST windows (recall 0.000, precision
+  0.000, F1 0.000) with 78/4,931 pure-Normal windows flagged (FPR 0.015818). Therefore
+  Layer A is retained only as an architectural proof of placement, not as a validated
+  working DoS detector. No post-TEST tuning is authorized under EXP-0005. The decision
+  to keep it separate from Layer B still stands because their observation boundaries
+  differ; the null result does not alter EXP-0004 and does not justify dashboard work.
+
+---
+
 ### 2026-09-04 · DoS "CANNOT (egress)" verdict verified by measurement (EXP-0003)
 - **Decision:** the DoS (Bad-CRC, specific 18) detection verdict, previously
   **CANNOT (egress)** on threat-model *reasoning* (EXP-0001), is now **CANNOT

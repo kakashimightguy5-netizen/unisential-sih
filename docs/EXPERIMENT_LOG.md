@@ -550,3 +550,216 @@ to conceal or replace it.
 - **Decision:** EXP-0004 supersedes all detector/DoS numbers from retracted
   EXP-0001/0002/0003. Reliable detections remain MFCI and Recon via the explicit rule;
   other attack families are weak and DoS has no measured egress timing separation.
+
+---
+
+### EXP-0005 · Layer A pre-diode DoS detector proof of concept — 2026-09-08
+
+> **PRE-REGISTRATION — PLANNED.** Recorded before `ml/layer_a_detector.py` exists and
+> before any EXP-0005 model is fit, thresholded, or scored. No EXP-0005 result has been
+> viewed at this point.
+
+- **PLANNED — architectural scope:** Layer A is an OT-side sensor placed before the
+  data diode, where legitimate bidirectional observation is available. It emits only a
+  sanitized alert verdict outward; raw bidirectional traffic does not cross the diode.
+  This is a separate proof of concept, not a change to EXP-0004's Layer B egress-only
+  framing and not a weakening of the diode's one-way guarantee. EXP-0004's measured
+  DoS limitation stands unchanged.
+- **PLANNED — dataset:** use the current verified
+  `data/raw/gas_pipeline_raw.txt`, sha256
+  `ce2d69e3ada867b498a1db4560d609c35d23667f4f5cf2dea57ddd63fe7d93e3`, all
+  274,628 rows and both directions (`destination ∈ {1,3}`). This is the unfiltered,
+  original bidirectional Turnipseed stream, not EXP-0004's `destination == 1` egress
+  slice. The TXT is verified row-aligned to the authoritative ARFF on timestamp, both
+  labels, and direction; direction semantics are thesis-confirmed.
+- **PLANNED — unit and label:** 5-second tumbling windows over the full time-ordered
+  stream, with windows containing fewer than two frames omitted. A window is DoS-positive
+  if it contains at least one `categorized_attack == 6` frame; a pure-Normal window has
+  only `categorized_attack == 0` frames. Other-attack windows are excluded from the
+  primary DoS-vs-Normal metric cohort rather than incorrectly counted as DoS false
+  positives.
+- **PLANNED — split/leakage control:** sort windows by absolute bucket index, then use
+  the same contiguous 60/20/20 split rule and one-window guard at both boundaries as
+  EXP-0004. Fit the standardizer and model on TRAIN pure-Normal windows only. Select
+  the threshold as the 99th percentile of VALIDATION pure-Normal anomaly scores. Score
+  TEST once after the implementation/tests are ready. Labels, `source`, `destination`,
+  absolute timestamp, and raw bucket index are excluded from model inputs.
+- **PLANNED — features:** per-window `packet_count`, `packets_per_sec`,
+  `bytes_per_sec`, `mean_frame_len`, `iat_mean`, `iat_std`, `iat_min`, `iat_max`,
+  `frac_func_read`, `frac_func_write`, `rare_func_rate`, `distinct_frame_ratio`,
+  `repeat_frame_rate`, `payload_entropy_mean`, and `payload_entropy_std`. Inter-arrival
+  times are computed only between consecutive frames inside each window, not across
+  split boundaries.
+- **PLANNED — model and rationale:** reuse the normal-only Isolation Forest approach
+  from EXP-0004: 300 trees, `max_samples="auto"`, `contamination="auto"`, seed 0,
+  with frozen TRAIN-normal standardization. This avoids training a supervised detector
+  on known DoS labels and tests the intended operational question: whether bidirectional
+  pre-diode traffic makes DoS statistically observable. A supervised classifier is not
+  needed for this scoped proof of concept.
+- **PLANNED — fixed decision/reporting rule:** this is a descriptive proof of concept
+  with **no pass/fail performance gate**. Report the held-out TEST precision, recall,
+  F1, FPR, and TN/FP/FN/TP exactly as observed, including a weak or null result. No
+  threshold or feature may be changed after TEST metrics are viewed under EXP-0005;
+  any such change requires a separately pre-registered experiment ID.
+- **PLANNED — comparison:** report EXP-0005 Layer A DoS-specific metrics beside the
+  validated EXP-0004 Layer B DoS result (0/136 dominant-DoS TEST windows flagged = 0%
+  combined flag rate; the broader timing cohort contained 193 DoS-containing windows).
+  The cohorts and units must be labelled, so this is an architectural contrast rather
+  than a claim that Layer A universally solves DoS detection.
+- **PLANNED — outputs/tests:** isolated implementation in `ml/layer_a_detector.py`,
+  tests in a new Layer A test file, and machine-readable metrics under
+  `data/experiments/`. No dashboard, REST API, SQLite, or Layer B code changes.
+
+#### EXP-0005 outcome
+
+- **IMPLEMENTED — code:** `ml/layer_a_detector.py` implements the pre-registered
+  bidirectional window builder, frozen TRAIN-normal standardizer, Isolation Forest,
+  validation-normal threshold, DoS-vs-pure-Normal TEST cohort, metrics, and JSON output.
+  `tests/test_layer_a_detector.py` contains five isolated tests. No Layer B or dashboard
+  file was modified.
+- **TESTED — pre-TEST checks:** before the real EXP-0005 run, all five new synthetic
+  tests passed in 2.17 s. They verify both directions are retained, IAT is computed
+  inside a window, model features exclude labels/direction/identity/time, guard gaps
+  are present, other-attack-only windows are excluded from the DoS cohort, and empty
+  input is rejected.
+- **VALIDATED — data/split:** the one permitted EXP-0005 run parsed 274,628 frames with
+  observed destination values `{1,3}` and emitted 50,080 bidirectional 5-second
+  windows. Contiguous blocks after guards: TRAIN 30,047 / VALIDATION 10,014 / TEST
+  10,015. TRAIN pure-Normal fit set: 15,616; VALIDATION pure-Normal threshold set:
+  5,013. TEST metric cohort: 4,931 pure-Normal + 193 DoS-containing windows. This
+  confirms the run used the verified full bidirectional stream rather than Layer B's
+  137,013-frame egress slice.
+- **VALIDATED — model/threshold:** Isolation Forest with the pre-registered parameters;
+  threshold `0.6950767586842237`, selected as the 99th percentile of VALIDATION
+  pure-Normal scores before TEST classification.
+- **VALIDATED — TEST metrics (DoS-containing vs pure-Normal windows):**
+
+  | detector | precision | recall | F1 | FPR | TN | FP | FN | TP |
+  |---|---:|---:|---:|---:|---:|---:|---:|---:|
+  | Layer A EXP-0005 IF | 0.000000 | 0.000000 | 0.000000 | 0.015818 | 4,853 | 78 | 193 | 0 |
+
+- **VALIDATED — architectural comparison:**
+
+  | layer / observation point | DoS cohort used | DoS flagged | DoS flag rate |
+  |---|---|---:|---:|
+  | Layer A EXP-0005, pre-diode bidirectional | 193 DoS-containing TEST windows vs 4,931 pure-Normal | 0 / 193 | 0.000% recall |
+  | Layer B EXP-0004, post-diode egress-only | 136 dominant-DoS TEST windows | 0 / 136 | 0.000% combined flag rate |
+
+  The denominators differ and are shown explicitly; this is not a paired metric claim.
+- **VALIDATED — interpretation:** the EXP-0005 Isolation Forest proof of concept did
+  **not** detect DoS in this dataset despite bidirectional placement. Bidirectional
+  visibility makes pre-diode DoS detection architecturally possible in principle, but
+  does not guarantee that these pre-registered features contain a separable signal.
+  The dataset's attack is labelled "Bad CRC," while standard Modbus CRC validity is
+  effectively absent across this artifact and was therefore not used as a feature.
+  Layer A does not "solve" DoS here. Layer B's structural limitation still stands,
+  and Layer A remains separate because it has a different legitimate observation
+  boundary—not because this experiment demonstrated improved performance.
+- **VALIDATED — fixed-rule disposition:** the no-gate rule requires reporting this null
+  result unchanged. No post-TEST feature, threshold, or model tuning was performed.
+  Machine-readable output: `data/experiments/exp0005_layer_a_metrics.json` (under the
+  repository's ignored `data/` tree; local experiment artifact, not raw-data input).
+
+---
+
+### EXP-0005b · Diagnostic supervised baseline + raw feature separation — 2026-09-08
+
+> **PRE-REGISTRATION — PLANNED.** Recorded after EXP-0005's fixed result was viewed but
+> before this additional model is fit or any TEST feature summaries are computed. This
+> does not overwrite, rerun, or retune EXP-0005.
+
+- **PLANNED — question:** determine whether EXP-0005's null result arose because its
+  normal-only anomaly-score threshold missed a signal that a supervised classifier can
+  use, or because the pre-registered feature values show little DoS-vs-Normal separation.
+- **PLANNED — unchanged data/unit/split/features:** reuse EXP-0005's 50,080 unfiltered
+  bidirectional 5-second windows, identical contiguous TRAIN/VALIDATION/TEST indices and
+  guard gaps, and identical 15 features. A positive window means **any DoS frame is
+  present** (`categorized_attack == 6`); it is not a majority or dominant-category
+  rule. Pure-Normal means the category set is exactly `{0}`. Other-attack-only windows
+  remain outside the binary cohort. This differs from EXP-0004's reported 136-window
+  **dominant-DoS** category row; EXP-0004's separate timing diagnostic used the broader
+  DoS-containing definition (193 windows).
+- **PLANNED — supervised baseline:** `sklearn.RandomForestClassifier` with 300 trees,
+  `class_weight="balanced"`, `random_state=0`, `n_jobs=-1`, trained on TRAIN
+  DoS-containing plus pure-Normal windows only. Use only the same 15 numeric features;
+  labels, `source`, `destination`, timestamp, and bucket ID remain excluded. Use the
+  fixed probability threshold 0.5; do not tune it on VALIDATION or TEST. Report TEST
+  precision, recall, F1, FPR, and TN/FP/FN/TP on the same DoS-vs-pure-Normal cohort.
+- **PLANNED — feature diagnostic:** report mean and population standard deviation for
+  every raw feature over all 193 TEST DoS-containing windows and over a deterministic
+  simple random sample (seed 0, without replacement) of 193 TEST pure-Normal windows.
+  These are descriptive raw values, not model scores or inferential guarantees.
+- **PLANNED — decision rule:** no performance gate and no post-result tuning. If the
+  supervised baseline finds material held-out signal or the raw summaries visibly
+  separate, treat EXP-0005 as a fixable modeling/feature-threshold gap and do not claim
+  a fundamental data limit. If both remain null/near-null, retain EXP-0005's null result
+  with this additional evidence. Report whatever occurs exactly.
+
+#### EXP-0005b outcome
+
+- **IMPLEMENTED — diagnostic:** `ml/exp0005b_diagnostic.py` implements only the
+  pre-registered supervised comparison and raw-value summaries. The first invocation
+  stopped at Python parse time due to an unterminated output newline literal; no data
+  was loaded and no model/result was produced. That syntax-only defect was corrected,
+  after which the one scoring run below was performed. EXP-0005 was not rerun.
+- **IMPLEMENTED — tests:** `tests/test_exp0005b_diagnostic.py` checks the fixed
+  classifier configuration and any-DoS-frame label rule, exact validated TEST counts
+  and metrics, and complete equal-size raw-feature summaries.
+- **TESTED — full suite:** all 36 tests passed after EXP-0005b implementation,
+  including the 28 pre-Layer-A tests, five EXP-0005 tests, and three EXP-0005b tests.
+- **VALIDATED — supervised TEST metrics:** TRAIN cohort contained 15,616 pure-Normal
+  and 359 DoS-containing windows. On the unchanged TEST cohort (4,931 pure-Normal +
+  193 DoS-containing), the fixed 0.5 Random Forest threshold produced:
+
+  | detector | precision | recall | F1 | FPR | TN | FP | FN | TP |
+  |---|---:|---:|---:|---:|---:|---:|---:|---:|
+  | EXP-0005b supervised Random Forest | 0.630252 | 0.388601 | 0.480769 | 0.008923 | 4,887 | 44 | 118 | 75 |
+
+- **VALIDATED — raw TEST feature values:** DoS columns use all 193 DoS-containing
+  windows; Normal columns use the pre-registered seed-0 sample of 193 pure-Normal
+  windows. Standard deviations are population standard deviations.
+
+  | feature | DoS mean | DoS std | Normal sample mean | Normal sample std |
+  |---|---:|---:|---:|---:|
+  | packet_count | 5.968912 | 0.247406 | 5.704663 | 0.987397 |
+  | packets_per_sec | 1.193782 | 0.049481 | 1.140933 | 0.197479 |
+  | bytes_per_sec | 25.099482 | 2.447384 | 23.915026 | 5.184216 |
+  | mean_frame_len | 21.023637 | 1.852236 | 20.761411 | 2.412335 |
+  | iat_mean | 0.699529 | 0.041197 | 0.682723 | 0.161629 |
+  | iat_std | 0.704792 | 0.021963 | 0.665114 | 0.164904 |
+  | iat_min | 0.085740 | 0.007866 | 0.086462 | 0.009096 |
+  | iat_max | 1.612139 | 0.048005 | 1.526069 | 0.356453 |
+  | frac_func_read | 0.495806 | 0.163794 | 0.512805 | 0.192736 |
+  | frac_func_write | 0.503158 | 0.163818 | 0.487195 | 0.192736 |
+  | rare_func_rate | 0.001036 | 0.014359 | 0.000000 | 0.000000 |
+  | distinct_frame_ratio | 0.829164 | 0.044856 | 0.763928 | 0.106254 |
+  | repeat_frame_rate | 0.000000 | 0.000000 | 0.000000 | 0.000000 |
+  | payload_entropy_mean | 3.148738 | 0.071799 | 3.162245 | 0.076283 |
+  | payload_entropy_std | 0.254053 | 0.072179 | 0.229369 | 0.079662 |
+
+- **VALIDATED — three-way comparison:**
+
+  | layer / model | observation point and cohort | precision | recall / DoS flag rate | F1 | FPR |
+  |---|---|---:|---:|---:|---:|
+  | Layer B EXP-0004 combined | post-diode egress-only; 136 dominant-DoS TEST windows | not defined for DoS-only row | 0.000000 | not defined for DoS-only row | 0.007489 overall Normal FPR |
+  | Layer A EXP-0005 Isolation Forest | pre-diode bidirectional; 193 DoS-containing vs 4,931 pure-Normal | 0.000000 | 0.000000 | 0.000000 | 0.015818 |
+  | Layer A EXP-0005b Random Forest | same pre-diode data, split, features, and TEST cohort as EXP-0005 | 0.630252 | 0.388601 | 0.480769 | 0.008923 |
+
+  Layer B's precision/F1 are not derivable from its DoS category flag-rate row; its FPR
+  shown is the validated detector-wide Normal TEST FPR. The different Layer B cohort is
+  explicit. EXP-0005 and EXP-0005b are directly comparable on the same full-visibility
+  cohort.
+- **VALIDATED — interpretation:** the supervised baseline finds material held-out
+  signal (75/193 DoS windows, 38.86% recall at 0.892% FPR), so EXP-0005's 0% result is
+  a modeling/objective gap: normal-only Isolation Forest did not rank the comparatively
+  tight DoS pattern as anomalous. The raw summaries support that diagnosis: several
+  DoS feature distributions are narrower than Normal and modestly shifted, especially
+  packet count/rate, IAT dispersion/maximum, and distinct-frame ratio. **These are
+  subtle, tight-distribution shifts rather than extreme or volumetric behavior, so the
+  dataset's "DoS" must not be described as a classic traffic flood in the final
+  writeup.** This is **not** evidence of a fundamental bidirectional data limit and does
+  not mean Layer A solves DoS: the supervised baseline still misses 118/193 DoS windows,
+  and its generality beyond this labelled testbed is unvalidated. No post-result tuning
+  was performed.
+- **VALIDATED — artifact:** machine-readable output is local at
+  `data/experiments/exp0005b_diagnostic.json` (ignored `data/` tree).
