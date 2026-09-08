@@ -1,8 +1,20 @@
 # Experiment Log
 
-Every model run, split, audit, and benchmark gets an entry here. **No entry yet** —
-no experiment has been run. All performance values elsewhere in the docs read
-`[TBD — pending experiment]` until an entry here produces them.
+> ## ⚠️ RETRACTION NOTICE — 2026-09-08
+>
+> **EXP-0001, EXP-0002, EXP-0003 and DIAG-0001 are RETRACTED.** They were all run on
+> `data/raw/gas_pipeline_raw.txt` (sha256 `45de4266…fbbd`), which has since been
+> confirmed to be **AI-generated / fabricated content**, not a genuine capture (see
+> `DECISION_LOG.md` 2026-09-08). Every metric, effect size, threshold and
+> per-category number in those entries is **withdrawn**. The entries are kept below,
+> unedited except for a per-entry banner, purely as an audit trail of the error.
+>
+> Replacement work: **EXP-0004** (below), run on the verified row-aligned file
+> `data/raw/gas_pipeline_raw.txt` (sha256 `ce2d69e3…93e3`, 274,628 rows), which is
+> confirmed row-for-row aligned to `IanArffDataset.arff`.
+
+Every model run, split, audit, and benchmark gets an entry here. EXP-0004 is the
+current verified-dataset result. Retracted entries remain below only as an audit trail.
 
 Entry template:
 
@@ -44,8 +56,8 @@ DoS/Recon and this table is final.
 | **NMRI (1)** — naive response injection (specific 29–32) | **PARTIAL / CAN** | Often shifts value patterns and sometimes rate/timing; Tier 1 sees rate/timing, not value semantics. |
 | **CMRI (2)** — complex response injection (specific 25–28,33–35) | **PARTIAL** | Designed to look normal; Tier 1 catches it only if framing/timing/rate drift. |
 | **Recon (7)** — reconnaissance (specific 20,23,24) | **CAN** | Typically raises packet rate / address spread / function-code spread. |
-| **DoS (6)** — denial of service (specific 18) | **CANNOT (egress) — MEASURED (EXP-0003)** | Revised by EXP-0001 (threat-model reasoning), **verified by EXP-0003** (direct measurement, TEST split): no egress IAT separation — Cohen's d = +0.135 / +0.120 / +0.009 / +0.146 on `iat_mean/std/min/max`, raw inter-frame-gap distributions identical (d = +0.036, Kolmogorov–Smirnov p = 0.65). Best IAT threshold buys 8.7 % DoS recall at +5 % Normal FPR (= noise). The 203 Bad-CRC egress frames are byte-identical to a normal `0x10` echo response. The attack is entirely *inbound*; a data diode blocks the flood in hardware, so there is no egress signature. Originally pre-registered "CAN" on an assumption of rate deviation the data does not show. |
-| TS-5 — payload entropy anomaly | **NOT EVALUABLE** | Mechanism demonstrated on fixtures/TXT frames; no join key to labels (BLOCKER 3). Excluded from headline recall; entropy features not in the headline model. |
+| **DoS (6)** — denial of service (specific 18) | **CANNOT (egress) — MEASURED (EXP-0004)** | Verified-file re-measurement found no egress IAT separation: Cohen's d = -0.086 / +0.098 / -0.123 / -0.029 on `iat_mean/std/min/max`; raw-gap d = -0.046 and Kolmogorov–Smirnov p = 0.461. The best thresholds at ≤5% Normal FPR reached only 2.6% / 3.1% / 4.7% / 2.6% DoS recall. |
+| TS-5 — payload entropy anomaly | **EVALUABLE ON VERIFIED TXT PATH** | Exact 274,628-row TXT↔ARFF alignment resolves BLOCKER 3. EXP-0004 measured the paired entropy contribution; entropy remains unavailable on the ARFF-only path. |
 | Covert timing channel shaped to mimic normal IAT distribution | **CANNOT (reliably)** | Tier 1 IAT mean/std can be held constant by the attacker; histogram-distance (Tier 2) and Tier 3 timing features are needed. |
 | Covert storage channel (header/protocol field encoding) | **CANNOT** | Not implemented (Tier 3). |
 | Malformed / non-standard packet structure | **CANNOT** | Conformance checking not implemented (Tier 3). |
@@ -89,6 +101,10 @@ Every future `### EXP-` entry must reference this block and state any deviation.
    recall on the TXT path. The "never sufficient alone / low-confidence if entropy is
    the only contributor" discipline still applies. On the **ARFF path** (no payload
    bytes) entropy stays a described-only mechanism.
+   *2026-09-08:* the EXP-0001 measurement cited as the basis for admitting entropy
+   to the headline was run on the retracted file. Whether entropy earns a headline
+   slot is **re-opened** and must be decided by EXP-0004 on the verified file (§EXP-0004
+   pre-registration below), not inherited.
 
 3. **Label-based metrics are now permitted** (precision, recall, F1, FPR, FNR,
    PR-AUC, ROC-AUC, per-attack-type detection). **BLOCKER 1 is RESOLVED** — the
@@ -111,14 +127,14 @@ Every future `### EXP-` entry must reference this block and state any deviation.
 |---|---|---|---|
 | BLOCKER 1 — label codebook | normal-only training subset, all label-dependent audit checks, every metric | **RESOLVED** — full codebook transcribed + cited in `00-dataset-provenance.md`; exact cross-check vs local ARFF cross-tab | Turnipseed (2015) thesis, §3.4–3.5 / Tables 3.5–3.8, 2026-09-02 |
 | BLOCKER 2 — `command response` direction semantics | fixing egress filter value, final split boundaries | **RESOLVED — CONFIRMED BY PRIMARY SOURCE** (`== 0` = response = egress) | Turnipseed (2015) §3.5.2 p.34, verbatim, 2026-09-02 |
-| BLOCKER 3 — text↔ARFF join key | pairing payload entropy with ground truth | **RESOLVED BY DECISION** — no join; entropy excluded from headline metrics | decision, 2026-09-02 |
+| BLOCKER 3 — text↔ARFF join key | pairing payload entropy with ground truth | **RESOLVED** — exact 274,628-row alignment on timestamp, both labels, and direction | verified-file audit, 2026-09-08 |
 | BLOCKER 4 / LICENSE | any *public* submission / repo push | **PARTIALLY RESOLVED** — mitigation active; team verification before public release | web check + mitigation, 2026-09-02 |
 
 BLOCKER 1 and BLOCKER 2 are resolved, so label-based metrics and a fixed egress
 filter value (`command response == 0`) are both permitted. Every metric must still be
 entered in the same `### EXP-` entry as the split and artifact audit it depends on.
-BLOCKER 3 is designed around (entropy out of headline metrics); BLOCKER 4 affects
-public artifacts only.
+BLOCKER 3 is resolved by verified row alignment; entropy is in the EXP-0004 headline
+IF. BLOCKER 4 affects public artifacts only.
 
 ---
 
@@ -129,6 +145,11 @@ project results and must not appear on slides as detector performance. They info
 scope; they do not validate anything.
 
 ### DIAG-0001 · XGBoost supervised ceiling on frame-level TXT features (2026-09-04)
+> **🚫 RETRACTED 2026-09-08.** Run on the fabricated file `gas_pipeline_raw.txt`
+> (sha256 `45de4266…fbbd`). All numbers in this entry are withdrawn. Retained for
+> audit only. See the RETRACTION NOTICE at the top of this file and `DECISION_LOG.md`
+> 2026-09-08. Do not cite any figure below.
+
 - **Code:** `ml/features_txt.py`, `ml/xgb_txt_diagnostic.py`. Report:
   `data/experiments/xgb_txt_diagnostic_report.md`.
 - **Purpose:** establish the upper bound on how much of each attack **category** is
@@ -164,9 +185,94 @@ scope; they do not validate anything.
 
 ---
 
+## PRE-REGISTRATION — EXP-0004 (recorded 2026-09-08, before any EXP-0004 run)
+
+Supersedes the EXP-0001-era pre-registration for the TXT path (that work is retracted).
+Fixed before the detector is run on the new file.
+
+1. **Dataset.** `data/raw/gas_pipeline_raw.txt`, sha256 `ce2d69e3…93e3`, 274,628 rows,
+   verified row-aligned to `IanArffDataset.arff` (provenance §"NEW AUTHORITATIVE RAW
+   FILE"). Any deviation from this hash invalidates the run.
+
+2. **Direction filter.** Egress = `destination == 1` (⇔ ARFF `command response == 0`,
+   response/telemetry, thesis-confirmed + now ARFF-cross-verified). 137,013 egress
+   frames. The `destination == 3` direction is a labelled sensitivity run only.
+
+3. **Split.** Contiguous time-block, decided now, before any metric:
+   - 60 / 20 / 20 by **egress-window index** (same rule as the retracted EXP-0001/2,
+     which is a defensible default and keeps the design comparable).
+   - 1-window (5 s) guard gap discarded at each of the two boundaries.
+   - Boundaries recorded as absolute epoch `time` + ISO-8601 in the EXP-0004 entry
+     and the report, per `03-data-split-protocol.md`.
+   - TRAIN normal-only subset = windows with no attack-labelled frame
+     (`categorized == 0` for every frame in the window).
+   - TEST scored exactly once.
+
+4. **Feature set — starting point = EXP-0002 headline, entropy status RE-OPENED.**
+   - IF inputs (candidate, 14): `packet_count, packets_per_sec, bytes_per_sec,
+     mean_frame_len, iat_{mean,std,min,max}, frac_func_{read,write},
+     distinct_frame_ratio, repeat_frame_rate, payload_entropy_{mean,std}`.
+   - Deterministic rule layer (not IF inputs): out-of-profile function code /
+     novel slave address, profile frozen from TRAIN-normal.
+   - `frac_func_valid`, `rare_func_rate` stay out of the IF (zero variance on normal).
+   - **Entropy decision:** because BLOCKER 3 is now genuinely resolved (verified
+     alignment, not "the TXT is self-labelled"), entropy IS legitimately evaluable
+     against authoritative labels. It stays a **candidate headline input**, but its
+     contribution must be reported as a paired with/without-entropy comparison in the
+     EXP-0004 entry (recall, precision, PR-AUC each way), and the headline slot is
+     only confirmed if entropy adds measured signal on the verified file — not
+     inherited from the retracted EXP-0001.
+
+5. **Model.** `sklearn.IsolationForest`, `n_estimators=300`, `max_samples="auto"`,
+   `contamination="auto"` (not used for thresholding), `random_state=0`. Standardiser
+   (mean/std) frozen from TRAIN-normal.
+
+6. **Threshold.** 99th percentile of VALIDATION-normal anomaly scores (target FPR 1%).
+   Chosen on validation only.
+
+7. **Artifact / leakage audit** (`03-data-split-protocol.md` checklist, run on TRAIN
+   only): boundary sanity; function-code tail per-class; the "exactly-40" scripted
+   pattern; `source == 2` leak confirmation (see §5); field-presence not applicable
+   (TXT has no sparse columns). Recorded PASS/FAIL/NEEDS-DOC in the entry before any
+   metric is quoted.
+
+8. **Metrics reported:** precision, recall, F1, FPR, FNR, PR-AUC, ROC-AUC, per-category
+   (Normal/NMRI/CMRI/MSCI/MPCI/MFCI/DoS/Recon) flag rate, inference latency, throughput.
+   Naive baseline (Stage 0) reported alongside. Headline recall computed over the
+   pre-registered CAN / PARTIAL-CAN categories only (that table is re-inherited from
+   the top of this log — it derives from the thesis, not the retracted file, but the
+   DoS "MEASURED (EXP-0003)" citation reverts to "reasoning; EXP-0003 retracted" until
+   EXP-0004 re-measures it).
+
+9. **DoS re-measurement.** Fold the EXP-0003 question (egress IAT separation for DoS)
+   back in as a section of EXP-0004 or a same-day EXP-0005, on the verified file, with
+   the same pre-registered NO-SEPARATION / SEPARATION / AMBIGUOUS decision rule.
+
+**ABORTED INFRASTRUCTURE FAILURE:** First invocation computed TEST scores in memory but
+aborted before displaying or persisting any results because the `data/experiments/`
+directory did not exist. No TEST metrics or predictions were viewed. Directory created;
+EXP-0004 re-run below under the unchanged pre-registration, with this deviation disclosed.
+
+**ABORTED INFRASTRUCTURE FAILURE:** Second invocation computed TEST scores in memory but
+aborted before displaying or persisting a usable report because the Windows default
+CP-1252 encoding could not encode a Unicode arrow. No TEST metrics or predictions were
+viewed. Report output fixed to UTF-8; EXP-0004 re-run below under the unchanged
+pre-registration, with this deviation disclosed.
+
+**OUTPUT-ONLY FAILURE AFTER SUCCESSFUL EXP-0004 SCORING:** The next invocation scored
+TEST and persisted the complete UTF-8 report, then exited non-zero while printing that
+same report to the CP-1252 console (`UnicodeEncodeError` on `→`). The persisted report
+was subsequently read and is the recorded EXP-0004 result. No detector rerun was used
+to conceal or replace it.
+
 ## Experiments
 
 ### EXP-0001 · Isolation Forest egress anomaly detector (windowed, TXT egress) — 2026-09-04
+> **🚫 RETRACTED 2026-09-08.** Run on the fabricated file `gas_pipeline_raw.txt`
+> (sha256 `45de4266…fbbd`). All numbers in this entry are withdrawn. Retained for
+> audit only. See the RETRACTION NOTICE at the top of this file and `DECISION_LOG.md`
+> 2026-09-08. Do not cite any figure below.
+
 - **Code:** `ml/features_windowed.py`, `ml/iforest_detector.py`. Report:
   `data/experiments/iforest_detector_report.md`.
 - **Dataset:** `data/raw/gas_pipeline_raw.txt`, labelled (see provenance §CORRECTION
@@ -245,6 +351,11 @@ scope; they do not validate anything.
 ---
 
 ### EXP-0002 · Detector with pre-reg §2 amended + deterministic rule layer — 2026-09-04
+> **🚫 RETRACTED 2026-09-08.** Run on the fabricated file `gas_pipeline_raw.txt`
+> (sha256 `45de4266…fbbd`). All numbers in this entry are withdrawn. Retained for
+> audit only. See the RETRACTION NOTICE at the top of this file and `DECISION_LOG.md`
+> 2026-09-08. Do not cite any figure below.
+
 - **References:** EXP-0001 (above); `DECISION_LOG.md` 2026-09-04 entry
   ("Payload entropy admitted to the headline model; `function_code_valid` moved to a
   deterministic rule"); pre-registration §2 (amended).
@@ -308,6 +419,11 @@ scope; they do not validate anything.
 ---
 
 ### EXP-0003 · DoS egress-timing measurement — 2026-09-04 (investigation only, no architecture change)
+> **🚫 RETRACTED 2026-09-08.** Run on the fabricated file `gas_pipeline_raw.txt`
+> (sha256 `45de4266…fbbd`). All numbers in this entry are withdrawn. Retained for
+> audit only. See the RETRACTION NOTICE at the top of this file and `DECISION_LOG.md`
+> 2026-09-08. Do not cite any figure below.
+
 - **References:** EXP-0002; pre-registered CAN/CANNOT table above (DoS row);
   `DECISION_LOG.md` 2026-09-04. Code: `ml/exp0003_dos_timing.py`.
 - **Question.** EXP-0001/0002 recorded DoS (Bad-CRC, specific 18) as **CANNOT
@@ -359,3 +475,78 @@ scope; they do not validate anything.
      `06_AI_MODEL_EVALUATION_PLAN.md` Realistic-Expectations. Further recall on
      payload-content categories needs a **new signal type, not identified yet** — not
      incremental tuning of existing features.
+
+---
+
+### EXP-0004 · Verified-file detector rebaseline + DoS timing re-measurement — 2026-09-08
+
+- **Pre-registration:** the EXP-0004 block above was committed before the first detector
+  invocation. Infrastructure/output deviations are disclosed there. The successful
+  scoring result is the persisted `data/experiments/iforest_detector_report.md`.
+- **Dataset:** `data/raw/gas_pipeline_raw.txt`, sha256
+  `ce2d69e3ada867b498a1db4560d609c35d23667f4f5cf2dea57ddd63fe7d93e3`,
+  18,627,186 bytes, 274,628 rows; verified row-aligned to
+  `data/raw/IanArffDataset.arff`, sha256
+  `970a7bcd3949d09ac7baff11603538b142f214ee47ed70baf9efb3344f4af459`.
+- **Environment:** Python 3.12.10; NumPy 2.5.3; scikit-learn 1.9.0; SciPy 1.18.1.
+- **Direction/windowing:** `destination == 1`, 137,013 egress frames; 5-second tumbling
+  windows; 46,736 emitted windows.
+- **Split:** contiguous 60/20/20 with one-window guard at each boundary: TRAIN 28,040,
+  VALIDATION 9,345, TEST 9,347. TRAIN normal-only fit subset: 14,951 windows. TEST:
+  4,807 Normal / 4,540 attack. Window start boundaries (epoch): TRAIN
+  1418682165..1418846180; VALIDATION 1418846195..1418900830; TEST
+  1418900845..1418957850. Guard between emitted blocks is 15 seconds (one omitted
+  5-second bucket plus disjoint adjacent buckets). TEST scored once for the persisted
+  result.
+- **Model:** Isolation Forest, 300 trees, `max_samples="auto"`,
+  `contamination="auto"`, seed 0; standardizer fit on TRAIN-normal. Threshold
+  0.6745465823488428 = VALIDATION-normal 99th percentile.
+- **Artifact/leakage audit:**
+  - R1/R2: `source` is absent from model features. `categorized × source` confirms NMRI
+    and CMRI occur exclusively at `source==2`; all 40,739 `source==2` rows are attack.
+  - R4: among 214,580 Normal frames, 2 validate Modbus CRC-16 little-endian
+    (0.000932%); 0 validate big-endian. This is effectively absent and is not a model
+    feature.
+  - R5: TRAIN-normal profile learned function codes `{0x03,0x10}` and address `{4}`.
+    Rule fires on 0/4,807 Normal TEST windows; no novel-address Normal hits.
+  - R6: every TRAIN tail function code outside `{0x03,0x10}` is attack-labelled
+    (Recon or MFCI); the rule profile remains normal-only.
+  - R7: exactly-40 function-code families occur across TRAIN/VALIDATION/TEST for the
+    exception-code subset; request-code and address scripted tails are absent from the
+    egress-window blocks because they occur in the opposite direction. This is a
+    direction effect, not random split leakage. Boundary sanity PASS.
+  - R8–R12: disjoint bucket split/guard PASS; timestamps ordered; local +1 row versus
+    thesis remains documented; provisional CSV remains DISCARD and is unused;
+    determinism test PASS. Field-presence check N/A for six-field TXT.
+- **TEST metrics:**
+
+  | detector | precision | recall | F1 | FPR | FNR | PR-AUC | ROC-AUC |
+  |---|---:|---:|---:|---:|---:|---:|---:|
+  | Stage 0 naive baseline | 1.000 | 0.152 | 0.264 | 0.000 | 0.848 | — | — |
+  | Deterministic rule only | 1.000 | 0.152 | 0.264 | 0.000 | 0.848 | — | — |
+  | IF, **with entropy** | 0.932331 | 0.109251 | 0.195584 | 0.007489 | 0.890749 | 0.649319 | 0.619625 |
+  | IF, **without entropy** | 0.558824 | 0.008370 | 0.016493 | 0.006241 | 0.991630 | 0.556460 | 0.563730 |
+  | **Combined rule OR IF (with entropy)** | **0.954023** | **0.164537** | **0.280669** | **0.007489** | **0.835463** | — | — |
+
+  Combined confusion: TN 4,771; FP 36; FN 3,793; TP 747. Measured IF TEST scoring
+  throughput: 68,670 windows/s (0.136 s for 9,347 windows); IF fit 0.454 s. These are
+  local component timings, not end-to-end pipeline latency.
+- **Per-category combined flag rate:** Normal 36/4,807 = 0.749%; NMRI 109/1,131 =
+  9.638%; CMRI 232/1,812 = 12.804%; MSCI 2/324 = 0.617%; MPCI 8/741 = 1.080%;
+  MFCI 227/227 = 100%; DoS 0/136 = 0%; Recon 169/169 = 100%.
+- **Entropy decision:** CONFIRMED as a headline candidate on the verified file. Against
+  the paired no-entropy IF, entropy raises recall 0.008370→0.109251, precision
+  0.558824→0.932331, PR-AUC 0.556460→0.649319, and ROC-AUC
+  0.563730→0.619625. This is measured anew and does not inherit retracted results.
+- **DoS re-measurement:** report `data/experiments/exp0004_dos_timing.txt`. TEST has
+  4,807 pure-Normal and 193 DoS-containing windows. Cohen's d for
+  `iat_mean/std/min/max` = -0.086/+0.098/-0.123/-0.029; best ≤5% Normal-FPR threshold
+  reaches only 2.6%/3.1%/4.7%/2.6% DoS recall. Raw-gap d=-0.046, MWU p=0.308,
+  KS p=0.461. **Verdict: NO SEPARATION** under the pre-registered rule (all |d|<0.2;
+  overlapping raw-gap distributions). No new DoS feature or rule.
+- **Tests:** first rebaseline run: 17 passed, 2 failed due to two stale expected values
+  (`3_610` and an incorrectly transcribed full-precision F1). After correcting only
+  those expectations, full pytest: **19 passed in 22.39 s**.
+- **Decision:** EXP-0004 supersedes all detector/DoS numbers from retracted
+  EXP-0001/0002/0003. Reliable detections remain MFCI and Recon via the explicit rule;
+  other attack families are weak and DoS has no measured egress timing separation.

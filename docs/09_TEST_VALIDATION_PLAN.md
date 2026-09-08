@@ -4,7 +4,7 @@ Covers Tier 1 (MVP) only. Tier 2 tests are added if/when Tier 2 features are bui
 Status legend: `planned` / `implemented` / `tested` / `validated`.
 
 **Status:** T-01 and T-02 are **tested** — `tests/test_detector.py` (full pipeline,
-`slow`) and `tests/test_rules.py` (rule-layer mechanism, fast); green as of EXP-0002.
+`slow`) and `tests/test_rules.py` (rule-layer mechanism, fast); green as of EXP-0004.
 All other cases (T-03..T-18) remain `planned`.
 
 Each case: **Input · Expected processing · Expected output · Pass/fail condition.**
@@ -17,7 +17,7 @@ Test data lives under `data/processed/test_fixtures/` (small, hand-checked, egre
 ## A — Functional / pipeline correctness
 
 ### T-01 · NORMAL traffic  — *tested* (`tests/test_detector.py`)
-- **Input:** the held-out TEST-block NORMAL egress windows (3,610 windows), none
+- **Input:** the held-out TEST-block NORMAL egress windows (4,807 windows), none
   used in training.
 - **Expected processing:** parse → all egress kept → 5 s windows → Tier 1 features →
   IF score → threshold chosen from VALIDATION-normal only.
@@ -39,13 +39,11 @@ Test data lives under `data/processed/test_fixtures/` (small, hand-checked, egre
     no high-scoring windows; against the full held-out normal set it is not a
     meaningful pass condition.
 - **Pass/fail (implemented).** The test asserts the **aggregate false-positive rate
-  over all 3,610 held-out normal TEST windows**, at the exact recorded operating
-  point (EXP-0002):
+  over all 4,807 held-out normal TEST windows**, at the exact recorded operating
+  point (EXP-0004):
   - **rule layer: exactly 0 %** — it is a membership test, no score, no threshold.
-  - **IF / combined: 3.05 %** — *higher* than the 1 % target because test-normal
-    drifts slightly from validation-normal over the 3.2-day capture. That gap is an
-    honest recorded property, not tuned away; the test caps it at a 5 % operating
-    ceiling and pins the exact value.
+  - **IF / combined: 0.749 %**, below the 1 % validation-normal target on this TEST
+    block; the test retains a 5 % operating ceiling and pins the exact value.
 
 ### T-02 · PROTOCOL anomaly (TS-1)  — *tested* (`tests/test_rules.py`, `tests/test_detector.py`)
 - **Input:** real MFCI and Reconnaissance TEST windows (which carry Modbus function
@@ -53,7 +51,7 @@ Test data lives under `data/processed/test_fixtures/` (small, hand-checked, egre
   unit test.
 - **Expected processing:** the **deterministic rule layer** (`ml/rules.py`) fires on
   any window containing a function code outside the learned valid set or a novel
-  address, independent of the IF (EXP-0002).
+  address, independent of the IF (EXP-0004).
 - **Expected output:** alerts on the affected windows; the reason is the rule hit
   (`invalid_function_code=0x..` / `novel_address=..`).
 - **Pass/fail (implemented):**
@@ -61,7 +59,7 @@ Test data lives under `data/processed/test_fixtures/` (small, hand-checked, egre
     address; silent on in-profile traffic; both reasons reported when both anomalous.
   - full pipeline: rule layer flags **100 %** of MFCI TEST windows and **100 %** of
     Recon TEST windows, every reason contains `invalid_function_code=`, and it fires
-    on **0 / 3,610** Normal TEST windows. Matches EXP-0002.
+    on **0 / 4,807** Normal TEST windows. Matches EXP-0004.
 - **Not yet covered:** the shifted-but-valid function-code *mix* path
   (`function_code_dist_divergence` via the IF) — no fixture for it yet.
 
@@ -108,8 +106,9 @@ Test data lives under `data/processed/test_fixtures/` (small, hand-checked, egre
 - **Expected output:** alert(s); if entropy is the **only** contributing feature,
   `explanation_confidence = "low"`.
 - **Pass/fail:** PASS if the high-entropy windows alert **and** an entropy-only alert
-  is marked low-confidence. Note in `EXPERIMENT_LOG.md`: not evaluable against
-  dataset labels (BLOCKER 3) — this is a mechanism test on fixtures.
+  is marked low-confidence. Dataset-level entropy is evaluable on the verified,
+  row-aligned TXT path (BLOCKER 3 resolved); this fixture case still tests the alert
+  mechanism and low-confidence annotation.
 
 ---
 

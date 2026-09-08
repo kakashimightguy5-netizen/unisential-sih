@@ -6,7 +6,9 @@
 
 All facts in this document come from `scripts/inspect_dataset.py` run on 2026-09-01,
 recorded in `data/reconnaissance/2026-09-01-dataset-reconnaissance.md` and
-`data/reconnaissance/dataset_inspection.json`. Nothing here is asserted from memory.
+`data/reconnaissance/dataset_inspection.json`, and the 2026-09-08 re-verification
+recorded in this file's "NEW AUTHORITATIVE RAW FILE" section. Nothing here is asserted
+from memory.
 
 ## What this data is — and is not
 
@@ -67,7 +69,8 @@ domains, and are cited to thesis table / page.
 | file | bytes | sha256 | status |
 |---|---|---|---|
 | `data/raw/IanArffDataset.arff` | 18340346 | `970a7bcd3949d09ac7baff11603538b142f214ee47ed70baf9efb3344f4af459` | **AUTHORITATIVE** |
-| `data/raw/gas_pipeline_raw.txt` | 14234301 | `45de4266d75553c8e658113ec4d43967c1de3ddaf38bb7022ad0a135b635fbbd` | supporting only |
+| `data/raw/gas_pipeline_raw.txt` | 18627186 | `ce2d69e3ada867b498a1db4560d609c35d23667f4f5cf2dea57ddd63fe7d93e3` | **AUTHORITATIVE — row-aligned companion to the ARFF (payload bytes)** |
+| `data/raw/RETRACTED_gas_pipeline_raw.txt` | 14234301 | `45de4266d75553c8e658113ec4d43967c1de3ddaf38bb7022ad0a135b635fbbd` | **RETRACTED — AI-generated, see DECISION_LOG 2026-09-08. Not an input to anything. Copy unavailable locally; absence documented, no placeholder synthesized.** |
 | `data/processed/gas_pipeline_ml_ready.csv` | 11349508 | `53d501c63362c25af3b3de702b1a99220af251d00d3afe93e5698ffdf2fc924d` | **DISCARD** |
 
 Everything under `data/raw/` is read-only. Any regeneration writes to
@@ -115,6 +118,55 @@ what makes the contiguous time-block split in `03-data-split-protocol.md` possib
 
 ## The ARFF-vs-TXT discrepancy
 
+## NEW AUTHORITATIVE RAW FILE (2026-09-08) — row-aligned to the ARFF
+
+`data/raw/gas_pipeline_raw.txt` was replaced on 2026-09-08. The previous file at this
+path (sha256 `45de4266…fbbd`) was fabricated and is retracted (DECISION_LOG 2026-09-08).
+No verified copy of that previous file is available locally; its absence is documented
+by hash and no placeholder was synthesized. The current file is a genuine,
+independently-verified companion to the authoritative ARFF.
+
+**Measured facts (this file):**
+- sha256 `ce2d69e3ada867b498a1db4560d609c35d23667f4f5cf2dea57ddd63fe7d93e3`
+- 18,627,186 bytes
+- 274,628 data rows; 0 rows with a field count ≠ 6
+- 6 fields: `hexframe , categorized_attack{0-7} , specific_attack{0-35} , source , destination , timestamp`
+- timestamps strictly non-decreasing in file order (0 out-of-order); range
+  1418682163.170388 .. 1418957854.165377 — **the full ARFF span**, not the truncated
+  range of the retracted file
+- attack rate 60,048 / 274,628 = 21.87%
+- `source` domain `{1,2,3}` counts `{1:117664, 2:40739, 3:116225}`
+- `destination` domain `{1,3}` counts `{1:137013, 3:137615}`
+- function-code histogram (byte 1) matches the ARFF audit profile: `0x03:137696`,
+  `0x10:128200`, `0x08:3123`, `0x88:2521`, `0xAB:1024`, `0x2B:1024`, plus the
+  "exactly-40" tail; slave-address histogram dominated by address 4 (274,026) with
+  the same 32-count tail the ARFF shows.
+
+**Verification evidence — this is an independent alignment check, not "trust me":**
+row-for-row comparison against `data/raw/IanArffDataset.arff` (both 274,628 rows, in
+file order), performed 2026-09-08:
+
+| check | result |
+|---|---|
+| row count | 274,628 == 274,628 |
+| `timestamp` (TXT field 6) vs ARFF `time` | **0** mismatches across all 274,628 rows |
+| `categorized_attack` (TXT field 2) vs ARFF `categorized result` | **0** mismatches |
+| `specific_attack` (TXT field 3) vs ARFF `specific result` | **0** mismatches |
+| TXT `destination` vs ARFF `command response` | perfect bijection: `destination==1` ⇔ `command response==0` (137,013); `destination==3` ⇔ `command response==1` (137,615) |
+
+Because timestamp, both label fields, and the direction field agree on every one of
+274,628 rows in order, the TXT is the ARFF's row-aligned source record with the
+Modbus payload bytes the ARFF omits. The join key is **row index** (file order), with
+`timestamp` as a redundant cross-check.
+
+**This RESOLVES BLOCKER 3.** For the first time, payload-derived features (entropy,
+frame structure) can be joined to the authoritative 274,628-row label set with a
+verified 1:1 key. Payload entropy is now evaluable against ground-truth labels
+directly — no fuzzy join, no omission.
+
+The historical text below describes the **retracted** TXT artifact (sha256
+`45de4266…fbbd`), not the current authoritative raw file.
+
 `data/raw/gas_pipeline_raw.txt` is a **different schema** and is NOT a raw form of
 the ARFF:
 
@@ -132,6 +184,11 @@ testbed campaign — but they are **not row-aligned** (274,628 vs 209,668) and t
 be, established.
 
 ### CORRECTION (2026-09-04): the TXT **is** labelled
+
+**2026-09-08 note:** the row counts, truncated timestamp range, and "smaller,
+different capture" statements in this correction describe the retracted file
+(sha256 `45de4266…fbbd`). The current file is full-span, has 274,628 rows, and is
+row-aligned to the ARFF as documented in "NEW AUTHORITATIVE RAW FILE" above.
 
 The 2026-09-01 reconnaissance recorded the TXT as having "no labels". **That was
 wrong.** The 6 fields are:
@@ -339,32 +396,14 @@ sensitivity run** remains planned as a secondary check.
 **not** been performed. Only the semantics and the plan's already-specified direction
 are recorded here.
 
-### BLOCKER 3 — TXT-to-ARFF linkage. RESOLVED BY DECISION (no join attempted), 2026-09-02.
-No reliable join key exists between the **labelled ARFF** (274,628 rows, 20-attr
-`gas` schema, timestamps to 2014-12-19T02:57:34Z) and the **payload-bearing raw
-TXT** (`gas_pipeline_raw.txt`, 209,668 usable rows, different 6-field schema, no
-labels, timestamps truncated earlier at ~2014-12-19T00:45Z). The files are not
-row-aligned (~65k row difference), cover different time spans, and share no
-documented key. Provenance of the TXT (how it was produced, meaning of its 4
-unlabelled integer fields) is undocumented.
+### BLOCKER 3 — TXT-to-ARFF linkage. RESOLVED 2026-09-08 — VERIFIED ROW ALIGNMENT.
 
-**Decision:** **do NOT attempt a fuzzy timestamp join.** A nearest-timestamp match
-is fragile (unequal row counts, unequal coverage, no 1:1 guarantee) and any match
-error would silently corrupt the entropy labels — worse than an honest omission.
-
-**Consequence for the pipeline:**
-- Payload entropy (`payload_entropy_mean`, `payload_entropy_std`) remains a **Tier 1
-  mechanism**, computed and demonstrated on TXT frames and/or synthetic fixtures.
-- It is **excluded from the headline precision / recall / F1 / PR-AUC / ROC-AUC**
-  metrics computed against dataset labels. The Isolation Forest headline evaluation
-  runs on the non-entropy Tier 1 features (rates, IAT statistics, function-code
-  validity + distribution), all of which derive from the authoritative ARFF.
-- Threat scenario **TS-5 (payload entropy anomaly)** appears in the per-attack-type
-  table (`06_AI_MODEL_EVALUATION_PLAN.md`, `EXPERIMENT_LOG.md`) as:
-  **"mechanism demonstrated on fixtures; not evaluable against dataset labels
-  (BLOCKER 3)."**
-- Regenerating a real key would require the original PCAPs from the dataset authors
-  — out of scope for the Sep 15 timeline; recorded as future work.
+Superseded: the 2026-09-02 "resolved by decision (no join attempted)" position and the
+2026-09-04 "TXT is a different, smaller capture" caveat both applied to the **retracted**
+file. The current `data/raw/gas_pipeline_raw.txt` (sha256 `ce2d69e3…93e3`) is row-for-row
+aligned to the ARFF on timestamp + both label fields + direction across all 274,628 rows
+(see "NEW AUTHORITATIVE RAW FILE" above). The join key is row index. Payload entropy and
+frame-structure features CAN now be evaluated against the authoritative labels.
 
 ### BLOCKER 4 — Dataset licence / redistribution terms. PARTIALLY RESOLVED — open action item, 2026-09-02.
 **Findings (web check, 2026-09-02):**

@@ -56,9 +56,10 @@ Notes: `src_id` is a **synthetic** per-source index for the gas-pipeline dataset
   "tier2_features": {}
 }
 ```
-Notes: `payload_entropy_*` may be `null` when the input has no payload bytes (the
-authoritative ARFF — BLOCKER 3); consumers must handle null. `tier2_features` is
-empty in the MVP.
+Notes: `payload_entropy_*` may be `null` when the input has no payload bytes (for
+example, the ARFF-only path); consumers must handle null. The canonical TXT supplies
+verified row-aligned payload bytes (BLOCKER 3 resolved). `tier2_features` is empty in
+the MVP.
 
 ## ModelResult
 

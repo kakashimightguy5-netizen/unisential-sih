@@ -4,6 +4,49 @@ Format: **DATE · DECISION · OPTIONS CONSIDERED · WHY CHOSEN · IMPACT**
 
 ---
 
+### 2026-09-08 · RETRACTION — `gas_pipeline_raw.txt` (sha256 45de4266…fbbd) was AI-generated, not a capture; EXP-0001/0002/0003 retracted
+
+- **Decision:** the raw hex-frame file used by EXP-0001, EXP-0002 and EXP-0003
+  (`data/raw/gas_pipeline_raw.txt`, sha256
+  `45de4266d75553c8e658113ec4d43967c1de3ddaf38bb7022ad0a135b635fbbd`, 14,234,301
+  bytes, 209,668 rows) is **confirmed AI-generated / fabricated content**, not a
+  genuine testbed capture. It was pasted into an earlier AI chat session that was
+  asked to "proceed" with it, and its hash was then recorded in
+  `00-dataset-provenance.md` as if it had been provenance-verified. It never was.
+  The file is **retracted**. If a verified copy is recovered, it will be named
+  `data/raw/RETRACTED_gas_pipeline_raw.txt` (not deleted — kept for the audit
+  trail) and must never again be an input to any pipeline stage. No verified copy
+  is currently available locally; its absence is documented by hash and no
+  placeholder was synthesized.
+- **What was re-checked (2026-09-08):** 0% of the file's frames' trailing two bytes
+  validate as a Modbus CRC-16 in either byte order. **This CRC check is not
+  conclusive on its own** — the new genuine file (§below) shows the *same* 0% CRC
+  signature, so a failed CRC does not by itself prove fabrication. The deciding
+  evidence is the **confirmed origin** (pasted AI output, no capture provenance),
+  not the CRC result.
+- **Consequence:** EXP-0001, EXP-0002 and EXP-0003 in `EXPERIMENT_LOG.md` are
+  marked **RETRACTED** (banner prepended, entries kept for audit). Every
+  performance number they produced — the EXP-0002 "headline" IF recall 0.136 /
+  combined 0.141, the EXP-0003 DoS effect sizes, DIAG-0001's XGBoost ceiling — is
+  withdrawn and must not appear on any slide, README, or spec as a result. The
+  exact-reproduction constants in `tests/test_detector.py` are now baselined
+  against a retracted file and are invalid until EXP-0004 rebaselines them.
+- **What is NOT affected:** `IanArffDataset.arff` (sha256 `970a7bcd…f459`) was
+  always the authoritative file and is untouched. BLOCKER 1 (label codebook) and
+  BLOCKER 2 (direction semantics) were resolved from the Turnipseed 2015 thesis and
+  the ARFF, not from the retracted TXT — they still stand.
+- **Options considered:** (a) silently replace the file and keep the experiment
+  numbers; (b) delete the file and the experiment entries; (c) retract openly,
+  keep the entries with a banner, re-run as EXP-0004. **Chosen (c)** — silent
+  replacement would repeat the exact integrity failure being corrected, and
+  deleting the entries destroys the audit trail of how the error entered.
+- **Impact:** `00-dataset-provenance.md` (file inventory + CORRECTION section +
+  BLOCKER 3), `EXPERIMENT_LOG.md` (retraction banners on EXP-0001/0002/0003 +
+  DIAG-0001 + new EXP-0004), `tests/test_detector.py` (constants invalid pending
+  EXP-0004), `README.md` / any doc quoting EXP-0002 numbers.
+
+---
+
 ### 2026-09-04 · DoS "CANNOT (egress)" verdict verified by measurement (EXP-0003)
 - **Decision:** the DoS (Bad-CRC, specific 18) detection verdict, previously
   **CANNOT (egress)** on threat-model *reasoning* (EXP-0001), is now **CANNOT

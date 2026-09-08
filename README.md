@@ -57,22 +57,24 @@ Full detail: `docs/07_SYSTEM_ARCHITECTURE.md`.
 
 ## Current Status
 
-**Specification phase. No implementation started.** Nothing is past `planned`.
+**Core dataset ML pipeline implemented and tested; application layers remain planned.**
 
-- Documentation: **complete** (this pass) — see below.
-- Dataset: verified and hash-recorded (`data/raw/IanArffDataset.arff`, 274,628
-  instances). Blocker status (`docs/04_DATASET_PLAN.md`, `docs/00-dataset-provenance.md`):
-  **BLOCKER 1 (label codebook) — RESOLVED** from the Turnipseed (2015) thesis
-  (label tables transcribed + cited in `docs/00-dataset-provenance.md`, cross-checked
-  against the local ARFF); metric gate lifted. **BLOCKER 2 (direction) — RESOLVED,
-  confirmed by primary source** (thesis §3.5.2 p.34: `command response == 0` =
-  response = egress). BLOCKER 3 (payload↔label join) — resolved by
-  decision (no ARFF join; but the raw TXT is self-labelled, so on the TXT egress path
-  entropy IS a headline detector feature — pre-reg §2 amended 2026-09-04, EXP-0002).
-  BLOCKER 4 (licence) — mitigated (raw data stays out of public repos; citation
-  mandatory; team verifies terms before public release).
-- No model trained, no threshold selected, no metric computed. Every performance
-  figure in the docs reads `[TBD — pending experiment]`.
+- Dataset: verified and hash-recorded. `data/raw/IanArffDataset.arff` and the current
+  `data/raw/gas_pipeline_raw.txt` each contain 274,628 row-aligned records. BLOCKER 1
+  (label codebook), BLOCKER 2 (direction), and BLOCKER 3 (payload↔label linkage) are
+  resolved; see `docs/00-dataset-provenance.md`.
+- **Integrity correction (2026-09-08):** EXP-0001, EXP-0002, EXP-0003, and DIAG-0001
+  were run on a fabricated TXT artifact and are retracted. Do not cite their figures.
+- **EXP-0004** rebaselines the detector on verified TXT sha256 `ce2d69e3…93e3`:
+  46,736 windows; combined rule-or-IF TEST precision 0.954, recall 0.165, F1 0.281,
+  FPR 0.0075. Per-category results and limitations are in `docs/EXPERIMENT_LOG.md`.
+  Full tests: 19 passed on the recorded environment.
+- Implemented: TXT parsing, egress filtering, five-second window features, deterministic
+  protocol rule, Isolation Forest, validation-only thresholding, explanations, and
+  evaluation tests. PCAP ingestion, reusable model artifacts/inference, API, database,
+  and dashboard remain planned.
+- BLOCKER 4 (licence) remains mitigated but requires team verification before public
+  release.
 
 Status vocabulary used everywhere: `planned` → `implemented` → `tested` →
 `validated`.

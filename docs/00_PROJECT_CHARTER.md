@@ -174,12 +174,11 @@ Recorded in full in `04_DATASET_PLAN.md` / `docs/00-dataset-provenance.md`
   `command response == 0` = response/telemetry = egress. This also matches the earlier
   data evidence (exception codes 128–142 exclusively under value 0; mean `length`
   30.9 vs 50.4). No caveat on results.
-- **BLOCKER 3 — RESOLVED BY DECISION + 2026-09-04 correction.** No ARFF↔TXT join key;
-  a fuzzy join is not attempted. **But the raw TXT is self-labelled**
-  (`00-dataset-provenance.md` §CORRECTION), so on the TXT egress path payload entropy
-  **is** evaluable against ground truth and **is a headline Isolation Forest feature**
-  (pre-reg §2 amended 2026-09-04; `DECISION_LOG.md`; EXP-0002). On the ARFF path (no
-  payload bytes) entropy stays a described-only mechanism.
+- **BLOCKER 3 — RESOLVED 2026-09-08 BY VERIFIED ROW ALIGNMENT.** The current raw TXT
+  is aligned to the ARFF on all 274,628 rows by timestamp, labels, and direction
+  (`00-dataset-provenance.md` §NEW AUTHORITATIVE RAW FILE). Payload entropy is
+  evaluable against authoritative labels and EXP-0004 confirms measured IF signal
+  (recall 0.0084 without entropy versus 0.1093 with entropy).
 - **BLOCKER 4 / LICENSE — PARTIALLY RESOLVED (open action item).** No explicit
   licence exists; authors request citation only. Mitigation active: raw data kept
   out of public repos; mandatory citation; team verifies terms before any public
@@ -187,8 +186,8 @@ Recorded in full in `04_DATASET_PLAN.md` / `docs/00-dataset-provenance.md`
 
 Pipeline *code* can be written now. BLOCKER 1 and BLOCKER 2 are resolved (label-based
 metrics permitted once the split + artifact audit pass; egress filter fixed at
-`command response == 0`). BLOCKER 3 is designed around; BLOCKER 4 affects public
-artifacts only.
+`command response == 0`). BLOCKER 3 is resolved by verified row alignment; BLOCKER 4
+affects public artifacts only.
 
 ## Status Legend (used across all docs)
 

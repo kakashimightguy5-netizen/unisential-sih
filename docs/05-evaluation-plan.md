@@ -22,8 +22,9 @@ it has actually been run and its output recorded.** Placeholders are written as
 `[TBD - pending experiment]`. A plausible-looking number is worse than no number,
 because it survives into slides.
 
-As of 2026-09-01: no model has been trained, no threshold selected, no metric
-computed. Every performance field in this repo is `[TBD - pending experiment]`.
+This was the pre-experiment rule as of 2026-09-01. EXP-0004 subsequently produced
+the current verified-dataset measurements; every performance claim must cite that
+recorded `EXPERIMENT_LOG.md` entry.
 
 ## Metric reporting gate — BLOCKER 1 LIFTED (2026-09-02)
 
@@ -52,7 +53,7 @@ Already determined in `02-feature-schema.md`:
 | P1 threat class | status | basis |
 |---|---|---|
 | protocol / function-code violations | SUPPORTED | `function`, `address`, `length`, `command response` all 0% missing |
-| payload entropy / exfiltration | PARTIALLY SUPPORTED | no payload bytes in ARFF; frames only in unlabeled TXT with no join key (BLOCKER 3) |
+| payload entropy / exfiltration | SUPPORTED ON VERIFIED TXT PATH | no payload bytes in ARFF itself; current 274,628-row TXT is exactly row-aligned with ARFF labels and direction (BLOCKER 3 resolved) |
 | volume / frequency anomalies | SUPPORTED | `time` strictly increasing, 0 duplicates, ~3.2-day span; `length`, `function` populated |
 
 This is a coverage statement, not a performance claim. It says what the data *can
@@ -78,26 +79,25 @@ blockers are what stands between the project and any real number.
 |---|---|---|
 | BLOCKER 1 | label codebook semantics | **RESOLVED** — Turnipseed (2015) thesis, transcribed + cited in `00-dataset-provenance.md`, cross-checked vs local ARFF |
 | BLOCKER 2 | `command response` direction semantics | **RESOLVED — confirmed by primary source** (thesis §3.5.2 p.34: 0=response=egress) |
-| BLOCKER 3 | TXT-to-ARFF join key / payload linkage | RESOLVED BY DECISION + 2026-09-04 correction — no ARFF join, but the raw TXT is self-labelled so entropy IS evaluable and IS a headline detector feature on the TXT path (EXP-0002) |
+| BLOCKER 3 | TXT-to-ARFF join key / payload linkage | **RESOLVED 2026-09-08** — exact 274,628-row TXT↔ARFF alignment verified by timestamp, both labels, and direction; entropy is a headline TXT-path feature measured in EXP-0004 |
 | BLOCKER 4 | dataset license and citation | PARTIALLY RESOLVED — mitigation active; verify before public release |
 
-## What is explicitly NOT evaluated now
+## What remains explicitly NOT evaluated
 
-- Detection performance of any kind — gated above.
-- Threshold quality — no threshold has been selected. Selection happens on the
-  validation block only (`04-model-and-threshold.md`), never on test.
-- Hyperparameter sweep outcomes — all `[TBD - pending experiment]`.
-- Runtime performance — no timing has been measured, and P1 is a batch CLI run
-  (`07-scope-and-cuts.md`), so throughput is not a P1 success criterion.
+- Hyperparameter sweep outcomes — EXP-0004 used the preregistered fixed configuration;
+  no sweep result is claimed.
+- End-to-end application latency — EXP-0004 measured IF fit and TEST scoring only, not
+  feature extraction, explanation, API, storage, or dashboard latency.
+- Production or live-network performance — P1 remains an offline batch prototype
+  (`07-scope-and-cuts.md`).
 - Anything about physical diode hardware. This is a dataset-based unidirectional
   simulation (`00-dataset-provenance.md`); no claim about real diode deployments is
   supported by any result this project can produce.
 
-## Planned evaluation once gates lift
+## Evaluation protocol executed in EXP-0004
 
-Recorded so the design is settled in advance and cannot be retrofitted to flatter a
-result. BLOCKER 1 is lifted; execution is now gated only on the split + artifact
-audit being run and recorded.
+This protocol was settled before scoring and executed on the verified dataset. The
+split and artifact-audit results are recorded with the metrics in `EXPERIMENT_LOG.md`.
 
 1. **Protocol violation and volume/frequency classes**: score the TEST block once,
    using the threshold selected on VALIDATION. Report the confusion matrix in raw
@@ -105,11 +105,10 @@ audit being run and recorded.
    balance is skewed (214,580 vs 60,048 at raw `binary result` level, pre-filter).
 2. **Report the audit alongside the metric**, in the same table. A metric published
    without its audit result is not a valid claim.
-3. **Payload entropy**: on the **TXT egress path** entropy is fully evaluable — the
-   TXT is self-labelled (`00-dataset-provenance.md` §CORRECTION), so entropy is a
-   headline Isolation Forest feature and TS-5 counts in headline recall (EXP-0002).
-   On the **ARFF path** (no payload bytes) it stays PARTIALLY SUPPORTED,
-   demonstrated-only. Never substitute a proxy label.
+3. **Payload entropy**: on the **TXT egress path** entropy is fully evaluable because
+   exact TXT↔ARFF row alignment is verified. It is a headline Isolation Forest feature;
+   EXP-0004 reports the paired with/without-entropy result. On the **ARFF-only path**
+   (no payload bytes), entropy is unavailable. Never substitute a proxy label.
 4. **Single-touch discipline on TEST.** If the test block is scored more than once,
    every scoring after the first must be disclosed, since repeated looks turn the
    test block into a validation block.

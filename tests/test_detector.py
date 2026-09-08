@@ -1,55 +1,36 @@
-"""T-01 / T-02 (full pipeline) + EXP-0002 exact-reproduction regression tests.
+"""T-01 / T-02 (full pipeline) + EXP-0004 exact-reproduction regression tests.
 
-Fixture / dataset trade-off (per the Phase-1 task): these tests run the **real**
-detector on the full 209k-row TXT egress stream via the session-scoped
-`detector_result` fixture (~7s, once). A small hand-built fixture was considered
-and rejected for the reproduction checks: the EXP-0002 headline numbers are a
-property of the exact 35,935-window contiguous split and the IsolationForest
-fitted on its 11,368 train-normal windows — a subsample produces different,
-un-comparable numbers. The rule-layer *mechanism* is covered fast and
-fixture-based in test_rules.py.
+These tests run the real detector once per session on the verified 274,628-row TXT
+(sha256 ce2d69e3…93e3), yielding 46,736 windows. The exact constants below were
+rebaselined from EXP-0004; EXP-0001/0002 constants are retracted.
 
-Determinism / why these are EXACT, not tolerance-based
------------------------------------------------------
-The detector is fully deterministic given the fixed seed (`SEED = 0`):
-`test_detector_is_deterministic` proves a fresh run reproduces the session run
-bit-for-bit. The constants below are the exact, full-precision outputs of the
-CURRENT codebase, and they match docs/EXPERIMENT_LOG.md EXP-0002 exactly (the
-report `data/experiments/iforest_detector_report.md` is byte-identical to the one
-recorded there). There is no "close approximation" — this is the recorded result.
-
-So the assertions use `==`. If a dependency bump (numpy / scikit-learn / scipy /
-BLAS) perturbs a floating-point reduction, a window sitting exactly on the
-threshold can flip and these will fail. That is intentional: a moved number is
-either (a) benign library drift — rerun `ml/iforest_detector.py`, diff the report
-against EXP-0002, and rebaseline the constants + a new EXPERIMENT_LOG entry
-deliberately; or (b) a real regression in the detector code. Either way a human
-decides. Reference environment: numpy 2.5.2 / scikit-learn 1.9.0 / scipy 1.18.1
-(Python 3.14).
+The detector is deterministic for a fixed seed. Exact assertions intentionally flag
+library drift for deliberate review. Reference environment for EXP-0004: Python 3.12.10,
+numpy 2.5.3, scikit-learn 1.9.0, scipy 1.18.1.
 """
 import numpy as np
 import pytest
 
 pytestmark = pytest.mark.slow
 
-# --- exact full-precision outputs of the current codebase == EXP-0002 -----------
-THRESHOLD = 0.6393598484455003
+# --- exact full-precision outputs of EXP-0004 -------------------------------
+THRESHOLD = 0.6745465823488428
 COMBINED = dict(
-    precision=0.8208469055374593,
-    recall=0.14093959731543623,
-    f1=0.2405727923627685,
-    fpr=0.030470914127423823,
+    precision=0.9540229885057471,
+    recall=0.1645374449339207,
+    f1=0.2806687957918467,
+    fpr=0.00748907842729353,
 )
-CONFUSION = dict(tn=3500, fp=110, fn=3072, tp=504)          # rule ∨ IF, TEST
-IF_ONLY_NORMAL_FPR = 0.030470914127423823                   # rule adds 0 → same as combined
+CONFUSION = dict(tn=4771, fp=36, fn=3793, tp=747)            # rule ∨ IF, TEST
+IF_ONLY_NORMAL_FPR = 0.00748907842729353                     # rule adds 0 → same as combined
 PER_CATEGORY_COMBINED = {
-    "Normal": 0.030470914127423823,
-    "NMRI":   0.07342657342657342,
-    "CMRI":   0.09687261632341723,
-    "MSCI":   0.02553191489361702,
-    "MPCI":   0.03007518796992481,
+    "Normal": 36 / 4807,
+    "NMRI":   109 / 1131,
+    "CMRI":   232 / 1812,
+    "MSCI":   2 / 324,
+    "MPCI":   8 / 741,
     "MFCI":   1.0,
-    "DoS":    0.01098901098901099,
+    "DoS":    0.0,
     "Recon":  1.0,
 }
 
@@ -58,10 +39,10 @@ PER_CATEGORY_COMBINED = {
 
 def test_test_block_composition(detector_result):
     R = detector_result
-    assert R.n_windows == 35_935
-    assert (R.n_train, R.n_val, R.n_test) == (21_560, 7_185, 7_186)
-    assert R.n_train_normal == 11_368
-    assert (int((R.y_test == 0).sum()), int((R.y_test == 1).sum())) == (3_610, 3_576)
+    assert R.n_windows == 46_736
+    assert (R.n_train, R.n_val, R.n_test) == (28_040, 9_345, 9_347)
+    assert R.n_train_normal == 14_951
+    assert (int((R.y_test == 0).sum()), int((R.y_test == 1).sum())) == (4_807, 4_540)
 
 
 def test_threshold_from_validation_only(detector_result):
@@ -83,12 +64,10 @@ def test_t01_normal_traffic_not_mass_flagged(detector_result):
     collapses recall to zero. Some FPR on held-out normal *is* the operating
     point. '0 alerts' is only ever reachable against a hand-curated clip.
 
-    So this test asserts the aggregate FPR over ALL 3,610 held-out normal TEST
+    So this test asserts the aggregate FPR over ALL 4,807 held-out normal TEST
     windows, at the exact recorded operating point:
       - rule layer: exactly 0 (membership test, no score involved)
-      - IF / combined: ~3.05%  (higher than the 1% *target* because test-normal
-        drifts slightly from validation-normal over the 3.2-day capture — an
-        honest property recorded in EXP-0002, not tuned away)
+      - IF / combined: ~0.75%, below the 1% validation-normal target on this TEST block.
     """
     R = detector_result
     normal = R.cat_test == 0
@@ -119,12 +98,12 @@ def test_t02_rule_layer_catches_all_protocol_attacks(detector_result, category):
 
 
 def test_t02_rule_layer_silent_on_normal(detector_result):
-    """T-02 corollary: the rule fires on 0 of the 3,610 Normal TEST windows —
+    """T-02 corollary: the rule fires on 0 of the 4,807 Normal TEST windows —
     it adds no false positives to the combined detector."""
     R = detector_result
     normal = R.cat_test == 0
     assert int(R.rule_pred[normal].sum()) == 0
-    assert int(normal.sum()) == 3_610
+    assert int(normal.sum()) == 4_807
 
 
 def test_t02_reasons_are_hex_function_codes(detector_result):
@@ -139,9 +118,9 @@ def test_t02_reasons_are_hex_function_codes(detector_result):
                 assert all(tok.startswith("0x") for tok in val.split(","))
 
 
-# ---------------------------------------------------------------- EXP-0002 exact reproduction
+# ---------------------------------------------------------------- EXP-0004 exact reproduction
 
-def test_combined_detector_reproduces_exp0002_exactly(detector_result):
+def test_combined_detector_reproduces_exp0004_exactly(detector_result):
     """Regression baseline. See module docstring for what a failure here means."""
     m = detector_result.metrics(detector_result.comb_pred)
     assert m["p"] == COMBINED["precision"]
@@ -150,13 +129,13 @@ def test_combined_detector_reproduces_exp0002_exactly(detector_result):
     assert m["fpr"] == COMBINED["fpr"]
 
 
-def test_combined_confusion_matrix_matches_exp0002_exactly(detector_result):
+def test_combined_confusion_matrix_matches_exp0004_exactly(detector_result):
     m = detector_result.metrics(detector_result.comb_pred)
     assert (m["tn"], m["fp"], m["fn"], m["tp"]) == (
         CONFUSION["tn"], CONFUSION["fp"], CONFUSION["fn"], CONFUSION["tp"])
 
 
-def test_per_category_flag_rates_match_exp0002_exactly(detector_result):
+def test_per_category_flag_rates_match_exp0004_exactly(detector_result):
     R = detector_result
     for name, expected in PER_CATEGORY_COMBINED.items():
         assert R.category_flag_rate(name) == expected, name

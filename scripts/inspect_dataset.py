@@ -12,9 +12,9 @@ select a threshold, and reports no performance metrics. Stdlib only.
 
 Files inspected:
   data/raw/IanArffDataset.arff          (authoritative ML-ready ARFF)
-  data/raw/gas_pipeline_raw.txt         (supporting raw hex-frame TXT)
-  data/processed/gas_pipeline_ml_ready.csv (provisional derived CSV)
+  data/raw/gas_pipeline_raw.txt         (authoritative row-aligned payload companion)
 
+The discarded provisional CSV is reported as present/absent but is not required.
 Everything under data/raw/ is opened read-only and never modified.
 """
 import csv
@@ -296,6 +296,8 @@ def analyze_txt(path):
 
 
 def analyze_csv(path):
+    if not os.path.exists(path):
+        return {"present": False}
     with open(path, "r", encoding="utf-8", errors="replace") as f:
         r = csv.reader(f)
         header = next(r)
@@ -312,6 +314,7 @@ def analyze_csv(path):
             except (ValueError, IndexError):
                 pass
     return {
+        "present": True,
         "header": header,
         "data_row_count": n,
         "timestamp_min": tmin,
@@ -319,7 +322,42 @@ def analyze_csv(path):
     }
 
 
-def build_report(files, arff, txt, csvd):
+def analyze_alignment(arff_path, txt_path):
+    rows = 0
+    timestamp_mismatches = 0
+    categorized_mismatches = 0
+    specific_mismatches = 0
+    direction_mismatches = 0
+    arff_rows = iter_arff_data_rows(arff_path)
+    with open(txt_path, "r", encoding="utf-8", errors="replace") as f:
+        for raw_txt, arff_row in zip(f, arff_rows):
+            parts = raw_txt.strip().split(",")
+            if len(parts) != 6 or len(arff_row) != 20:
+                continue
+            rows += 1
+            if float(parts[5]) != float(arff_row[16]):
+                timestamp_mismatches += 1
+            if parts[1] != arff_row[18]:
+                categorized_mismatches += 1
+            if parts[2] != arff_row[19]:
+                specific_mismatches += 1
+            expected_direction = "0" if parts[4] == "1" else "1" if parts[4] == "3" else None
+            if expected_direction != arff_row[15]:
+                direction_mismatches += 1
+        remaining_txt = sum(1 for line in f if line.strip())
+    remaining_arff = sum(1 for _ in arff_rows)
+    return {
+        "compared_rows": rows,
+        "remaining_arff_rows": remaining_arff,
+        "remaining_txt_rows": remaining_txt,
+        "timestamp_mismatches": timestamp_mismatches,
+        "categorized_mismatches": categorized_mismatches,
+        "specific_mismatches": specific_mismatches,
+        "direction_mismatches": direction_mismatches,
+    }
+
+
+def build_report(files, arff, txt, csvd, alignment):
     lines = []
     w = lines.append
     w("# SIH26145 Dataset Reconnaissance Report")
@@ -400,15 +438,10 @@ def build_report(files, arff, txt, csvd):
     for k, v in arff["distributions"]["binary result"].items():
         w(f"| `{k}` | {v} |")
     w("")
-    w("**NEEDS DOCUMENTATION.** The repository contains no authoritative codebook "
-      "mapping `binary result` / `categorized result` / `specific result` values to "
-      "normal/attack semantics. The ARFF header (`data/raw/IanArffDataset.arff` lines "
-      "1-27) names the attributes but does NOT define value meanings. The commonly "
-      "cited Morris/Turnipseed gas-pipeline mapping (binary 0=normal / 1=attack; "
-      "categorized 0..7 = Normal/NMRI/CMRI/MSCI/MPCI/MFCI/DoS/Recon) is external to "
-      "this repo and is NOT reproduced here as fact. A provenance doc citing the "
-      "original dataset documentation must be added before any label is used for "
-      "evaluation. Per task constraints, attack labels must never be used as input features.")
+    w("**Documented semantics.** Per the cited Turnipseed (2015) thesis codebook in "
+      "`docs/00-dataset-provenance.md`, `binary result` 0=normal/1=attack and "
+      "`categorized result` 0..7 = Normal/NMRI/CMRI/MSCI/MPCI/MFCI/DoS/Recon. "
+      "Labels are evaluation-only and must never be model inputs.")
     w("")
     w("`binary result` x `categorized result` cross-tab (raw values):")
     w("")
@@ -458,10 +491,9 @@ def build_report(files, arff, txt, csvd):
     w(json.dumps(de["binary_result_by_command_response"], indent=2))
     w("```")
     w("")
-    w("**Interpretation: NEEDS DOCUMENTATION.** `command response` is a nominal "
-      "{0,1} field whose semantics are not defined in any doc in this repo. The "
-      "length/function split above is presented as evidence only; the mapping of "
-      "0/1 to command-frame vs response-frame is NOT asserted here.")
+    w("**Interpretation:** Turnipseed (2015) section 3.5.2 defines 0=response and "
+      "1=command. The verified TXT alignment independently confirms destination 1 "
+      "maps to ARFF response/egress (`command response == 0`).")
     w("")
 
     w("## 10. Record count after each possible direction filter")
@@ -470,23 +502,14 @@ def build_report(files, arff, txt, csvd):
     for k, v in sorted(cbcr.items()):
         w(f"- keep only `command response == {k}`: {v} rows")
     w("")
-    w("(Which of these is 'command-only' vs 'response-only' is unresolved — see section 9.)")
+    w("`command response == 0` is response/egress; `== 1` is command, per the cited primary source.")
     w("")
 
     w("## 11. Can a unidirectional simulation be built without reverse-flow features?")
     w("")
-    w("Yes, in principle: filter to a single `command response` value and drop any "
-      "attribute that is only populated on the opposite direction. Evidence from the "
-      "missing-value and length analysis suggests the two `command response` classes "
-      "carry different field sets (one class carries small fixed frames, the other "
-      "carries the process/setpoint payload fields). Attributes that would have to be "
-      "dropped depend on which direction is kept; candidates for dropping when keeping "
-      "the request/poll direction are the process-variable payload fields: "
-      "`setpoint`, `gain`, `reset rate`, `deadband`, `cycle time`, `rate`, "
-      "`system mode`, `control scheme`, `pump`, `solenoid`, `pressure measurement`. "
-      "The label fields (`binary result`, `categorized result`, `specific result`) "
-      "must be dropped as inputs regardless (labels, not features). "
-      "Exact drop list is **NEEDS DOCUMENTATION** until direction semantics are confirmed.")
+    w("Yes. Keep `command response == 0` (response/egress), construct windows only "
+      "after filtering, and exclude the sparse process-variable columns plus all label "
+      "fields from model inputs. This is the implemented TXT-path simulation.")
     w("")
 
     w("## 12. Duplicate rows and leakage-prone patterns")
@@ -525,37 +548,29 @@ def build_report(files, arff, txt, csvd):
     w(f"- TXT: {txt['row_count']} rows, column-count distribution "
       f"{json.dumps(txt['column_count_distribution'])}, timestamps "
       f"{txt['timestamp_min']}..{txt['timestamp_max']}")
-    w(f"- TXT schema is DIFFERENT: 6 comma-separated fields "
-      f"(raw hex Modbus-style frame, 4 unlabeled small-integer fields, unix timestamp). "
-      f"It is NOT the 20-attribute `gas` schema.")
-    w(f"- Row counts differ ({arff['instance_count']} ARFF vs {txt['row_count']} TXT); "
-      f"the two files are NOT row-aligned.")
-    w(f"- Timestamp ranges "
-      f"{'overlap' if txt['timestamp_min'] and ts['min'] and not (txt['timestamp_max'] < ts['min'] or ts['max'] < txt['timestamp_min']) else 'do not overlap'}. "
-      f"Shared start near {ts['min']} suggests same testbed campaign, but per-row "
-      f"value agreement cannot be established without a documented join key (none exists).")
+    w(f"- TXT schema: 6 comma-separated fields (raw hex Modbus-style frame, "
+      f"categorized label, specific label, source, destination, unix timestamp). It is "
+      f"the payload-bearing companion to, not a duplicate of, the 20-attribute ARFF schema.")
+    w(f"- Alignment rows compared: {alignment['compared_rows']}; remaining ARFF/TXT "
+      f"rows: {alignment['remaining_arff_rows']}/{alignment['remaining_txt_rows']}.")
+    w(f"- Mismatches — timestamp: {alignment['timestamp_mismatches']}; categorized "
+      f"label: {alignment['categorized_mismatches']}; specific label: "
+      f"{alignment['specific_mismatches']}; direction: {alignment['direction_mismatches']}.")
+    w("- Join key: row index, with timestamp and labels as redundant checks.")
     w(f"- TXT mean payload Shannon entropy: {txt['mean_payload_entropy_bits_per_byte']} "
-      f"bits/byte over {txt['entropy_rows_decoded']} decoded frames. The ARFF has NO "
-      f"raw payload bytes, so entropy is not recomputable from the authoritative file.")
+      f"bits/byte over {txt['entropy_rows_decoded']} decoded frames. The ARFF itself has "
+      f"no raw payload bytes.")
     w("")
 
     w("## 15. Disposition of the provisional CSV")
     w("")
-    w(f"`data/processed/gas_pipeline_ml_ready.csv`: {csvd['data_row_count']} data rows, "
-      f"columns {csvd['header']}.")
-    w("")
-    w("**Recommendation: DISCARD and regenerate later from the authoritative ARFF.** Reasons:")
-    w("")
-    w(f"- It is derived from the TXT file ({txt['row_count']} rows) / an attached "
-      f"markdown paste (see `data/reconnaissance/conversion_report.txt`), NOT from "
-      f"`IanArffDataset.arff` ({arff['instance_count']} rows). Wrong source of truth.")
-    w("- Its columns `metadata_1_unverified`..`metadata_4_unverified` have unverified "
-      "semantics by the converter's own admission.")
-    w("- It carries no label column, so it cannot support evaluation on its own.")
-    w("- It bakes in `interarrival_seconds` computed in raw record order before any "
-      "direction filtering or time-block splitting, which risks leakage if used as-is.")
-    w("- Feature extraction for P1 should be re-derived from the ARFF (plus, if "
-      "payload entropy is pursued, from the TXT hex frames with documented provenance).")
+    if csvd["present"]:
+        w(f"`data/processed/gas_pipeline_ml_ready.csv` is present with "
+          f"{csvd['data_row_count']} data rows and remains **DISCARD / unused**.")
+    else:
+        w("`data/processed/gas_pipeline_ml_ready.csv` is absent, consistent with its "
+          "**DISCARD / unused** disposition. The current pipeline reads neither it nor "
+          "any derived replacement.")
     w("")
 
     w("## P1 capability classification")
@@ -563,21 +578,14 @@ def build_report(files, arff, txt, csvd):
     w("### protocol / function-code violation detection — **SUPPORTED**")
     w("Exact supporting attributes (ARFF): `function` (Modbus function code, "
       f"{len(arff['distributions']['function'])} distinct values observed), `address`, "
-      "`length`, `command response`, `crc rate`. `function` + `address` + `length` "
-      "give a usable protocol-structure feature set for out-of-profile function "
-      "codes and malformed lengths. Caveat: `command response` direction semantics "
-      "are NEEDS DOCUMENTATION, and `crc rate` is a suspected label-correlated "
-      "artifact (section 12) that should be audited before inclusion.")
+      "`length`, and `command response`. Direction semantics are documented; `crc rate` "
+      "remains excluded as an instrumentation-artifact risk.")
     w("")
-    w("### payload-entropy anomaly detection — **PARTIALLY SUPPORTED**")
-    w("The authoritative ARFF has NO raw payload bytes — entropy is UNSUPPORTED from "
-      "`IanArffDataset.arff` alone. Raw hex frames exist only in "
-      "`data/raw/gas_pipeline_raw.txt` (field 1), from which per-frame Shannon "
-      "entropy is computable (demonstrated: mean "
-      f"{txt['mean_payload_entropy_bits_per_byte']} bits/byte). Blocker: the TXT is a "
-      "different, unlabeled schema with no documented join to the ARFF labels, so an "
-      "entropy feature cannot currently be paired with ground truth. NEEDS "
-      "DOCUMENTATION on TXT provenance and any ARFF linkage.")
+    w("### payload-entropy anomaly detection — **SUPPORTED ON VERIFIED TXT PATH**")
+    w("The ARFF itself has no raw payload bytes. The canonical TXT supplies them and "
+      "is exactly row-aligned with the ARFF labels and direction, so per-frame and "
+      f"windowed entropy are evaluable. Mean per-frame entropy in this recon is "
+      f"{txt['mean_payload_entropy_bits_per_byte']} bits/byte.")
     w("")
     w("### volume / frequency anomaly detection — **SUPPORTED**")
     w("Exact supporting attributes (ARFF): `time` (unix epoch, "
@@ -594,20 +602,22 @@ def build_report(files, arff, txt, csvd):
 
 def main():
     os.makedirs(OUTDIR, exist_ok=True)
-    for p in (ARFF, TXT, CSV):
+    for p in (ARFF, TXT):
         if not os.path.exists(p):
             print(f"MISSING: {p}", file=sys.stderr)
             sys.exit(1)
 
     files = OrderedDict()
     for label, p in (("data/raw/IanArffDataset.arff", ARFF),
-                     ("data/raw/gas_pipeline_raw.txt", TXT),
-                     ("data/processed/gas_pipeline_ml_ready.csv", CSV)):
+                     ("data/raw/gas_pipeline_raw.txt", TXT)):
         files[label] = sha256_and_size(p)
+    if os.path.exists(CSV):
+        files["data/processed/gas_pipeline_ml_ready.csv"] = sha256_and_size(CSV)
 
     arff = analyze_arff(ARFF)
     txt = analyze_txt(TXT)
     csvd = analyze_csv(CSV)
+    alignment = analyze_alignment(ARFF, TXT)
 
     machine = {
         "generated_utc": datetime.now(timezone.utc).isoformat(),
@@ -618,6 +628,7 @@ def main():
         "files": {k: {"sha256": v[0], "bytes": v[1]} for k, v in files.items()},
         "arff": arff,
         "txt": txt,
+        "alignment": alignment,
         "csv": csvd,
     }
     json_path = os.path.join(OUTDIR, "dataset_inspection.json")
@@ -627,7 +638,7 @@ def main():
     date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     md_path = os.path.join(OUTDIR, f"{date}-dataset-reconnaissance.md")
     with open(md_path, "w", encoding="utf-8") as f:
-        f.write(build_report(files, arff, txt, csvd))
+        f.write(build_report(files, arff, txt, csvd, alignment))
 
     print(f"wrote {json_path}")
     print(f"wrote {md_path}")

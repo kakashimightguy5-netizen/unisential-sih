@@ -119,21 +119,14 @@ lengths are therefore expressible. Caveat: the concentration means a detector ca
 look strong simply by memorising the ~7 dominant codes; the audit in
 `03-data-split-protocol.md` exists to surface that.
 
-### 2. Payload entropy / exfiltration — **PARTIALLY SUPPORTED**
+### 2. Payload entropy / exfiltration — **SUPPORTED ON THE VERIFIED TXT PATH**
 
-The authoritative ARFF contains **no raw payload bytes**. Entropy is UNSUPPORTED from
-`IanArffDataset.arff` alone.
-
-Hex frames exist only in `data/raw/gas_pipeline_raw.txt`, from which per-frame
-Shannon entropy is computable (measured mean 3.1327 bits/byte over 209,668 frames).
-But that file is unlabeled, has a different schema, and has **no documented join key**
-to the ARFF (BLOCKER 3). An entropy feature therefore cannot currently be paired with
-ground truth.
-
-Status for P1: capability is *demonstrable as a computation* but *not evaluable*.
-It stays in scope as a described capability and must not be reported as validated.
-If BLOCKER 3 does not resolve, this class is documented as partially supported —
-per `07-scope-and-cuts.md` it is **not** worked around by inventing a linkage.
+The ARFF alone contains no raw payload bytes. The current
+`data/raw/gas_pipeline_raw.txt`, however, carries hex frames and is verified row-aligned
+to the ARFF across all 274,628 rows (BLOCKER 3 resolved 2026-09-08; see
+`00-dataset-provenance.md`). Entropy can therefore be computed and evaluated against
+authoritative labels without a fuzzy join. EXP-0004 confirms it adds measured IF
+signal; entropy remains one signal among several, never sufficient alone.
 
 ### 3. Volume / frequency anomalies — **SUPPORTED**
 

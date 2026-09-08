@@ -39,17 +39,8 @@ GUARD_WINDOWS = 1
 TARGET_FPR = 0.01
 SEED = 0
 
-# EXP-0001 TEST numbers, for the side-by-side improvement view.
-EXP0001 = {
-    "Stage 0 naive baseline":              dict(p=1.000, r=0.113, f1=0.203, fpr=0.000, ap=None),
-    "IF headline (no entropy, no rule)":   dict(p=0.466, r=0.027, f1=0.051, fpr=0.031, ap=0.539),
-    "IF +entropy (sensitivity)":           dict(p=0.817, r=0.132, f1=0.228, fpr=0.029, ap=0.623),
-    "Combined: baseline OR IF+entropy":    dict(p=0.826, r=0.141, f1=0.240, fpr=0.029, ap=None),
-}
-EXP0001_PERCAT_COMBINED = {  # baseline OR IF+entropy, per-category flag rate (TEST)
-    "Normal": 0.029, "NMRI": 0.073, "CMRI": 0.096, "MSCI": 0.026,
-    "MPCI": 0.030, "MFCI": 1.000, "DoS": 0.011, "Recon": 1.000,
-}
+# No historical comparison constants: EXP-0001/0002 were run on a retracted
+# fabricated input. EXP-0004 is a clean rebaseline on the verified dataset.
 
 
 def contiguous_blocks(n: int):
@@ -80,13 +71,6 @@ def percat(cat_te, pred_te):
         if m.sum():
             out[CATEGORY_NAMES[c]] = (int(m.sum()), float(pred_te[m].mean()))
     return out
-
-
-def delta(now, was):
-    if was is None:
-        return f"{now:.3f}"
-    d = now - was
-    return f"{now:.3f} ({'+' if d >= 0 else ''}{d:.3f} vs EXP-0001 {was:.3f})"
 
 
 @dataclass
@@ -203,13 +187,11 @@ def main() -> None:
     buf = io.StringIO()
     p = lambda *a: print(*a, file=buf)
 
-    p("# Egress anomaly detector — EXP-0002 (headline)\n")
-    p("Two amendments from EXP-0001 applied (DECISION_LOG.md 2026-09-04):\n")
-    p("1. Payload-entropy exclusion **lifted** — entropy is now a headline IF input "
-      "(the TXT is self-labelled, so BLOCKER 3's premise is void).")
-    p("2. `function_code_valid` / `rare_func_rate` **removed from the IF** (exactly "
-      "constant on normal traffic → IF cannot split on them) and moved to a standalone "
-      "**deterministic rule layer** (`ml/rules.py`).\n")
+    p("# Egress anomaly detector — EXP-0004 rebaseline\n")
+    p("Run on the verified row-aligned TXT dataset (sha256 `ce2d69e3…93e3`).\n")
+    p("Payload entropy is a candidate IF input pending the paired EXP-0004 comparison. "
+      "`function_code_valid` / `rare_func_rate` remain outside the IF and are handled "
+      "by the standalone deterministic rule layer (`ml/rules.py`).\n")
 
     p("## Setup\n")
     p(f"- Egress stream: `destination == 1`, 5 s tumbling windows. {n:,} windows.")
@@ -227,54 +209,44 @@ def main() -> None:
 
     # ---- results table ----
     rows = [
-        ("Stage 0 naive baseline", base_pred_te, "Stage 0 naive baseline", None),
-        ("Deterministic rule layer only", rule_pred_te, None, None),
-        ("Stage 1 IF only (IF_FEATURES, entropy in)", if_pred_te, None, s_te),
-        ("Combined: rule OR IF  ← EXP-0002 HEADLINE", comb_pred_te, "Combined: baseline OR IF+entropy", None),
+        ("Stage 0 naive baseline", base_pred_te, None),
+        ("Deterministic rule layer only", rule_pred_te, None),
+        ("Stage 1 IF only (candidate features, entropy in)", if_pred_te, s_te),
+        ("Combined: rule OR IF", comb_pred_te, None),
     ]
     p("## Results — TEST block\n")
     p("| detector | precision | recall | F1 | FPR | PR-AUC |")
     p("|---|---|---|---|---|---|")
-    for name, pred, cmp_key, score in rows:
+    for name, pred, score in rows:
         m = binmetrics(y_te, pred)
-        was = EXP0001.get(cmp_key) if cmp_key else None
-        gw = lambda k: was[k] if was else None
         ap = f"{average_precision_score(y_te, score):.3f}" if score is not None else "—"
-        p(f"| {name} | {delta(m['p'], gw('p'))} | {delta(m['r'], gw('r'))} "
-          f"| {delta(m['f1'], gw('f1'))} | {delta(m['fpr'], gw('fpr'))} | {ap} |")
+        p(f"| {name} | {m['p']:.3f} | {m['r']:.3f} | {m['f1']:.3f} "
+          f"| {m['fpr']:.3f} | {ap} |")
     cm = binmetrics(y_te, comb_pred_te)
     p(f"\nCombined confusion (test): TN {cm['tn']} · FP {cm['fp']} · FN {cm['fn']} · TP {cm['tp']}\n")
-    p("**What the amendments actually changed:** the *combined* operational number is "
-      "essentially unchanged (EXP-0001 already reported a `baseline OR IF+entropy` "
-      "sensitivity row). The gains are (a) **IF-alone recall 0.027 → 0.136** — the IF "
-      "is now a working detector, not a `packet_count==4` noise flagger; (b) the design "
-      "is now defensible — no zero-variance dead features in the model, protocol "
-      "violations handled by an explicit rule; (c) the entropy-included number is the "
-      "*registered headline*, not a footnote.\n")
+    p("No comparison with EXP-0001/0002 is shown because those experiments were "
+      "run on a retracted fabricated input.\n")
 
     # ---- per-category ----
     p("## Per-category flag rate — TEST (Normal row = false-positive rate)\n")
-    p("| category | n | rule only | IF only | **combined** | EXP-0001 combined | Δ |")
-    p("|---|---|---|---|---|---|---|")
+    p("| category | n | rule only | IF only | **combined** |")
+    p("|---|---|---|---|---|")
     pc_rule, pc_if, pc_comb = percat(cat_te, rule_pred_te), percat(cat_te, if_pred_te), percat(cat_te, comb_pred_te)
     for c in range(8):
         name = CATEGORY_NAMES[c]
         if name not in pc_comb:
             continue
         nn, cr = pc_comb[name]
-        was = EXP0001_PERCAT_COMBINED.get(name)
-        d = cr - was if was is not None else 0.0
         p(f"| {name} | {nn} | {pc_rule[name][1]:.1%} | {pc_if[name][1]:.1%} | "
-          f"**{cr:.1%}** | {was:.1%} | {'+' if d >= 0 else ''}{d:.1%} |")
+          f"**{cr:.1%}** |")
 
-    # ---- MFCI / Recon check (task's explicit ask) ----
-    p("\n### MFCI / Recon check — did moving function_code_valid to a rule change them?\n")
+    # ---- MFCI / Recon check ----
+    p("\n### MFCI / Recon check\n")
     for name in ("MFCI", "Recon"):
         c = CATEGORY_NAMES.index(name)
         m = cat_te == c
         p(f"- **{name}**: n={int(m.sum())} · rule-layer catches {rule_pred_te[m].mean():.1%} "
-          f"· IF alone {if_pred_te[m].mean():.1%} · combined {comb_pred_te[m].mean():.1%} "
-          f"(EXP-0001 combined {EXP0001_PERCAT_COMBINED[name]:.1%}).")
+          f"· IF alone {if_pred_te[m].mean():.1%} · combined {comb_pred_te[m].mean():.1%}.")
     # normal-window FP contribution of the rule
     nm = cat_te == 0
     p(f"- Rule layer on Normal test windows: fires on {rule_pred_te[nm].mean():.2%} "
@@ -323,14 +295,13 @@ def main() -> None:
       "test, not fitted to attack data. On Normal test windows it fires "
       f"{rule_pred_te[nm].mean():.2%} of the time (novel benign codes), the same "
       "false-positive channel Stage 0 already had.")
-    p("- **Entropy contribution:** entropy features now carry MFCI/Recon and part of "
-      "NMRI/CMRI inside the IF (EXP-0001 measured recall 0.027→0.132 from adding them). "
-      "Not leakage — payload byte-entropy is wire-observable.")
-    p("- **DoS / MSCI / MPCI / most CMRI-NMRI:** unchanged from EXP-0001, still "
-      "near-undetectable (payload values excluded; DoS is inbound-only). Not revisited "
-      "per the EXP-0002 task scope.")
+    p("- **Entropy contribution:** entropy is legitimately evaluable because the verified "
+      "TXT is row-aligned to the ARFF. Its measured contribution is reported separately "
+      "in EXP-0004; no conclusion is inherited from retracted experiments.")
+    p("- **Attack-family limitations:** interpret only from the verified EXP-0004 metrics "
+      "and same-day DoS re-measurement.")
 
-    REPORT_PATH.write_text(buf.getvalue())
+    REPORT_PATH.write_text(buf.getvalue(), encoding="utf-8")
     print(buf.getvalue())
     print(f"\n[report -> {REPORT_PATH}]")
 

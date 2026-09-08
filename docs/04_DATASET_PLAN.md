@@ -23,7 +23,7 @@ figure below comes from `scripts/inspect_dataset.py` run 2026-09-01 and recorded
 | **Normal traffic description** | A steady SCADA polling loop between a master and the gas-pipeline control equipment. Highly periodic; adjacent frames near-identical. |
 | **Capture format in repo** | `data/raw/IanArffDataset.arff` — ARFF, relation `gas`, 20 attributes, **274,628 instances** (verified by direct parse, twice), 0 malformed rows, 0 exact-duplicate rows. `@data` starts at file line 31. **Thesis states 274,627** (§3.5 p.27) — a **+1-row discrepancy**, documented and not normalised (see `docs/00-dataset-provenance.md`). |
 | **Time span** | 2014-12-15T22:22:43.170388Z → 2014-12-19T02:57:34.165377Z (~3.2 days), `time` strictly increasing in file order, microsecond resolution, 274,628 distinct timestamps, 0 duplicates. |
-| **Supporting file** | `data/raw/gas_pipeline_raw.txt` — **different schema** (6 fields: `hexframe,categorized(0-7),specific(0-35),source,dest,timestamp`), 209,668 data rows, **self-labelled** (the 2026-09-01 "no labels" recon was wrong — see `00-dataset-provenance.md` §CORRECTION), **contains hex payload frames** (mean Shannon entropy 3.1327 bits/byte). Not row-aligned to the ARFF; no ARFF join key (BLOCKER 3) — but not needed, the TXT carries its own labels. Now the basis for the `ml/` windowed detector (EXP-0001/0002). |
+| **Raw companion file** | `data/raw/gas_pipeline_raw.txt` — 6 fields: `hexframe,categorized(0-7),specific(0-35),source,dest,timestamp`; **274,628 rows**, sha256 `ce2d69e3…93e3`. Verified row-aligned to the ARFF on timestamp, both labels, and direction across every row (BLOCKER 3 resolved 2026-09-08). Contains the hex payload frames used by the EXP-0004 windowed detector. The prior 209,668-row artifact and EXP-0001/0002 results are retracted. |
 | **Discarded file** | `data/processed/gas_pipeline_ml_ready.csv` — derived from the unlabelled text file, no label column, bakes in inter-arrival computed in raw order before filtering/splitting. **DISCARD — do not use as a pipeline input.** |
 
 ### Dataset Limitations (must be repeated in every doc that reports a result)
@@ -41,11 +41,9 @@ figure below comes from `scripts/inspect_dataset.py` run 2026-09-01 and recorded
 3. **Direction semantics — RESOLVED from the thesis (BLOCKER 2).** `command response`
    {0,1} splits 137,013 / 137,615. Thesis §3.5.2 (p.34): **"'0' for response or '1'
    for command."** Egress (outbound telemetry) = response = `command response == 0`.
-4. **No raw payload bytes in the authoritative ARFF.** Payload entropy is computable
-   only from `gas_pipeline_raw.txt`. That file has no join key to the *ARFF* labels
-   (BLOCKER 3) — but it is **self-labelled**, so on the TXT egress path entropy IS
-   evaluable against ground truth and is a headline IF feature (amended 2026-09-04,
-   EXP-0002). On the ARFF path entropy stays demonstrable-only.
+4. **No raw payload bytes in the ARFF itself.** Payload entropy is computed from the
+   verified row-aligned `gas_pipeline_raw.txt` companion. BLOCKER 3 is resolved by
+   exact 274,628-row alignment, and EXP-0004 confirms entropy adds measured IF signal.
 5. **Effectively single-source.** `address` is near-constant (value `4` on 274,026
    of 274,628 rows). "Per-source" windowing collapses to one logical source; the
    per-source design is retained for general PCAP input but is not stress-tested by
@@ -189,7 +187,7 @@ simulated by direction-filtering a bidirectional dataset; not real diode data."*
 |---|---|---|
 | BLOCKER 1 — label codebook | normal-only training subset; every label-dependent audit check; every metric | **RESOLVED (thesis).** `binary result` 0=normal/1=attack; `categorized result` 0..7 = Normal/NMRI/CMRI/MSCI/MPCI/MFCI/DoS/Recon (Table 3.1 p.24, Table 3.5 p.36); `specific result` 0=normal, 1–35 per Tables 3.6–3.8 (pp.37–40). Verified against the local ARFF `categorized × specific` cross-tab — exact match for all 35 IDs. Full tables + citations in `docs/00-dataset-provenance.md`. **Metric gate LIFTED.** |
 | BLOCKER 2 — `command response` direction semantics | fixing the egress filter value; final split boundaries | **RESOLVED — CONFIRMED BY PRIMARY SOURCE (thesis, §3.5.2 p.34, verbatim):** *"The sixteenth feature is provided to allow an IDS to learn the difference between commands and responses. The value can either be a '0' for response or '1' for command."* Egress (telemetry leaving the protected OT network) = **response** = `command response == 0`. This is a verbatim thesis definition, not an inference; it also confirms the earlier exception-code inference. |
-| BLOCKER 3 — text↔ARFF join key | pairing payload entropy with ground truth | **RESOLVED BY DECISION + 2026-09-04 correction.** No reliable ARFF↔TXT join; fuzzy timestamp join NOT attempted. **But the raw TXT is self-labelled** (`00-dataset-provenance.md` §"CORRECTION (2026-09-04)"), so on the **TXT egress path** payload entropy IS evaluable against ground truth — it is a headline IF feature there (EXP-0002), and TS-5 is counted in headline recall on that path. On the ARFF path (no payload bytes) entropy remains a described-only mechanism. |
+| BLOCKER 3 — text↔ARFF join key | pairing payload entropy with ground truth | **RESOLVED 2026-09-08 BY VERIFIED ROW ALIGNMENT.** The current 274,628-row raw TXT aligns exactly with the ARFF on timestamp, categorized label, specific label, and direction. Payload entropy is therefore evaluable against authoritative ground truth on the TXT egress path; EXP-0004 confirms measured IF signal. On the ARFF-only path (no payload bytes), entropy remains unavailable. |
 | BLOCKER 4 / LICENSE — dataset terms | any *public* submission / repo push | **PARTIALLY RESOLVED — open action item.** No explicit dataset licence exists; authors request citation only; IMPACT "commercial allowed" tag is third-party / non-authoritative. (The *thesis PDF* is distributed Open Access — separate from the dataset.) Mitigation active: raw files kept out of public repos (download script + checksums committed instead); public artifacts must cite Turnipseed 2015 + Morris/Thornton/Turnipseed 2015 and disclose the simulation. Team must personally verify official terms before any public release. Does **not** block the 2026-09-15 internal demo. |
 | — dataset-count discrepancy | nothing (documented) | Thesis says 274,627 instances (§3.5 p.27); local ARFF has **274,628** (verified twice, 0 malformed rows). **+1 row locally.** Not normalised — local ARFF is the implementation artifact, thesis is the semantics authority. Immaterial to label semantics. |
 
@@ -198,8 +196,9 @@ blockers", §"Dataset-count discrepancy", §"Local ARFF label-domain cross-check
 
 None of these block *writing* pipeline code. **BLOCKER 1's metric gate is now
 lifted** (label-based metrics may be computed once the split + artifact audit pass).
-BLOCKER 3 no longer removes entropy from headline metrics on the TXT path (amended
-2026-09-04 — the TXT is self-labelled). BLOCKER 4 blocks only *public* artifacts.
+BLOCKER 3 no longer removes entropy from headline metrics on the TXT path: exact
+TXT↔ARFF row alignment was verified on 2026-09-08. BLOCKER 4 blocks only *public*
+artifacts.
 
 ### Governing constraints for the first real experiment (pre-registered)
 
@@ -209,12 +208,11 @@ deviate:
 - **Direction filter:** keep `command response == 0` (**confirmed** = response =
   egress, thesis §3.5.2 p.34). Run `command response == 1` as a labelled sensitivity
   check, not as the headline.
-- **Entropy inclusion (amended 2026-09-04, `DECISION_LOG.md` / `EXPERIMENT_LOG.md`
-  pre-reg §2):** `payload_entropy_mean` / `payload_entropy_std` **ARE** headline
-  Isolation Forest inputs on the TXT egress path, and TS-5 is counted in aggregate
-  recall there. The earlier exclusion assumed no payload↔label join (BLOCKER 3); the
-  raw TXT is self-labelled so that is void. On the ARFF path (no payload bytes)
-  entropy stays a described-only mechanism.
+- **Entropy inclusion (`EXPERIMENT_LOG.md` EXP-0004):** `payload_entropy_mean` /
+  `payload_entropy_std` **ARE** headline Isolation Forest inputs on the TXT egress
+  path. The current TXT is verified row-aligned with the authoritative ARFF, resolving
+  BLOCKER 3, and EXP-0004 measured the paired with/without-entropy effect. On the
+  ARFF-only path (no payload bytes), entropy remains unavailable.
 - **Deterministic rule layer:** `function_code_valid` and address-novelty checks are
   **not** IF inputs (constant on normal traffic → IF can't split on them); they run as
   a deterministic rule OR-ed with the IF.

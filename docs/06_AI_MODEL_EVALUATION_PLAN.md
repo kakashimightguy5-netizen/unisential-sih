@@ -1,8 +1,8 @@
 # 06 — AI Model & Evaluation Plan
 
-No performance numbers appear in this document. None exist yet. Every quantitative
-result must come from a recorded `EXPERIMENT_LOG.md` entry. Status legend:
-`planned` / `implemented` / `tested` / `validated` — everything here is `planned`.
+Every quantitative result in this document comes from the recorded EXP-0004 entry in
+`EXPERIMENT_LOG.md`. Status legend: `planned` / `implemented` / `tested` / `validated`;
+the core dataset detector is tested, while application-layer work remains planned.
 
 ---
 
@@ -33,8 +33,9 @@ result must come from a recorded `EXPERIMENT_LOG.md` entry. Status legend:
 - **Headline-metric input set (amended 2026-09-04, `EXPERIMENT_LOG.md` pre-reg §2 /
   `DECISION_LOG.md` 2026-09-04):** the headline IF **includes**
   `payload_entropy_mean` / `payload_entropy_std`. The earlier exclusion assumed no
-  payload↔label linkage (BLOCKER 3); that is void on the TXT egress path, which is
-  self-labelled. Entropy is measured signal there (EXP-0001: recall 0.027 → 0.132).
+  payload↔label linkage (BLOCKER 3); that is resolved by verified TXT↔ARFF row
+  alignment. EXP-0004 confirms entropy adds measured signal on the verified file:
+  IF recall 0.0084 without entropy versus 0.1093 with entropy.
   `function_code_valid` is **removed** from the IF input set — it is exactly constant
   on normal traffic so the IF cannot split on it; it moved to the deterministic rule
   layer.
@@ -97,28 +98,19 @@ rate. `EXPERIMENT_LOG.md` must contain an explicit table of *which attack types 
 MVP can and cannot reasonably be expected to catch*, written **before** the numbers
 are seen, so the split is not post-hoc.
 
-### Recall is structurally bimodal by attack category — not a tuning gap (EXP-0002)
+### Recall is structurally bimodal by attack category — not a tuning gap (EXP-0004)
 
-The headline combined detector (`EXPERIMENT_LOG.md` EXP-0002) has a window-level
-**recall of ≈ 0.14** on the TEST block. That single number is **not a target to be
-raised by tuning.** It is the class-mix-weighted average of two structurally distinct
-regimes, and which regime an attack falls into is fixed by the **one-way,
-egress-only observability model**, not by hyperparameters, feature scaling, or IF
-settings:
+The verified-file combined detector (`EXPERIMENT_LOG.md` EXP-0004) has TEST recall
+**0.1645**. That aggregate is the class-mix-weighted average of structurally distinct
+regimes fixed by the one-way egress observability model:
 
-| Category | EXP-0002 TEST recall (combined) | Regime | Why |
+| Category | EXP-0004 TEST flag rate (combined) | Regime | Why |
 |---|---|---|---|
-| **MFCI**, **Recon** | ~100 % | **at the achievable ceiling** | These manipulate the *protocol* itself — out-of-profile Modbus function codes, device / function-code scans. Directly wire-observable; caught deterministically by the rule layer (`ml/rules.py`), not the IF. Nothing above 100 % to gain. |
-| **MSCI**, **MPCI**, **CMRI**, **NMRI** | ~2 – 10 % | **near-zero by design** | The discriminating signal is the *payload content* — a manipulated setpoint / gain / pump / solenoid state, or a fabricated sensor value, inside an otherwise well-formed frame at a normal rate. The diode-observer model **deliberately excludes payload values** (`04_DATASET_PLAN.md` §Novelty; `05_FEATURE_ENGINEERING_SPEC.md`). No IF tuning recovers a signal the feature set does not carry. The small non-zero rate is incidental framing/timing perturbation, not detection of the attack's intent. |
-| **DoS** (Bad-CRC) | ~1 % | **near-zero — pending verification** | Recorded as **CANNOT (egress)** in the pre-registered CAN/CANNOT table: the Bad-CRC flood is entirely *inbound*, and the RTU's egress replies during a DoS episode are byte-identical to normal replies. Whether any egress-side *timing* signature exists is being measured in **EXP-0003** before this verdict is treated as final. |
+| **MFCI**, **Recon** | 100 % | **at the achievable ceiling** | Out-of-profile function codes are wire-observable and caught by `ml/rules.py`. |
+| **MSCI**, **MPCI**, **CMRI**, **NMRI** | 0.6 %, 1.1 %, 12.8 %, 9.6 % | **weak** | Payload-value attacks often preserve framing/rate; observed hits come from the limited rate, framing, and entropy signals available. |
+| **DoS** (Bad-CRC) | 0 % | **no measured egress timing separation** | EXP-0004 DoS re-measurement found all four IAT effect sizes below 0.2 and overlapping raw-gap distributions. |
 
-**Basis:** the EXP-0002 combined per-category table, and the EXP-0002 decision line —
-> *"No further IF tuning without a genuinely new signal."*
-
-**Reporting rule:** an aggregate or "headline" recall figure **must** be presented
-together with this per-category breakdown. An un-annotated *"recall = 0.14"* is a
-misleading number — it invites the reader to treat a design boundary as an
-unfinished optimisation.
+**Reporting rule:** aggregate recall must be presented with this per-category breakdown.
 
 ### Comparison reporting
 
@@ -136,8 +128,8 @@ case where the baseline misses or false-alarms and the Isolation Forest is corre
   validation-normal windows (e.g. the 99th or 99.5th percentile of validation-normal
   anomaly scores), then report the recall this FPR buys on TEST — **broken out per
   attack category**, never as an aggregate alone (see "Recall is structurally bimodal
-  …" above). EXP-0002 used the 99th percentile (1 % target FPR; ≈ 3 % observed on
-  TEST-normal, the difference being validation→test drift over the 3.2-day capture).
+  …" above). EXP-0004 used the 99th percentile (1 % target FPR; 0.749 % observed on
+  TEST-normal).
 - If validation-block labels are available, an alternative is a precision/recall
   trade-off point on validation; the choice and its justification are recorded in
   `EXPERIMENT_LOG.md`.
@@ -174,17 +166,13 @@ per-tree path contributions are Tier 3.)
 ## Realistic-Expectations Statement
 
 - No accuracy figure is quoted unless a recorded `EXPERIMENT_LOG.md` run produced it.
-- **Measured (EXP-0002):** the combined detector reliably catches only the
-  protocol-manipulation categories (**MFCI, Recon** — ~100 %, via the deterministic
-  rule layer). **MSCI / MPCI / CMRI / NMRI** sit near zero because their signal is
-  payload content the egress-only view excludes by design; **DoS** near zero because
-  the attack is inbound-only (**confirmed by EXP-0003**). This split is
-  **structural**, it matched the pre-registered CAN/CANNOT table, and it is not
-  closed by tuning — see "Recall is structurally bimodal …" above.
-- The Isolation Forest, once entropy was admitted and dead features removed
-  (EXP-0002), went from recall 0.027 to 0.136 standalone but still barely beats the
-  naive baseline on the combined number — the ceiling is the feature set, not the
-  model.
+- **Measured (EXP-0004):** the combined detector catches **MFCI and Recon at 100 %**
+  via the deterministic rule layer. **MSCI / MPCI / CMRI / NMRI** remain weak
+  (0.6 % / 1.1 % / 12.8 % / 9.6 % combined flag rate); **DoS is 0 %**, with the
+  same experiment's timing re-measurement meeting the pre-registered NO-SEPARATION
+  criterion. See the per-category table above.
+- The paired verified-file comparison confirms entropy as a useful IF input: recall
+  0.0084 without entropy versus 0.1093 with entropy; PR-AUC 0.5565 versus 0.6493.
 - The instrumentation-artifact audit may still rule features out and *reduce* the
   numbers above — that is correct behaviour, not a regression.
 - A result that looks "too clean" (near-perfect separation) is treated as a suspected
@@ -192,21 +180,21 @@ per-tree path contributions are Tier 3.)
   *explained*: an out-of-profile function code on the wire is a real, deterministic
   signal, not an artifact.
 
-### EXP-0003 forecloses the Tier 2 IAT rationale for the payload-content categories
+### EXP-0004 forecloses the Tier 2 IAT rationale for the payload-content categories
 
 The stretch plan (`DECISION_LOG.md` 2026-09-02 tiering entry) listed Tier 2 IAT
 features — IAT histogram distance, per-source rolling profile — as the next lever for
-the low-recall categories. **EXP-0003 removes that rationale:**
+the low-recall categories. **EXP-0004 removes that rationale:**
 
-- **DoS:** measured — no egress inter-arrival-time separation at all (Cohen's d
-  ≤ 0.15 on every IAT statistic; raw inter-frame-gap distributions identical,
-  Kolmogorov–Smirnov p = 0.65). A finer IAT feature has nothing finer to find.
+- **DoS:** measured on the verified file — all four IAT-statistic effect sizes have
+  |d| < 0.2; raw inter-frame-gap d = -0.046 and Kolmogorov–Smirnov p = 0.461.
+  A finer IAT feature has no demonstrated separation to exploit.
 - **CMRI / NMRI:** by the same logic. Their attack signal is a manipulated *value*
   inside a well-formed frame emitted at the normal polling cadence — there is no
   timing perturbation for an IAT-histogram or rolling-profile feature to pick up any
   more than the mean/std already do. (CMRI is *designed* to hold timing constant;
-  NMRI's occasional hits in EXP-0002 come from frame-length / rare-code artefacts,
-  not timing.)
+  NMRI's limited hits in EXP-0004 come from the available framing/rate/entropy signals,
+  not evidence that timing reveals attack intent.)
 
 **Consequence.** Tier 2 IAT work is **not pursued** (Phase 4 held). Meaningful recall
 on MSCI / MPCI / CMRI / NMRI / DoS would require a **new signal type that has not

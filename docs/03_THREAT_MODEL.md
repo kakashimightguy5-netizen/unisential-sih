@@ -68,7 +68,9 @@ The attacker is assumed to:
 - Every device on the protected network (any one may be the compromised source).
 - The content, timing, and framing of the outbound stream.
 - Any live capture input until validated (format, completeness).
-- The unlabelled raw payload text file (provenance undocumented — BLOCKER 3).
+- Any raw payload input whose provenance, hash, or alignment has not been verified.
+  The current canonical TXT is verified and read-only; replacement inputs remain
+  untrusted until they pass the same checks.
 
 ## Assets Being Protected
 
@@ -85,9 +87,9 @@ The attacker is assumed to:
 - Egress packet / frame sizes (→ byte volume, frame-length checks).
 - Protocol identity and function/operation codes (→ validity, frequency
   distribution).
-- Payload bytes where present (→ Shannon entropy). **Note:** absent from the
-  authoritative ARFF; only in the unlabelled text file (BLOCKER 3), so entropy is
-  currently *computable but not evaluable* against ground truth.
+- Payload bytes where present (→ Shannon entropy). They are absent from the ARFF
+  itself but present in the canonical 274,628-row TXT, whose timestamps, labels, and
+  direction are exactly aligned with the ARFF (BLOCKER 3 resolved 2026-09-08).
 - Source identifier of the emitting device (near-constant in the project dataset).
 - Header/protocol field values (available to Tier 3 covert-storage-channel work; not
   used in MVP).

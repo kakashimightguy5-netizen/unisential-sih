@@ -12,11 +12,11 @@ or flagged, never zero-filled.
 Data-source note: two artifacts are in play. `data/raw/IanArffDataset.arff` is the
 authoritative *ARFF* path (`docs/02-feature-schema.md`) and has **no raw payload
 bytes**. `data/raw/gas_pipeline_raw.txt` is the *TXT egress* path used by
-`ml/features_windowed.py` — it **does** carry payload bytes **and** is confirmed
-self-labelled (`00-dataset-provenance.md` §"CORRECTION (2026-09-04)"), so payload
-entropy **is** computable and evaluable against labels there. Entropy is a Tier 1
-headline IF feature on the TXT path (amended 2026-09-04); on the ARFF path it remains
-a described capability only.
+`ml/features_windowed.py` — it **does** carry payload bytes and is verified row-aligned
+to the ARFF across all 274,628 rows (`00-dataset-provenance.md` §NEW AUTHORITATIVE RAW
+FILE), so payload entropy is computable and evaluable against authoritative labels.
+Entropy is a Tier 1 headline IF feature on the TXT path; on the ARFF-only path it is
+unavailable.
 
 ---
 
@@ -37,9 +37,9 @@ a described capability only.
 
 ## Tier 1 — deterministic rule layer (runs ALONGSIDE the Isolation Forest, not inside it)
 
-Amended 2026-09-04 (EXP-0001 / EXP-0002; `DECISION_LOG.md` 2026-09-04). Features that
-are **exactly constant on normal traffic** carry the strongest signal for
-protocol-violation attacks (MFCI, Recon) but an Isolation Forest **cannot use them** —
+Confirmed on the verified dataset by EXP-0004. Features that are **exactly constant
+on normal traffic** carry the strongest signal for protocol-violation attacks (MFCI,
+Recon) but an Isolation Forest **cannot use them** —
 it never draws a split on a zero-variance feature, so they contribute nothing to the
 anomaly score. They are moved out of the IF input vector into a small deterministic
 rule that fires independently and is OR-ed with the IF verdict.
@@ -53,10 +53,9 @@ rule that fires independently and is OR-ed with the IF verdict.
   **TRAIN-normal block only**, same discipline as the IF standardiser.
 - Rule hits are surfaced in the alert explanation as `NOVEL VALUE` contributions
   (`06_AI_MODEL_EVALUATION_PLAN.md` FR-6), not as z-scores.
-- Rationale and measured effect: `EXPERIMENT_LOG.md` EXP-0001 audit notes / EXP-0002.
-  On this dataset the rule catches MFCI and Recon at 100 % with 0 % added FPR —
-  Stage 0 already did, so moving the check out of the IF costs nothing and removes a
-  dead input.
+- Rationale and measured effect: `EXPERIMENT_LOG.md` EXP-0004. On the verified
+  dataset the rule catches MFCI and Recon at 100 % with 0 % added Normal FPR, while
+  keeping zero-variance fields out of the IF input.
 
 ### Tier 1 modelling notes
 
@@ -65,14 +64,13 @@ rule that fires independently and is OR-ed with the IF verdict.
   entropy features (see amendment). The function-code *distribution* / divergence
   scalar stays an IF input — it has variance on normal traffic; the *validity
   fraction* does not.
-- **Entropy is IN the headline model (amended 2026-09-04).** The earlier exclusion of
+- **Entropy is IN the headline model.** The earlier exclusion of
   `payload_entropy_mean` / `payload_entropy_std` was predicated on BLOCKER 3 ("payload
-  bytes cannot be joined to labels"). That basis is **void**: the raw TXT is confirmed
-  self-labelled (`00-dataset-provenance.md` §"CORRECTION (2026-09-04)"), so entropy is
-  evaluable against ground truth on the TXT egress path. Per EXP-0001, adding entropy
-  lifts IF recall 0.027 → 0.132 and precision to 0.82 — real signal, not leakage. The
-  "one signal among several / never sufficient alone" and low-confidence-if-only-entropy
-  disciplines below still stand.
+  bytes cannot be joined to labels"). Exact alignment of the current TXT with the ARFF
+  resolves that blocker. In EXP-0004's paired comparison, entropy increased IF recall
+  from 0.0084 to 0.1093 and PR-AUC from 0.5565 to 0.6493. The "one signal among
+  several / never sufficient alone" and low-confidence-if-only-entropy disciplines
+  below still stand.
 - **Normalization / standardization** parameters (per-feature, per-source mean and
   std, and the learned "valid function code" set, and the train-normal function-code
   distribution) are **fitted on the TRAIN-normal block only** and frozen. They are
