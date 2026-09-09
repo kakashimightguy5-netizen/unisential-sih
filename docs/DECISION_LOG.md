@@ -4,6 +4,43 @@ Format: **DATE · DECISION · OPTIONS CONSIDERED · WHY CHOSEN · IMPACT**
 
 ---
 
+### 2026-09-10 · DECISION — EXP-0016 builds a decoded-pressure out-of-bounds rule for NMRI (first built fix; touches the rule layer)
+
+- **DECISION:** build one additive rule — flag an egress window whose decoded `0x03`
+  response pressure falls outside the TRAIN-normal observed range `[0.4828, 38.7471]` —
+  as `PressureBoundsRule` in `ml/rules.py`, alongside the untouched `DeterministicRuleLayer`,
+  OR-ed into the operational verdict. Target a rule-layer-style fix (deterministic, frozen
+  bound), not an ML model. Fixed decision rule: **strong** = rule-alone pure-NMRI TEST
+  recall ≥ 50 % with new pure-Normal FP ≤ 0.30 %; **acceptable** = recall ≥ 30 % with
+  FP ≤ 0.30 %.
+- **OPTIONS CONSIDERED:** (a) add pressure-value features to the Isolation Forest and let
+  it learn the bound — rejected: the IF already fails to use the two entropy features it
+  has (EXP-0014/0015), and NMRI out-of-bounds values are an unambiguous, non-statistical
+  signal that a hard rule handles exactly like the existing func-code / novel-address
+  checks handle MFCI/Recon; (b) a supervised classifier on decoded-value features —
+  rejected as premature for a signal this clean; (c) one deterministic bound rule in the
+  existing rule layer — chosen.
+- **WHY NOW, WHY NMRI FIRST:** EXP-0015 identified NMRI as the cheapest, highest-yield row
+  in the per-category review — response-side (no diode limit), healthy class size, and
+  *defined* as naive out-of-bounds injection. EDA (to derive the empirical bound, since no
+  documented range exists) shows the rule alone would catch ~79 % of pure-NMRI TEST
+  windows at ~0.08 % new Normal FP, well past the bar.
+- **WHY THIS TASK TOUCHES THE RULE LAYER (unlike EXP-0010/0014/0015):** those were
+  diagnostics or additive-only outside the core detector. EXP-0016 deliberately adds a
+  rule to `ml/rules.py`. The addition is strictly additive — `DeterministicRuleLayer` and
+  its MFCI/Recon/func-code checks, all thresholds, and the Isolation Forest are unchanged,
+  with a regression test proving it. The operational `run_detector` is **not** modified in
+  EXP-0016; the effect of adding the rule to the frozen EXP-0004 TEST confusion is
+  measured and reported so that wiring it in — which would update EXP-0004's baseline — is
+  a separate, explicit decision.
+- **IMPACT:** first concrete detection improvement in the project since EXP-0004. Bounds
+  derived from TRAIN-normal only, per the corrected manifest. Known caveat: the rule reads
+  the ARFF `pressure measurement` value via row alignment (as EXP-0009/0011a did); a real
+  PCAP-replay deployment would decode it from the `0x03` response bytes, and that register
+  map / scaling is undocumented — a separate open item.
+
+---
+
 ### 2026-09-10 · DECISION — diagnose the NMRI / CMRI detection gap (EXP-0015); response-side, so no diode caveat
 
 - **DECISION:** run a diagnostic-only experiment (EXP-0015) on the remaining two weak

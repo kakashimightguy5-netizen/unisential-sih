@@ -53,3 +53,67 @@ class DeterministicRuleLayer:
 
     def predict(self, windows) -> list[int]:
         return [int(self.evaluate(w).fired) for w in windows]
+
+
+@dataclass(frozen=True)
+class PressureBounds:
+    low: float
+    high: float
+    source: str
+
+
+class PressureBoundsRule:
+    """Additive out-of-bounds check on the decoded response pressure value.
+
+    Independent of DeterministicRuleLayer; OR-ed into the operational verdict the
+    same way. Added for NMRI (EXP-0016): NMRI is *defined* as naive out-of-bounds
+    response injection, and the decoded `0x03` response pressure is a value that is
+    exactly bounded on normal traffic — a membership test, like the func-code rule,
+    not a statistical anomaly. Bounds are frozen from TRAIN-normal only.
+
+    `evaluate` takes a window's minimum and maximum decoded `0x03` pressure (None
+    if the window has no `0x03` response pressure).
+    """
+
+    def __init__(self) -> None:
+        self.bounds: PressureBounds | None = None
+        self._fitted = False
+
+    def fit(
+        self,
+        train_normal_values,
+        *,
+        source: str = "TRAIN-normal 0x03 read-response pressure min/max",
+    ) -> "PressureBoundsRule":
+        finite = [
+            float(v) for v in train_normal_values
+            if v is not None and float(v) == float(v) and abs(float(v)) != float("inf")
+        ]
+        if not finite:
+            raise ValueError("PressureBoundsRule.fit needs at least one finite value")
+        self.bounds = PressureBounds(min(finite), max(finite), source)
+        self._fitted = True
+        return self
+
+    def evaluate(
+        self, window_pressure_min: float | None, window_pressure_max: float | None,
+    ) -> RuleHit:
+        if not self._fitted or self.bounds is None:
+            raise RuntimeError("fit() PressureBoundsRule on train-normal values first")
+        if window_pressure_min is None or window_pressure_max is None:
+            return RuleHit(fired=False, reasons=[])
+        reasons: list[str] = []
+        if window_pressure_min < self.bounds.low:
+            reasons.append(
+                f"pressure_below_train_normal_min={window_pressure_min:.6g}"
+                f"<{self.bounds.low:.6g}"
+            )
+        if window_pressure_max > self.bounds.high:
+            reasons.append(
+                f"pressure_above_train_normal_max={window_pressure_max:.6g}"
+                f">{self.bounds.high:.6g}"
+            )
+        return RuleHit(fired=bool(reasons), reasons=reasons)
+
+    def predict(self, windows_min_max) -> list[int]:
+        return [int(self.evaluate(lo, hi).fired) for lo, hi in windows_min_max]

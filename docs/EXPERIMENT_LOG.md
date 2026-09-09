@@ -2459,3 +2459,196 @@ to conceal or replace it.
   dynamics features + a supervised model. This completes the per-category gap review
   (DoS, MSCI, MPCI, NMRI, CMRI). No fix built or scheduled. **No commit or push
   performed** pending explicit go-ahead.
+
+---
+
+### EXP-0016 · Decoded-pressure out-of-bounds rule for NMRI (first built fix) — 2026-09-10
+
+> **PRE-REGISTRATION — PLANNED.** Recorded before writing any rule or scoring any cohort.
+> The decision rule, bounds method, and cohorts are fixed now. **This is the first
+> experiment in the per-category review that BUILDS a fix and that MODIFIES the rule
+> layer** (`ml/rules.py`) — every prior experiment (EXP-0010, EXP-0014, EXP-0015) was
+> additive-only outside the core detector. It follows EXP-0015's diagnosis that NMRI is a
+> fully egress-observable response-injection attack whose real detection is only `1.12 %`
+> purely because no feature decodes the response pressure value.
+
+- **PLANNED — what NMRI injects (thesis-cited, `docs/00-dataset-provenance.md`):** NMRI
+  (`categorized result == 1`) = *Naïve Malicious Response Injection* — "sporadic and out
+  of bounds behavior that would not be present in normal operation". Specific attacks:
+  `29–31` Random Value ("random pressure measurements are sent to the master"), `32`
+  Negative Pressure ("sends back a negative pressure reading from the slave"). Direction:
+  response-side / egress only (EXP-0015 measured: every NMRI frame is a `destination == 1`
+  `function 0x03` read response). The forged value **is** egress traffic; the diode caveat
+  does not apply.
+- **PLANNED — pressure decoding (reuse EXP-0009 / EXP-0011a, not reimplemented):** the
+  response pressure is the ARFF `pressure measurement` field (data column 13), row-index
+  aligned to the TXT and verified by matching `command response == 0` /
+  `destination == 1`, timestamp, `categorized result`, and `specific result` — the exact
+  alignment `exp0009_payload.align_pretest_pressure` performs. EXP-0016 reuses that
+  module's `_arff_data_rows` / `_parse_optional_float` primitives and the same
+  row-by-row alignment assertions; it adds only a variant that also retains pressure for
+  TEST-block records (the frozen rule is derived from TRAIN-normal and *scored* against
+  TEST — no leakage). Pressure is taken only from canonical `0x03` Read Holding Registers
+  responses (per EXP-0011a §6.3/§6.12, `0x10` echoes carry no returned value).
+- **PLANNED — bounds (NOT documented — derived empirically, TRAIN-normal only):** the
+  dataset documentation and thesis give no numeric normal pressure range. The bound is
+  therefore **the observed min and max of every `0x03` pressure value in a
+  pure-Normal TRAIN window** (`categories == {0}`, TRAIN block per the corrected
+  manifest). Pre-checked: `[0.4828, 38.7471]` over `21,384` values; zero negative values
+  occur anywhere in the dataset. This is stated as an empirical TRAIN-normal bound, not a
+  physical spec. No percentile trimming — the absolute observed range gives the lowest
+  new false-positive rate; a percentile variant (`0.1st / 99.9th`) will be reported
+  alongside for context but the **min/max bound is the frozen rule**.
+- **PLANNED — the rule (`ml/rules.py`, additive):** a new class `PressureBoundsRule`,
+  independent of and alongside `DeterministicRuleLayer`, in the same "fit on TRAIN-normal
+  → `evaluate` → `RuleHit`" style. `fit(train_normal_pressure_values)` freezes
+  `low = min`, `high = max`. `evaluate(window_pressure_min, window_pressure_max)` fires
+  (`RuleHit(True, [...])`) iff a window's minimum `0x03` pressure `< low` or its maximum
+  `> high`; a window with no `0x03` pressure yields `RuleHit(False, [])`.
+  **`DeterministicRuleLayer` — the existing function-code / novel-address checks used for
+  MFCI / Recon — is not touched at all.** No existing rule, threshold, or the Isolation
+  Forest is modified. A regression test asserts `DeterministicRuleLayer.evaluate` is
+  behaviourally unchanged (bad func code, novel address, clean window).
+- **PLANNED — identity gates (EXP-0010/0014/0015 discipline):** EXP-0016 reproduces the
+  EXP-0004 combined detector in-process and asserts, before scoring: real-TEST `if_pred`
+  equals `run_detector().if_pred` element-wise; reproduced threshold equals the frozen
+  `0.6745465823488428`; reproduced combined-TEST confusion equals EXP-0004's exact
+  `TN 4,771 / FP 36 / FN 3,793 / TP 747`; the split is byte-identical to
+  `verified-egress-5s-exp0008-pretest-v1`. `ml/iforest_detector.py` is **not** modified;
+  the operational `run_detector` is left frozen and the effect of adding the rule to it is
+  *measured and reported*, not applied here.
+- **PLANNED — validation cohorts (TEST block; negative class = the `4,807` pure-Normal
+  TEST windows throughout):**
+  1. **Rule alone** (not combined) vs: (a) pure-NMRI TEST windows — recall; (b)
+     pure-Normal TEST windows — new false-positive rate; (c) pure windows of every other
+     category (Normal, CMRI, MSCI, MPCI, MFCI, DoS, Recon) — to account for incidental
+     help or harm per category, separately.
+  2. **Full combined** (EXP-0004 rule OR IF OR `PressureBoundsRule`) vs the same cohorts,
+     plus the **whole 9,347-window TEST block** binary attack/Normal confusion, compared
+     directly to EXP-0004's frozen `4,771 / 36 / 3,793 / 747` — to state exactly how much
+     the operational baseline *would* move if the rule were wired in.
+  All rows report precision / recall / F1 / FPR and `TP / FN / FP / TN`.
+- **PLANNED — FIXED DECISION RULE (stated before scoring):**
+  - **Strong result** = pressure-rule-alone **pure-NMRI TEST recall ≥ 50 %** AND
+    pressure-rule-alone **pure-Normal TEST false-positive rate ≤ 0.30 %** (so the combined
+    operational FPR stays well under 1 % and rises by at most ~0.3 pp over EXP-0004's
+    `0.7489 %` — "not meaningfully worse").
+  - **Acceptable** = NMRI recall ≥ 30 % with Normal FP ≤ 0.30 %.
+  - **Weak / reconsider** = NMRI recall < 30 %, or Normal FP > 0.30 %.
+  - MFCI/Recon-style ~100 % recall is **not** expected here and is not the bar: NMRI's
+    "random value" attacks land inside the normal pressure range a meaningful fraction of
+    the time, so a value-bound rule has a real ceiling below 100 %.
+  - Any incidental change to another category's detection (CMRI, MSCI, …) is reported
+    per category and **not** counted toward or against the NMRI bar.
+- **PLANNED — explicit baseline-change flag:** if the full combined detector's TEST
+  confusion differs from EXP-0004's frozen matrix, EXP-0016 states the exact new matrix
+  and the delta, and flags that wiring the rule into `run_detector` would **update
+  EXP-0004's frozen baseline** — a larger step than any prior additive-only experiment —
+  to be decided separately, not done in EXP-0016.
+- **PLANNED — outputs / scope:** new files `ml/exp0016_pressure_bounds_rule.py`,
+  `tests/test_exp0016_pressure_bounds_rule.py`, gitignored
+  `data/experiments/exp0016_pressure_bounds_rule.json`; plus the additive
+  `PressureBoundsRule` in `ml/rules.py`. Do **not** touch `ml/iforest_detector.py`,
+  `ml/features_windowed.py`, the existing `DeterministicRuleLayer`, the DoS files
+  (EXP-0007…EXP-0013), the MSCI/MPCI diagnostic (EXP-0014), the NMRI/CMRI diagnostic
+  (EXP-0015), Layer A, or `app.py`. Run the full suite before and after with exact
+  counts. Show the full diff and every result, then wait for explicit go-ahead before any
+  commit. No push.
+- **PLANNED — known limitation to disclose:** the rule reads the ARFF `pressure
+  measurement` value via row alignment, exactly as EXP-0009/0011a did. A real
+  PCAP-replay deployment would decode this value from the Modbus `0x03` response payload
+  bytes; the register index and scaling factor for that are not documented, so this fix —
+  like the EXP-0009/0011 payload work — is validated against the aligned ARFF value and
+  its deployment path is a separate open item.
+
+- **IMPLEMENTED — additive rule + isolated experiment:** added
+  `rules.PressureBoundsRule` (a new class in `ml/rules.py`, alongside the **unchanged**
+  `DeterministicRuleLayer`), `ml/exp0016_pressure_bounds_rule.py`, and
+  `tests/test_exp0016_pressure_bounds_rule.py`; JSON gitignored at
+  `data/experiments/exp0016_pressure_bounds_rule.json`. `PressureBoundsRule.fit` freezes
+  `low = min`, `high = max` of the values it is given; `evaluate(window_min, window_max)`
+  fires iff `window_min < low` or `window_max > high`, and returns `RuleHit(False, [])`
+  for a window with no `0x03` pressure. `ml/iforest_detector.py`, `ml/features_windowed.py`,
+  and the existing `DeterministicRuleLayer` body are untouched; a regression test asserts
+  the func-code / novel-address behaviour and the `DeterministicRuleLayer` source are
+  unchanged.
+- **VALIDATED — gates (all passed before scoring):** reproduced IF `if_pred` equals
+  `run_detector().if_pred` element-wise on the real TEST block; reproduced threshold
+  equals the frozen `0.6745465823488428`; reproduced combined-detector TEST confusion is
+  exactly `TN 4,771 / FP 36 / FN 3,793 / TP 747`; the split is byte-identical to
+  `verified-egress-5s-exp0008-pretest-v1`.
+- **VALIDATED — bound (derived, TRAIN-normal only):** `[0.4828, 38.7471]` — the observed
+  minimum and maximum of every `0x03` read-response pressure value in a pure-Normal
+  TRAIN window (`21,384` values). No negative pressure value occurs anywhere in the
+  dataset. A percentile variant (`0.1st / 99.9th` = `[0.5172, 34.3820]`) is recorded for
+  context; the frozen rule uses min/max because it gives the lowest new false-positive
+  rate.
+
+- **VALIDATED — FIXED DECISION RULE: verdict `STRONG`.**
+  - pressure-rule-alone **pure-NMRI TEST recall `79.02 %`** (`565/715`) — bar was `≥ 50 %`.
+  - pressure-rule-alone **new pure-Normal TEST false positives `4/4,807 = 0.083 %`** — bar
+    was `≤ 0.30 %`. (EXP-0004's current Normal FP is `0.749 %`; this rule adds `0.083 pp`.)
+  - MFCI/Recon-style `~100 %` was explicitly **not** the bar: `27 %` of NMRI "random
+    value" forgeries land inside `[0.4828, 38.7471]` by chance, so a value-bound rule's
+    ceiling is `~79 %` here, not `100 %`.
+
+- **VALIDATED — SYNTHETIC-FREE cohort scoring, TEST block (negative class throughout =
+  the `4,807` pure-Normal TEST windows):**
+
+  | category | cohort | n⁺ | rule-alone recall | rule-alone precision | EXP-0004 recall | combined+rule recall |
+  |---|---|---:|---:|---:|---:|---:|
+  | **NMRI** | pure | 715 | **79.02 %** | 99.30 % | 1.12 % | **79.02 %** |
+  | **NMRI** | containing / dominant | 1,131 | 75.42 % | 99.53 % | 9.64 % | 76.57 % |
+  | **CMRI** | pure | 1,198 | **53.67 %** | 99.38 % | 2.34 % | **54.59 %** |
+  | **CMRI** | containing | 1,826 | 53.56 % | 99.59 % | 12.71 % | 60.19 % |
+  | **CMRI** | dominant | 1,812 | 53.42 % | 99.59 % | 12.80 % | 60.10 % |
+  | MSCI | pure | 322 | 4.04 % | 76.47 % | 0.62 % | 4.66 % |
+  | MPCI | pure | 739 | 0.00 % | — | 0.95 % | 0.95 % |
+  | MFCI | pure | 227 | 0.00 % | — | 100.00 % | 100.00 % |
+  | DoS | pure | 136 | 0.00 % | — | 0.00 % | 0.00 % |
+  | Recon | pure | 169 | 0.00 % | — | 100.00 % | 100.00 % |
+
+  - **NMRI (target):** combined-detector real detection goes `1.12 % → 79.02 %` on pure
+    windows.
+  - **CMRI (incidental, helpful):** `2.34 % → 54.59 %` pure — CMRI forgeries also leave
+    the normal range about half the time. Reported, not tuned for.
+  - **MSCI (incidental, helpful):** `+13` windows (`0.62 % → 4.66 %` pure) — state changes
+    briefly push a real read outside the range. Minor.
+  - **MPCI / MFCI / DoS / Recon: unchanged.** The rule fires on `0` of their pure windows;
+    MFCI/Recon stay at `100 %` (their func-code rule is untouched). No category is harmed.
+  - New pure-Normal TEST false positives: EXP-0004 `36` → combined+rule `40` (`+4`).
+
+- **VALIDATED — EXPLICIT BASELINE-CHANGE FLAG.** `ml/iforest_detector.run_detector` is
+  **not** modified in EXP-0016. If `PressureBoundsRule` were wired into the operational
+  detector, EXP-0004's frozen whole-TEST-block binary confusion would change:
+
+  | | TN | FP | FN | TP | attack recall | precision | Normal FPR |
+  |---|---:|---:|---:|---:|---:|---:|---:|
+  | EXP-0004 frozen | 4,771 | 36 | 3,793 | 747 | 16.45 % | 95.40 % | 0.7489 % |
+  | + PressureBoundsRule | 4,767 | 40 | 2,166 | **2,374** | **52.29 %** | 98.34 % | 0.8321 % |
+  | **delta** | **−4** | **+4** | **−1,627** | **+1,627** | **+35.8 pp** | +2.9 pp | +0.083 pp |
+
+  This is a **much larger step than any prior additive-only experiment** — it would
+  supersede EXP-0004's headline TEST numbers (`+1,627` true positives caught, `+4` false
+  positives). EXP-0016 stops at *measuring and reporting* this. Wiring it into
+  `run_detector` and updating the frozen baseline (and `tests/test_detector.py`'s
+  regression constants) is a **separate, explicit decision** — flagged, not taken here.
+
+- **TESTED — execution record:** pre-EXP-0016 full suite **130 passed**. Added
+  `tests/test_exp0016_pressure_bounds_rule.py` = **8 passed** (7 fast: `PressureBoundsRule`
+  fit/evaluate/guards/batch, `window_pressure_min_max`, confusion arithmetic, **and the
+  `DeterministicRuleLayer` behaviour + source regression**; 1 `@pytest.mark.slow`
+  end-to-end). Full suite after: **138 passed** (net **+8**). Existing `test_detector.py`
+  rule-layer regression tests still pass unchanged — the addition is strictly additive.
+- **LIMITATIONS:** the pressure value is the ARFF-aligned `pressure measurement`, exactly
+  as EXP-0009/0011a use it; a PCAP-replay deployment would decode it from the `0x03`
+  response bytes and that register index / scaling is undocumented — a separate open
+  item. The bound is an empirical TRAIN-normal range, not a physical spec. NMRI "random
+  value" forgeries inside the normal range are missed (`~21 %`). CMRI / MSCI incidental
+  detections are not tuned for. One testbed; egress-only.
+- **STATUS — NMRI fix:** **built, validated `STRONG`, not yet operational.**
+  `PressureBoundsRule` in `ml/rules.py` catches `79 %` of pure-NMRI TEST windows
+  (`1.12 % → 79.02 %`) at `+0.083 pp` Normal FP, plus `~54 %` of CMRI as a bonus.
+  Wiring it into `run_detector` would improve EXP-0004's whole-block attack recall
+  `16.5 % → 52.3 %` for `+4` false positives — a baseline update flagged for a separate
+  decision. **No commit or push performed** pending explicit go-ahead.
