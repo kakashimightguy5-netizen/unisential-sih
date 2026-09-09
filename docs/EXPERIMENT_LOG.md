@@ -1173,3 +1173,181 @@ to conceal or replace it.
   tuning or comparison.
 
 ---
+
+### EXP-0009 · Independent egress-only Detector B improvements — 2026-09-09
+
+> **PRE-REGISTRATION — PLANNED.** Recorded before any EXP-0009 payload audit,
+> transformation, resampling, model fit, VALIDATION metric, threshold sweep, or TEST
+> access. All five sub-experiments and their selection rules are fixed below. Every
+> result will be reported, including regressions and stopped variants.
+
+- **PLANNED — common scope and held-out discipline:** retain EXP-0008's verified
+  TXT/ARFF inputs and exact alignment, egress-only `destination == 1` / ARFF
+  `command response == 0`, 46,736 eligible five-second windows, guarded chronological
+  TRAIN 28,040 / VALIDATION 9,345 / TEST 9,347 split, DoS-containing versus pure-Normal
+  cohort, and other-attack-only exclusion. Fit/derive on TRAIN and compare/select on
+  VALIDATION only. No EXP-0009 TEST payload value, feature, label, prediction, or metric
+  may be materialized until explicit sign-off; final TEST scoring is a separately
+  guarded path and is permitted once only.
+- **PLANNED — inherited EXP-0008 integrity controls:** reuse, without modification,
+  EXP-0008's TRAIN-only immutable response-shape discovery, canonical frame-to-type
+  mapper, per-type baselines, and original cadence features. Every EXP-0009 type-aware
+  stage receives that same canonical mapper object. VALIDATION and TEST cannot define a
+  type or baseline. Synthetic TEST-mutation and mapper-identity tests must pass before
+  the real validation study. EXP-0007's invalidated method and outputs are forbidden as
+  inputs or tuning references.
+- **PLANNED — 0009a, response pressure only:** provenance records pressure attacks as
+  pressure readings sent back to the master; schema field 14 `pressure measurement` is
+  separate from command-payload fields 4–13; `command response == 0` is confirmed
+  response/egress. The user explicitly authorized using this field through exact
+  TXT↔ARFF row alignment, with the limitation that the current TXT parser does not
+  independently decode its numeric register representation. Use no command-side row or
+  setpoint/gain/reset-rate/deadband/cycle-time/rate/system-mode/control-scheme/pump/
+  solenoid/CRC field. On TRAIN, audit Normal/DoS presence, missingness, finite/unique
+  values, quantiles/ranges, value overlap, and whether presence or value perfectly
+  separates labels. **Decision rule:** if provenance/alignment fails, there are no
+  usable TRAIN-normal measurements, or presence/value is perfectly separable or
+  otherwise an obvious lab-label proxy, report `STOPPED — PAYLOAD GATE`, substitute
+  nothing, and exclude 0009a from selection. Otherwise freeze TRAIN-normal per-type
+  baseline/imputation and add per-type window raw last/mean/min/max, deviation mean/
+  maximum absolute deviation, and `(last-first)/elapsed-time` rate of change. Missing
+  windows receive the TRAIN-normal baseline; no presence/missingness indicator is an
+  input. Train the exact EXP-0008 RF on cadence plus pressure and report VALIDATION at
+  threshold 0.5, independently of all other variants.
+- **PLANNED — 0009b, TRAIN-only standard SMOTE:** apply
+  `imblearn.over_sampling.SMOTE(sampling_strategy="auto", k_neighbors=5,
+  random_state=0)` only to the original EXP-0008 cadence TRAIN cohort, then fit a
+  300-tree RF with seed 0, `n_jobs=-1`, and `class_weight=None`; VALIDATION remains
+  untouched and is scored at 0.5. Standard SMOTE is selected rather than Borderline-
+  SMOTE as the simplest isolated resampling ablation without an extra border rule.
+  **Decision rule:** report its fixed-threshold VALIDATION metrics exactly; it is
+  eligible for 0009e even if worse than EXP-0008.
+- **PLANNED — 0009c, XGBoost model swap:** use original cadence features and original
+  unresampled TRAIN cohort with `XGBClassifier(objective="binary:logistic",
+  n_estimators=300, random_state=0, n_jobs=-1, eval_metric="logloss",
+  scale_pos_weight=n_train_normal/n_train_dos)`; record all installed-version defaults.
+  XGBoost is selected because it is already a project dependency. Score unchanged
+  VALIDATION at 0.5. **Decision rule:** report exactly and keep eligible for 0009e
+  regardless of improvement or regression.
+- **PLANNED — 0009d, per-response-type RFs:** train one RF per frozen type, each using
+  only that type's 14 `func_XX_*` cadence features and only TRAIN cohort windows where
+  the type is active. At evaluation an inactive type contributes probability zero;
+  combine active type probabilities by maximum, equivalent to OR at threshold 0.5.
+  Report each model on its active-type VALIDATION cohort and combined metrics on the
+  unchanged overall EXP-0008 VALIDATION cohort. **Decision rule:** 0009e ranks the
+  combined row, not either restricted per-type row, and all three rows are reported.
+- **PLANNED — 0009e, VALIDATION-only threshold selection:** rank eligible 0009a–d by
+  threshold-0.5 VALIDATION F1; ties use recall, then precision, then fixed a→d order.
+  Sweep that one winner at thresholds 0.10 through 0.90 inclusive in 0.05 steps and
+  report all 17 precision/recall/F1/FPR/confusion rows. **Decision rule:** recommend the
+  threshold with maximum recall among points with precision at least 0.50; ties use
+  higher F1, then precision, then the higher threshold. If no point reaches 0.50
+  precision, recommend maximum F1 with ties by recall, precision, then higher threshold.
+  This prioritizes missed-DoS reduction while predeclaring a minimum alert precision.
+- **PLANNED — final configuration and stop rule:** the proposed final configuration is
+  only 0009e's selected **single** variant plus its recommended threshold—no post-hoc
+  fusion of improvements. A multi-variant combination requires a new pre-registration.
+  After reporting 0009a–e on VALIDATION, mark TEST `NOT RUN` and stop. Following explicit
+  `proceed`, score this frozen configuration on TEST once, report precision/recall/F1/
+  FPR and confusion counts, and never tune or rerun after viewing it.
+- **PLANNED — isolated outputs/tests:** add new `ml/exp0009_payload.py`,
+  `ml/exp0009_variants.py`, and dedicated tests; add `imbalanced-learn` to dependencies
+  only if absent. Write ignored local `exp0009_validation.json` and, only after sign-off,
+  `exp0009_final.json`. Do not edit Layer A, `app.py`, dashboard components, or any
+  EXP-0004/0005/0005b/0008 implementation/test file. Do not integrate a variant into the
+  main pipeline in this experiment. Before changes, the complete suite passed **53/53
+  in 33.59 s** with no reported skip.
+
+#### EXP-0009 TRAIN/VALIDATION outcome — 2026-09-09
+
+- **TESTED — integrity checks:** dedicated EXP-0009 tests passed **11/11 in 2.47 s**.
+  The first dedicated run exposed three synthetic-fixture mistakes (3 failed, 8 passed),
+  which were corrected without changing the real-data method. The complete pre-validation
+  suite then passed **64/64 in 32.16 s** (up from 53/53; +11 tests), with no reported
+  skip. Synthetic tests cover pre-TEST ARFF alignment, command-side exclusion,
+  TRAIN-only baselines/imputation, hand-calculated pressure summaries, payload gate,
+  SMOTE boundary/settings, XGBoost ratio/settings, per-type schemas and max combiner,
+  all 17 threshold/tie rules, TEST-only mutation blindness, shared mapper injection, and
+  the frozen TEST guard.
+- **IMPLEMENTED — first validation attempt:** the first runner invocation stopped before
+  any model fit or VALIDATION score because pressure passed the initial aggregate gate but
+  had no TRAIN-normal pressure baseline for canonical type `0x10`. The gate omitted this
+  prerequisite even though the pre-registration required per-type baseline/imputation.
+  The audit was corrected to check each type explicitly; dedicated tests passed **11/11
+  in 2.40 s**, and the same pre-registered study was resumed. No substitute payload,
+  altered model rule, threshold change, or TEST access occurred.
+- **VALIDATED — scope/environment:** egress only (`destination == 1`), 137,013 frames,
+  46,736 emitted windows, guarded TRAIN 28,040 / VALIDATION 9,345 / unopened TEST 9,347.
+  VALIDATION binary cohort: 4,852 pure-Normal and 203 DoS-containing windows. Python
+  3.12.10; NumPy 2.5.3; scikit-learn 1.9.0; imbalanced-learn 0.14.2; XGBoost 3.4.1.
+- **VALIDATED — 0009a STOPPED — PAYLOAD GATE:** TXT sha256 `ce2d69e3…93e3` and ARFF
+  sha256 `970a7bcd…af459` passed; only aligned ARFF column 14 `pressure measurement` on
+  `command response == 0` / TXT `destination == 1` rows was parsed. No forbidden
+  command-payload field was used. TRAIN pressure-window presence was Normal 14,951/
+  14,951 and DoS 232/359. Finite frame values: Normal 21,384 (2,387 unique, range
+  0.482759–38.7471), DoS 326 (132 unique, range 0.551724–18.7701), with 129 exact
+  values shared; neither presence nor value range perfectly separated the classes.
+  However, canonical `0x10` had **no TRAIN-normal pressure measurement**, so its required
+  per-type baseline/imputer could not be fitted. Per the frozen rule, 0009a was stopped,
+  no feature substitution was made, and it was excluded from 0009e. The candidate
+  pressure names remain the pre-registered seven summaries per type, but no 0009a model
+  or VALIDATION prediction exists.
+- **VALIDATED — a–d at threshold 0.5:**
+
+  | variant | status | precision | recall | F1 | FPR | TN | FP | FN | TP |
+  |---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+  | 0009a pressure + RF | STOPPED — PAYLOAD GATE | — | — | — | — | — | — | — | — |
+  | 0009b TRAIN-only SMOTE + RF | VALIDATED — VALIDATION ONLY | 0.785185 | 0.522167 | 0.627219 | 0.005977 | 4,823 | 29 | 97 | 106 |
+  | 0009c XGBoost | VALIDATED — VALIDATION ONLY | 0.368056 | 0.522167 | 0.431772 | 0.037510 | 4,670 | 182 | 97 | 106 |
+  | 0009d per-type RF max/OR | VALIDATED — VALIDATION ONLY | 0 | 0 | 0 | 0.029678 | 4,708 | 144 | 203 | 0 |
+
+  For context only, EXP-0008 Detector B on the same VALIDATION cohort at 0.5 was
+  precision 0.514706, recall 0.517241, F1 0.515971, FPR 0.020404, TN/FP/FN/TP
+  4,753/99/98/105. This context did not alter the pre-registered ranking.
+- **VALIDATED — 0009d active-type rows:** `0x03` used only its 14 features on 15,183
+  active TRAIN and 4,950 active VALIDATION rows: precision/recall/F1 0/0/0, FPR
+  0.022465, TN/FP/FN/TP 4,743/109/98/0. `0x10` used only its 14 features on 15,300
+  active TRAIN and 5,051 active VALIDATION rows: precision/recall/F1 0/0/0, FPR
+  0.007219, TN/FP/FN/TP 4,813/35/203/0. Their frozen maximum-probability combination
+  produced the overall 0009d row above. This variant regressed and is retained honestly.
+- **VALIDATED — 0009e full VALIDATION sweep of selected 0009b:** 0009b won a–d by
+  fixed-threshold F1. SMOTE was TRAIN-only (`auto`, k=5, seed 0), producing 14,951
+  Normal and 14,951 synthetic-augmented DoS-class rows; the RF used 300 trees, seed 0,
+  `n_jobs=-1`, `class_weight=None`. Semantic model fingerprint:
+  `85bb15e11859a074871a99755c844094dae0621e249acb38a14a7cb4c9a8bcc6`.
+
+  | threshold | precision | recall | F1 | FPR | TN | FP | FN | TP |
+  |---:|---:|---:|---:|---:|---:|---:|---:|---:|
+  | 0.10 | 0.075625 | 0.551724 | 0.133017 | 0.282152 | 3,483 | 1,369 | 91 | 112 |
+  | 0.15 | 0.102927 | 0.536946 | 0.172742 | 0.195796 | 3,902 | 950 | 94 | 109 |
+  | 0.20 | 0.145578 | 0.527094 | 0.228145 | 0.129431 | 4,224 | 628 | 96 | 107 |
+  | 0.25 | 0.192029 | 0.522167 | 0.280795 | 0.091921 | 4,406 | 446 | 97 | 106 |
+  | 0.30 | 0.263027 | 0.522167 | 0.349835 | 0.061212 | 4,555 | 297 | 97 | 106 |
+  | 0.35 | 0.347541 | 0.522167 | 0.417323 | 0.041014 | 4,653 | 199 | 97 | 106 |
+  | 0.40 | 0.493023 | 0.522167 | 0.507177 | 0.022465 | 4,743 | 109 | 97 | 106 |
+  | 0.45 | 0.630952 | 0.522167 | 0.571429 | 0.012778 | 4,790 | 62 | 97 | 106 |
+  | 0.50 | 0.785185 | 0.522167 | 0.627219 | 0.005977 | 4,823 | 29 | 97 | 106 |
+  | 0.55 | 0.883333 | 0.522167 | 0.656347 | 0.002885 | 4,838 | 14 | 97 | 106 |
+  | **0.60** | **0.929825** | **0.522167** | **0.668770** | **0.001649** | **4,844** | **8** | **97** | **106** |
+  | 0.65 | 0.963303 | 0.517241 | 0.673077 | 0.000824 | 4,848 | 4 | 98 | 105 |
+  | 0.70 | 0.981308 | 0.517241 | 0.677419 | 0.000412 | 4,850 | 2 | 98 | 105 |
+  | 0.75 | 0.990566 | 0.517241 | 0.679612 | 0.000206 | 4,851 | 1 | 98 | 105 |
+  | 0.80 | 0.990566 | 0.517241 | 0.679612 | 0.000206 | 4,851 | 1 | 98 | 105 |
+  | 0.85 | 0.989247 | 0.453202 | 0.621622 | 0.000206 | 4,851 | 1 | 111 | 92 |
+  | 0.90 | 1.000000 | 0.394089 | 0.565371 | 0 | 4,852 | 0 | 123 | 80 |
+
+- **VALIDATED — frozen recommendation:** by the predeclared “maximum recall subject to
+  precision ≥0.50” rule, threshold **0.60** is selected: it ties the best feasible recall
+  0.522167 across 0.45–0.60, then has the highest F1. The proposed final configuration is
+  **only 0009b TRAIN-only SMOTE + RF at threshold 0.60**. No variant fusion is allowed.
+- **LIMITATIONS:** pressure provenance relies on exact ARFF alignment and is not decoded
+  independently by the TXT parser; response type proxies an unseen query; the labelled
+  attack is not established as a classic volumetric flood; variant and threshold
+  selection reuse VALIDATION; and one labelled testbed cannot establish universal DoS
+  detectability.
+- **TEST NOT RUN:** no EXP-0009 TEST cohort, payload value, feature, prediction, or metric
+  was materialized. Work stops here pending explicit `proceed` for exactly one frozen
+  TEST score of 0009b at threshold 0.60. The final pre-TEST full suite passed **64/64
+  in 32.24 s**, with no reported skip.
+
+---

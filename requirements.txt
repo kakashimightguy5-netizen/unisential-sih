@@ -10,5 +10,6 @@
 # rebaseline deliberately (new EXPERIMENT_LOG entry). Pin exactly for a release.
 numpy>=2.0
 scikit-learn>=1.5
+imbalanced-learn>=0.13
 scipy>=1.13
 xgboost>=2.0        # only for ml/xgb_txt_diagnostic.py (non-headline DIAG-0001)

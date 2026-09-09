@@ -4,6 +4,54 @@ Format: **DATE · DECISION · OPTIONS CONSIDERED · WHY CHOSEN · IMPACT**
 
 ---
 
+### 2026-09-09 · PLANNED — evaluate isolated EXP-0009 recall improvements on VALIDATION only
+
+- **PLANNED — decision:** preserve EXP-0008's exact egress-only cohort, guarded split,
+  TRAIN-only response-shape discovery, canonical mapper, baselines, and cadence features;
+  independently test response pressure features (0009a), TRAIN-only standard SMOTE
+  (0009b), XGBoost (0009c), and separate per-response-type RFs (0009d) at threshold 0.5.
+  Then select one eligible variant and its threshold by the predeclared VALIDATION-only
+  0009e rules. Report every result, including regressions and stopped variants.
+- **PLANNED — options considered:** (a) tune or combine several changes at once; (b) use
+  bidirectional command-side fields; (c) isolate four single changes, select one by frozen
+  VALIDATION rules, and leave any later combination to a new experiment. Choose (c).
+  XGBoost is chosen over LightGBM because it is already declared; standard SMOTE over
+  Borderline-SMOTE avoids an additional border definition.
+- **PLANNED — why:** EXP-0008 Detector B's frozen TEST recall was `0.269430`, so missed
+  DoS windows warrant investigation, but that TEST result supplies motivation only—not
+  a tuning target. Independent VALIDATION ablations distinguish whether additional
+  response-visible semantics, class balancing, model family, or cadence-type
+  specialization helps without hiding regressions or spending the held-out TEST again.
+- **PLANNED — payload boundary:** exact TXT↔ARFF alignment and repository provenance
+  support treating ARFF `pressure measurement` on `command response == 0` rows as a
+  response-side value, and the user explicitly authorized that interpretation. 0009a
+  may use only that field on rows aligned to TXT `destination == 1`; all command fields
+  remain forbidden. A TRAIN-only provenance/leakage gate must reject a perfect or
+  suspicious label proxy. Missing windows use frozen TRAIN-normal per-type baseline
+  imputation without a missingness indicator. The raw TXT parser's inability to
+  independently decode pressure is retained as a limitation.
+- **PLANNED — selection/impact:** rank eligible 0009a–d at 0.5 by VALIDATION F1, then
+  recall, precision, and fixed a→d order. For that single winner sweep 0.10–0.90 by 0.05;
+  maximize recall subject to precision ≥0.50, with ties by F1, precision, and higher
+  threshold; if infeasible, maximize F1 then recall, precision, and higher threshold.
+  Freeze only that variant-plus-threshold as the proposed final configuration. Stop with
+  `TEST NOT RUN` for explicit sign-off before one guarded TEST score. No post-hoc fusion,
+  TEST tuning/rerun, main-pipeline integration, or modification of Layer A, dashboard,
+  EXP-0004/0005/0005b/0007/0008 implementation files is authorized.
+- **VALIDATED — VALIDATION-only outcome:** 0009a stopped at its payload gate because
+  canonical `0x10` had no TRAIN-normal pressure value for its required per-type
+  baseline/imputer; no substitute was used. At threshold 0.5, 0009b SMOTE+RF achieved
+  precision `0.785185`, recall `0.522167`, F1 `0.627219`, FPR `0.005977`; 0009c
+  XGBoost achieved `0.368056` / `0.522167` / `0.431772` / `0.037510`; and 0009d's
+  per-type max/OR model achieved precision/recall/F1 `0` with FPR `0.029678`.
+  Therefore 0009b won the frozen F1 ranking. Its 17-point sweep selected threshold
+  **0.60** by maximum feasible recall then F1, yielding precision `0.929825`, recall
+  `0.522167`, F1 `0.668770`, FPR `0.001649`, TN/FP/FN/TP `4,844/8/97/106` on
+  VALIDATION. The proposed frozen TEST configuration is only 0009b TRAIN-only standard
+  SMOTE plus RF at 0.60. **TEST NOT RUN**; explicit sign-off remains required.
+
+---
+
 ### 2026-09-09 · PLANNED — rerun corrected egress cadence method under fresh EXP-0008
 
 - **PLANNED — decision:** implement a fresh egress-only EXP-0008 rather than repairing
