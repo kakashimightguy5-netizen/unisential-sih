@@ -766,6 +766,230 @@ to conceal or replace it.
 
 ---
 
+### EXP-0006 · Layer A DoS payload / imbalance / model ablation — 2026-09-09
+
+> **PRE-REGISTRATION — PLANNED.** Recorded before any EXP-0006 payload audit, feature
+> extraction, model fit, validation, or TEST scoring. EXP-0005/0005b and their files
+> remain unchanged.
+
+- **PLANNED — question:** measure independently whether Layer A DoS performance changes
+  from (A) adding audited ARFF payload fields, (B-a) training-fold-only SMOTE with the
+  original Random Forest, or (B-b) changing from Random Forest to gradient boosting on
+  the original data; then measure the pre-specified combination of all three. Do not
+  collapse these ablations into one headline number.
+- **PLANNED — fixed success rule:** relative to EXP-0005b recall `0.388601`, an
+  individual change is a **meaningful improvement** only if held-out TEST recall rises
+  by at least 10 percentage points (to `>=0.488601`) while precision remains `>=0.55`.
+  The combined run uses the same rule. Report all outcomes regardless of pass/fail; do
+  not tune features, hyperparameters, sampling, or thresholds after TEST is viewed.
+- **PLANNED — unchanged cohort/split:** use the verified 274,628-row ARFF aligned to the
+  EXP-0005 bidirectional TXT, identical 50,080 five-second buckets and identical
+  contiguous TRAIN/VALIDATION/TEST indices with one-window guards. Positive means any
+  `categorized result == 6` frame is present; negative means a pure-Normal window.
+  Other-attack-only windows remain outside the binary cohort. Fit/resample on TRAIN
+  only; neither VALIDATION nor TEST is resampled. Fixed classification threshold `0.5`.
+- **PLANNED — payload leakage audit before use:** audit separately the 11 candidate ARFF
+  payload fields: `setpoint`, `gain`, `reset rate`, `deadband`, `cycle time`, `rate`,
+  `system mode`, `control scheme`, `pump`, `solenoid`, `pressure measurement`. `crc
+  rate` is not a candidate because the existing schema already marks it artifact-suspect
+  and its standard Modbus meaning is invalid for this artifact. For each candidate,
+  report Normal/DoS row presence, missingness, unique observed values, and observed
+  value overlap. Exclude a field if presence alone perfectly separates DoS from Normal,
+  if non-missing value sets are disjoint with both groups represented, or if it is
+  constant on Normal but changes only during DoS. Missingness indicators are not model
+  inputs, preventing frame-type presence from becoming a proxy. If semantics remain
+  ambiguous after this audit, stop rather than score Change A.
+- **PLANNED — Change A alone:** add surviving payload fields through new EXP-0006 code,
+  preserving the original 15-feature matrix unchanged. Aggregate each surviving field
+  per window as the mean of available values; impute missing window aggregates using
+  TRAIN-cohort medians frozen before TEST. Train the exact EXP-0005b Random Forest
+  (`300` trees, `class_weight="balanced"`, seed `0`) without SMOTE.
+- **PLANNED — Change B(a) alone:** on only the original 15 EXP-0005b features, apply
+  standard SMOTE (`sampling_strategy="auto"`, `k_neighbors=5`, seed `0`) to the TRAIN
+  cohort only, then train the exact EXP-0005b Random Forest except that SMOTE supplies
+  the balancing and `class_weight=None` isolates SMOTE's effect.
+- **PLANNED — Change B(b) alone:** on the original 15 features and original unresampled
+  TRAIN cohort, train `xgboost.XGBClassifier` with fixed defaults except
+  `n_estimators=300`, `random_state=0`, `n_jobs=-1`, `eval_metric="logloss"`, and
+  `scale_pos_weight = n_train_normal / n_train_dos`. XGBoost is already a declared
+  project dependency. This isolates model choice from payload and SMOTE.
+- **PLANNED — combined:** surviving payload-expanded matrix + TRAIN-only SMOTE + the
+  same fixed XGBoost configuration, with `scale_pos_weight=1` because SMOTE balances
+  the TRAIN classes. Run only after A, B(a), and B(b) have each been scored and recorded
+  in memory. Report precision, recall, F1, FPR, and confusion counts for every row.
+- **PLANNED — outputs/scope:** new isolated `ml/exp0006_detector.py`, new EXP-0006 tests,
+  and local machine-readable audit/results under ignored `data/experiments/`. Do not
+  modify Layer B, `app.py`, EXP-0005/0005b implementation files, or their existing tests.
+
+---
+
+### EXP-0007 · Query-type-aware egress cadence DoS experiment — 2026-09-09
+
+> **PRE-REGISTRATION — PLANNED.** Recorded before the EXP-0007 response-type audit,
+> feature extraction, CUSUM calibration, supervised fit, validation inspection, or TEST
+> scoring. EXP-0004, Layer A, and EXP-0005/0005b files remain unchanged.
+
+- **PLANNED — Step 0 background:** the completed source-3 egress Normal-to-Normal IAT
+  diagnostic found unfiltered mean `2.005 s`, population CV `0.513`, and maximum
+  `170.036 s`. The 170 s, 25.6 s, and leading approximately 12 s gaps bridge intervening
+  attack-labelled traffic, especially repeated Normal→Reconnaissance→Normal sequences;
+  they are not capture-boundary artifacts. Excluding gaps above 10 s lowers CV to
+  `0.314`, but leaves two apparent cadences near 1.5–1.9 s and 3.3–3.7 s. This motivates
+  type stratification; it is not yet evidence that the types are identifiable or useful.
+- **PLANNED — hard observation boundary:** use only egress records with
+  `destination == 1` in every audit, baseline, feature, fit, calibration, and evaluation.
+  No command-side or bidirectional record may enter EXP-0007. This is the primary
+  in-scope attempt at the problem statement's unidirectional DoS requirement; Layer A
+  and EXP-0005b are context only and do not satisfy that requirement.
+- **PLANNED — response-type audit and stop gate:** derive a type only from fields visible
+  in each egress response. Prefer function code (`0x03` read response versus `0x10`
+  write echo) if response shape confirms an unambiguous two-type interpretation; use
+  `(function_code, is_request, frame_len_bytes, byte_count)` only to audit consistency.
+  `source` partitions cadence streams but is not an input feature. Proceed only if
+  source 3 has exactly two dominant, parser-certain types; each has at least 1,000
+  TRAIN-normal frames, 200 eligible TRAIN-normal IATs, and 100 TRAIN-normal windows;
+  both occur in TRAIN and VALIDATION and overlap pure-Normal and DoS-containing windows;
+  each type's TRAIN-normal CV is below pooled CV; and their IAT-count-weighted CV is at
+  least 20% below pooled CV. Type definitions cannot use labels or TEST. If any rule
+  fails or the field is ambiguous, report `STOPPED — AUDIT GATE`; do not build either
+  detector and mark TEST `NOT RUN`.
+- **PLANNED — window, split, and labels:** use absolute five-second egress tumbling
+  windows with at least two egress frames, ordered before splitting. Reuse the existing
+  contiguous 60/20/20 convention with one-window guards; do not re-split after cohort
+  filtering. Positive means **DoS-containing**: at least one
+  `categorized_attack == 6` egress frame. Negative means pure-Normal, categories exactly
+  `{0}`. Exclude other-attack-only windows. This matches EXP-0004's timing cohort and
+  differs from its 136-window **dominant-DoS** per-category result.
+- **PLANNED — cadence baseline/features:** for each supported `(source, type)`, form IATs
+  only between consecutive same-stream events, never across a guard, split, or
+  non-pure-Normal baseline interval. Fit expected IAT mean and population standard
+  deviation from TRAIN-normal only and report mean/median/std/CV. In each existing
+  five-second window aggregate per-stream IAT, signed/positive deviation from the
+  correct baseline, normalized deviation, missed cycles
+  `max(0, round(IAT / expected_IAT) - 1)`, and CUSUM state/max/alarm counts. Labels,
+  raw source/destination, timestamps, and bucket IDs remain outside model inputs.
+- **PLANNED — Detector A:** one-sided positive-delay CUSUM per supported `(source,type)`:
+  `S_t = max(0, S_(t-1) + z_positive - 0.5)`, with scale floor
+  `max(1e-6, 0.01 * expected_IAT)`. Reset at split/guard boundaries and immediately
+  after recording a threshold crossing. Fit each threshold exclusively as the
+  TRAIN-normal five-second CUSUM-max 99th percentile (`method="higher"`), bounded below
+  by `0.5`. Alert a window if any stream crosses its frozen threshold.
+- **PLANNED — Detector B:** train `RandomForestClassifier` on only the frozen cadence
+  features from the TRAIN DoS-containing/pure-Normal cohort, with `n_estimators=300`,
+  `class_weight="balanced"`, `random_state=0`, `n_jobs=-1`, and fixed probability
+  threshold `0.5`. Validation is descriptive only; it may not change features,
+  thresholds, type selection, or model settings.
+- **PLANNED — fixed reporting rule:** there is **no pass/fail performance gate**. After
+  pre-TEST tests pass, score the frozen TEST cohort once and report precision, recall,
+  F1, FPR, and TN/FP/FN/TP for Detector A and Detector B exactly, including null or
+  near-zero results. No post-TEST tuning is authorized under EXP-0007.
+- **PLANNED — comparison/limitations:** compare with EXP-0004 egress-only 0/136
+  dominant-DoS windows and EXP-0005b bidirectional 38.8601% recall, labelling their
+  different cohorts and EXP-0005b as out of scope. A response type is only an
+  egress-visible proxy for an unseen query, and `source` is dataset grouping metadata;
+  one testbed cannot establish universal DoS detectability or impossibility.
+- **PLANNED — isolated outputs/tests:** add only `ml/cadence_features.py`,
+  `ml/exp0007_cadence.py`, dedicated tests, and local generated
+  `data/experiments/exp0007_cadence.json`. Run the full suite before and after and report
+  exact counts. Do not modify Layer A, `app.py`, `ml/features_windowed.py`,
+  `ml/iforest_detector.py`, or EXP-0004 code/tests.
+
+#### EXP-0007 response-type audit
+
+- **TESTED — pre-change baseline:** before adding EXP-0007 code, the complete existing
+  suite collected and passed **36 tests in 35.21 s** under Python 3.12.10 and pytest
+  9.1.1. It exercised the real local verified dataset through existing integration
+  fixtures; no failure, skip, or deselection occurred.
+- **INVALIDATED — egress/type identity output:** the audit read 137,013 records after applying
+  `destination == 1` and emitted the existing 46,736 eligible five-second egress
+  windows (TRAIN 28,040 / VALIDATION 9,345 / TEST 9,347; TEST labels/features were not
+  inspected for type selection). Source 3's Normal egress responses have exactly two
+  parser-certain shapes: function `0x03` is always `(is_request=0, length=23,
+  byte_count=18)` with 48,060 full-capture Normal frames; function `0x10` is always
+  `(is_request=0, length=8, byte_count=-1)` with 48,856. Therefore function code is the
+  fixed response-visible type field. It is a proxy for the unseen request type, not
+  observation of command-side traffic.
+- **INVALIDATED — TRAIN/VALIDATION support output:** source 3 function `0x03` has 27,889 TRAIN
+  frames, appears in 14,951 TRAIN-normal and 232 TRAIN DoS-containing windows, then
+  9,577 / 4,852 / 98 respectively in VALIDATION. Function `0x10` has 37,981 TRAIN
+  frames, appears in 14,941 TRAIN-normal and 359 TRAIN DoS-containing windows, then
+  13,248 / 4,848 / 203 in VALIDATION. Both exceed the fixed frame/IAT/window minima and
+  overlap both classes before TEST. Source 2 has no pure-Normal window support and is
+  excluded from cadence profiles rather than used as an attack-correlated feature.
+- **INVALIDATED — TRAIN-normal cadence output:** eligible IATs reset across split, guard, and
+  non-pure-Normal regions. Pooled source-3 IAT: `n=42,190`, mean `1.745896 s`, median
+  `1.763541 s`, std `0.116227 s`, CV `0.066571`. Split `0x03`: `n=20,803`, mean
+  `3.491012 s`, median `3.521090 s`, std `0.158879 s`, CV `0.045511`. Split `0x10`:
+  `n=20,816`, mean `3.492007 s`, median `3.521104 s`, std `0.153074 s`, CV `0.043835`.
+  The IAT-count-weighted split CV is `0.044673`, 32.895% below pooled CV (ratio
+  `0.671052`), so both individual-CV rules and the fixed ≥20% tightening rule pass.
+  This TRAIN-only gate is meaningfully tighter than the prior full-capture filtered
+  pooled CV `0.314`, though those populations differ and are not a paired estimate.
+- **INVALIDATED — audit disposition:** **PASS — proceed with the two frozen source-3
+  response types `0x03` and `0x10`.** No other source has sufficient TRAIN-normal
+  support. Type selection was frozen before Detector A/B execution.
+
+#### EXP-0007 outcome — INVALIDATED BEFORE ACCEPTANCE
+
+> **INVALIDATED.** Post-run review found that the implementation did not exactly enforce
+> two pre-registered leakage controls. The numeric output below is retained as an invalid
+> audit trail and must not be presented as validated performance or used to tune a rerun.
+> EXP-0007 will not be rerun under the same experiment ID.
+
+- **IMPLEMENTED — isolated code:** `ml/cadence_features.py` implements the hard egress
+  filter, frozen function-code types, TRAIN-normal type baselines, per-stream cadence
+  features, and one-sided CUSUM. `ml/exp0007_cadence.py` implements the fixed CUSUM and
+  Random Forest evaluation and local JSON output. Existing Layer A, EXP-0004, Tier 1,
+  and dashboard code was not modified.
+- **TESTED — pre-TEST checks:** eight collected synthetic test cases passed in 3.39 s,
+  then the full suite passed **44/44 in 32.13 s** before the one frozen TEST run. The final post-result
+  full suite also passed **44/44 in 32.78 s** after invalidation was recorded. Tests cover the
+  direction/type boundary, independent per-type pairing, attack-interval reset for
+  baseline fitting, missed-cycle and CUSUM arithmetic/reset, TRAIN-normal threshold
+  calibration, forbidden feature metadata, and fixed Random Forest configuration. The
+  suite increased from 36/36 before changes to 44/44 before TEST.
+- **INVALIDATED — execution scope/cohort output:** the single frozen run used 137,013 egress
+  records with observed destination set exactly `{1}` and 46,736 windows. Binary cohorts
+  were TRAIN 14,951 Normal + 359 DoS-containing, VALIDATION 4,852 + 203, and TEST 4,807
+  + 193; other-attack-only windows were excluded. No bidirectional or command-side
+  feature was used.
+- **INVALIDATED — CUSUM calibration output:** TRAIN-normal 99th-percentile thresholds were
+  `33.922365` for function `0x03` and `36.261586` for `0x10`, with frozen allowance
+  `0.5`. These thresholds and all baselines were fit before held-out TEST scoring.
+- **INVALIDATED — TEST metrics generated but not accepted:**
+
+  | detector | precision | recall | F1 | FPR | TN | FP | FN | TP |
+  |---|---:|---:|---:|---:|---:|---:|---:|---:|
+  | INVALID — DO NOT CITE: Detector A per-type CUSUM | 0.028037 | 0.015544 | 0.020000 | 0.021635 | 4,703 | 104 | 190 | 3 |
+  | INVALID — DO NOT CITE: Detector B cadence Random Forest | 0.716216 | 0.274611 | 0.397004 | 0.004369 | 4,786 | 21 | 140 | 53 |
+
+- **INVALIDATED — contextual table (EXP-0007 rows are not findings):**
+
+  | experiment / detector | observation and DoS cohort | precision | recall / flag rate | F1 | FPR |
+  |---|---|---:|---:|---:|---:|
+  | EXP-0004 combined IF+rule | egress-only; 136 **dominant-DoS** category windows | not derivable | 0.000000 | not derivable | 0.007489 detector-wide Normal FPR |
+  | EXP-0005b RF — **out of scope** | bidirectional; 193 DoS-containing vs 4,931 Normal | 0.630252 | 0.388601 | 0.480769 | 0.008923 |
+  | EXP-0007 Detector A — **INVALID, DO NOT CITE** | egress-only; 193 DoS-containing vs 4,807 Normal | 0.028037 | 0.015544 | 0.020000 | 0.021635 |
+  | EXP-0007 Detector B — **INVALID, DO NOT CITE** | egress-only; 193 DoS-containing vs 4,807 Normal | 0.716216 | 0.274611 | 0.397004 | 0.004369 |
+
+- **INVALIDATED — review finding:** the audit counted full-capture Normal response
+  shapes while claiming TEST was unopened, and its TRAIN support count included attack
+  frames rather than requiring TRAIN-normal frames exactly as pre-registered. In
+  addition, CUSUM calibration reset on attack-labelled TRAIN windows while scoring
+  replay did not, so the calibration and scoring state processes differed. These are
+  method-integrity defects, not disappointing-performance tuning opportunities. The
+  observed 3/193 and 53/193 values are therefore invalid and support no detector claim.
+  Correcting and rescoring would require a new pre-registration/experiment ID because
+  TEST has already been viewed.
+- **VALIDATED — limitations/no tuning:** function code is an egress-response proxy for
+  an unseen request type, and source is dataset grouping metadata rather than a model
+  input. The attack is not established as a classic volumetric flood. No type, feature,
+  baseline, CUSUM constant/threshold, RF setting, or probability threshold was changed
+  after TEST. Machine-readable output is local at
+  `data/experiments/exp0007_cadence.json` under the ignored `data/` tree.
+
+---
+
 ### EXP-0008 · Corrected TRAIN-discovered egress cadence DoS experiment — 2026-09-09
 
 > **PRE-REGISTRATION — PLANNED.** Recorded before any EXP-0008 real-data type
@@ -949,58 +1173,3 @@ to conceal or replace it.
   tuning or comparison.
 
 ---
-
-### EXP-0006 · Layer A DoS payload / imbalance / model ablation — 2026-09-09
-
-> **PRE-REGISTRATION — PLANNED.** Recorded before any EXP-0006 payload audit, feature
-> extraction, model fit, validation, or TEST scoring. EXP-0005/0005b and their files
-> remain unchanged.
-
-- **PLANNED — question:** measure independently whether Layer A DoS performance changes
-  from (A) adding audited ARFF payload fields, (B-a) training-fold-only SMOTE with the
-  original Random Forest, or (B-b) changing from Random Forest to gradient boosting on
-  the original data; then measure the pre-specified combination of all three. Do not
-  collapse these ablations into one headline number.
-- **PLANNED — fixed success rule:** relative to EXP-0005b recall `0.388601`, an
-  individual change is a **meaningful improvement** only if held-out TEST recall rises
-  by at least 10 percentage points (to `>=0.488601`) while precision remains `>=0.55`.
-  The combined run uses the same rule. Report all outcomes regardless of pass/fail; do
-  not tune features, hyperparameters, sampling, or thresholds after TEST is viewed.
-- **PLANNED — unchanged cohort/split:** use the verified 274,628-row ARFF aligned to the
-  EXP-0005 bidirectional TXT, identical 50,080 five-second buckets and identical
-  contiguous TRAIN/VALIDATION/TEST indices with one-window guards. Positive means any
-  `categorized result == 6` frame is present; negative means a pure-Normal window.
-  Other-attack-only windows remain outside the binary cohort. Fit/resample on TRAIN
-  only; neither VALIDATION nor TEST is resampled. Fixed classification threshold `0.5`.
-- **PLANNED — payload leakage audit before use:** audit separately the 11 candidate ARFF
-  payload fields: `setpoint`, `gain`, `reset rate`, `deadband`, `cycle time`, `rate`,
-  `system mode`, `control scheme`, `pump`, `solenoid`, `pressure measurement`. `crc
-  rate` is not a candidate because the existing schema already marks it artifact-suspect
-  and its standard Modbus meaning is invalid for this artifact. For each candidate,
-  report Normal/DoS row presence, missingness, unique observed values, and observed
-  value overlap. Exclude a field if presence alone perfectly separates DoS from Normal,
-  if non-missing value sets are disjoint with both groups represented, or if it is
-  constant on Normal but changes only during DoS. Missingness indicators are not model
-  inputs, preventing frame-type presence from becoming a proxy. If semantics remain
-  ambiguous after this audit, stop rather than score Change A.
-- **PLANNED — Change A alone:** add surviving payload fields through new EXP-0006 code,
-  preserving the original 15-feature matrix unchanged. Aggregate each surviving field
-  per window as the mean of available values; impute missing window aggregates using
-  TRAIN-cohort medians frozen before TEST. Train the exact EXP-0005b Random Forest
-  (`300` trees, `class_weight="balanced"`, seed `0`) without SMOTE.
-- **PLANNED — Change B(a) alone:** on only the original 15 EXP-0005b features, apply
-  standard SMOTE (`sampling_strategy="auto"`, `k_neighbors=5`, seed `0`) to the TRAIN
-  cohort only, then train the exact EXP-0005b Random Forest except that SMOTE supplies
-  the balancing and `class_weight=None` isolates SMOTE's effect.
-- **PLANNED — Change B(b) alone:** on the original 15 features and original unresampled
-  TRAIN cohort, train `xgboost.XGBClassifier` with fixed defaults except
-  `n_estimators=300`, `random_state=0`, `n_jobs=-1`, `eval_metric="logloss"`, and
-  `scale_pos_weight = n_train_normal / n_train_dos`. XGBoost is already a declared
-  project dependency. This isolates model choice from payload and SMOTE.
-- **PLANNED — combined:** surviving payload-expanded matrix + TRAIN-only SMOTE + the
-  same fixed XGBoost configuration, with `scale_pos_weight=1` because SMOTE balances
-  the TRAIN classes. Run only after A, B(a), and B(b) have each been scored and recorded
-  in memory. Report precision, recall, F1, FPR, and confusion counts for every row.
-- **PLANNED — outputs/scope:** new isolated `ml/exp0006_detector.py`, new EXP-0006 tests,
-  and local machine-readable audit/results under ignored `data/experiments/`. Do not
-  modify Layer B, `app.py`, EXP-0005/0005b implementation files, or their existing tests.

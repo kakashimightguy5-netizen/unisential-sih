@@ -41,6 +41,58 @@ Format: **DATE · DECISION · OPTIONS CONSIDERED · WHY CHOSEN · IMPACT**
   EXP-0005b remains explicitly bidirectional/out of scope.
 
 ---
+
+### 2026-09-09 · PLANNED — split egress cadence by response-visible type and compare CUSUM with supervised learning (EXP-0007)
+
+- **PLANNED — decision:** make EXP-0007 an isolated, primary in-scope attempt at the
+  unidirectional DoS requirement using only `destination == 1` egress traffic. Partition
+  cadence streams by `(source, response-visible type)` while keeping raw source identity,
+  direction, labels, and time identifiers outside the model feature matrix. First audit
+  whether function code, confirmed by response shape, unambiguously separates source 3's
+  two apparent Normal cadences; stop before modeling if the frozen support/tightening gate
+  fails.
+- **PLANNED — options considered:** (a) continue pooling all source-3 egress responses;
+  (b) use Layer A/bidirectional features; (c) split the egress baseline by a field visible
+  in the response and test both a statistical and supervised detector. Choose (c).
+- **PLANNED — why:** Step 0 found that the pooled source-3 IAT tail largely bridges
+  labelled episodes and that the remaining Normal distribution contains apparent
+  1.5–1.9 s and 3.3–3.7 s modes. Pooling distinct schedules can hide missed cycles.
+  Layer A is out of scope because it observes the command side. A one-sided per-type
+  CUSUM tests an explicit sequential-delay hypothesis, while a fixed Random Forest tests
+  whether the same egress-only cadence features carry supervised DoS signal that a
+  threshold rule misses. Trying both distinguishes statistical-rule limitations from
+  feature observability without changing the observation boundary.
+- **PLANNED — impact/controls:** EXP-0004's measured pooled-timing null result remains
+  valid; EXP-0007 tests a narrower pre-registered hypothesis rather than rewriting it.
+  Type selection, baselines, CUSUM constants/threshold calibration, Random Forest
+  settings, cohort, and split are frozen before TEST. There is no performance pass/fail
+  gate and no post-TEST tuning. EXP-0005b is reported only as explicitly out-of-scope
+  bidirectional context. New code is confined to `ml/cadence_features.py`,
+  `ml/exp0007_cadence.py`, and dedicated tests; protected detector/dashboard files remain
+  unchanged.
+
+---
+
+### 2026-09-09 · INVALIDATED — EXP-0007 TEST result withdrawn for audit leakage and method mismatch
+
+- **INVALIDATED — decision:** withdraw every EXP-0007 detector metric before acceptance.
+  Retain the generated numbers only as a clearly marked audit trail; do not cite them as
+  held-out performance and do not repair or rerun EXP-0007 under the same ID.
+- **INVALIDATED — evidence:** post-run review found that response-shape certainty was
+  evaluated over full-capture Normal-labelled rows, including TEST, despite the frozen
+  TRAIN/VALIDATION-only selection rule. The 1,000-frame support gate also counted all
+  labels rather than TRAIN-normal frames. Baseline gap construction keyed raw function
+  code while scoring required exact parser-certain shapes, and CUSUM calibration reset
+  on labelled attack windows while scoring replay followed a different state process.
+- **INVALIDATED — why it matters/impact:** these are held-out integrity and population
+  consistency defects, so neither the CUSUM nor Random Forest number supports a claim.
+  The defects were found through review, not hidden or tuned around. Any corrected
+  attempt requires a new pre-registration and experiment ID, with canonical type
+  assignment and explicit tests proving TEST mutations cannot affect pre-TEST outputs.
+  EXP-0004 and the out-of-scope EXP-0005b historical results remain unchanged.
+
+---
+
 ### 2026-09-08 · RETRACTION — `gas_pipeline_raw.txt` (sha256 45de4266…fbbd) was AI-generated, not a capture; EXP-0001/0002/0003 retracted
 
 - **Decision:** the raw hex-frame file used by EXP-0001, EXP-0002 and EXP-0003
