@@ -4,6 +4,46 @@ Format: **DATE · DECISION · OPTIONS CONSIDERED · WHY CHOSEN · IMPACT**
 
 ---
 
+### 2026-09-09 · DECISION — EXP-0013 Configuration X selected for the one trustworthy Type 1 DoS frozen TEST
+
+- **DECISION:** run exactly one genuinely TEST-blind frozen evaluation for Type 1 DoS
+  using **Configuration X** — EXP-0011b's model recipe (Borderline-SMOTE
+  `sampling_strategy="auto", k_neighbors=5, m_neighbors=10, kind="borderline-1",
+  random_state=0` + `RandomForestClassifier(300, class_weight=None, random_state=0,
+  max_depth=None, min_samples_leaf=1)`, threshold `0.50`) on the original 33 cadence
+  features, retrained fresh on the corrected manifest's TRAIN population and scored once
+  against the manifest-derived guarded TEST population.
+- **OPTIONS CONSIDERED:** (a) Configuration X — 33 cadence features, no lag features;
+  (b) Configuration Y — X plus the 16 EXP-0012 lag/trend features; (c) run no frozen
+  TEST and leave EXP-0011b's invalidated number as the last word.
+- **WHY X, NOT Y:** under the corrected manifest, EXP-0012b 5-fold block CV gave X mean
+  recall `0.438±0.197` and Y mean recall `0.404±0.188` — Y **does not improve recall**
+  despite winning the mechanical precision-floor selection rule (its gain is precision
+  and false-positive suppression, i.e. F1). The frozen evaluation is for detection
+  capability, so recall is the criterion of record. X is also simpler and adds no
+  unproven feature engineering; the 16 lag features have no validated benefit. Both
+  configurations show large fold-to-fold instability, which argues against spending the
+  single frozen-TEST shot on the more complex option.
+- **WHY NOT (c):** EXP-0011b's `26.9% / 91%` frozen TEST result is invalidated by the
+  boundary-construction flaw and must not be cited as final. Type 1 DoS deserves one
+  constructionally clean closing number.
+- **FINGERPRINT NOTE:** EXP-0013 does **not** gate on EXP-0011b's pre-correction semantic
+  fingerprint `bb89557b…`. The corrected manifest and the rewritten cadence-feature
+  pipeline produce a fresh forest (fingerprint `d55a802e…`) from identical TRAIN/VALIDATION
+  window counts (`28,040 / 9,345`). EXP-0013 asserts the exact sampler and RF knobs match
+  EXP-0011b and records its own fingerprint; a knob mismatch stops before any TEST row is
+  read.
+- **IMPACT:** EXP-0013 is the only validated, trustworthy Type 1 DoS number going forward.
+  Frozen TEST (threshold `0.50`, cohort `4,807` Normal / `193` DoS, `4,347` other-attack
+  excluded): precision `0.981132`, recall `0.269430`, F1 `0.422764`, FPR `0.000208`,
+  TN/FP/FN/TP `4,806/1/141/52`. The corrected boundary did not change the substantive
+  finding — `52/193` DoS windows detected, `141` missed — versus the invalidated
+  EXP-0011b `52/193`; it tightened precision (`0.912281 → 0.981132`, FP `5 → 1`).
+  EXP-0008/0009/0011 TEST-adjacent numbers remain invalidated audit evidence only.
+  No further Type 1 DoS variants or optimizations are authorized in this phase.
+
+---
+
 ### 2026-09-09 · INVALIDATED — EXP-0012 boundary construction depended on TEST-tail eligibility
 
 - **INVALIDATED — decision:** withdraw all original EXP-0012 X/Y folds, aggregates, and

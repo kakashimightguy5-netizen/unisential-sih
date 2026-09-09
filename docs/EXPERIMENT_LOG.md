@@ -1691,3 +1691,118 @@ to conceal or replace it.
   frozen TEST; 141/193 DoS windows remain missed. **NO TEST RERUN.**
 
 ---
+
+### EXP-0013 · First TEST-blind frozen Type 1 DoS evaluation (corrected manifest) — 2026-09-09
+
+> **PRE-REGISTRATION — PLANNED.** Recorded before fitting the EXP-0013 model or
+> materializing any TEST row, value, label, feature, prediction, or metric. This is the
+> **first genuinely TEST-blind frozen evaluation for Type 1 DoS detection in this
+> project.** It is built on the corrected split manifest and follows the invalidation of
+> EXP-0008, EXP-0009, and EXP-0011's TEST-adjacent results by the boundary-construction
+> flaw (`partition_pretest_inputs()` derived the 60/20/20 cut positions from full-capture
+> eligibility, so nominal TEST-tail records could alter the pre-TEST TRAIN/VALIDATION
+> populations). EXP-0011b's previously-reported `26.9% / 91%` frozen TEST result is
+> withdrawn and must not be cited, reused, or treated as final.
+
+- **PLANNED — corrected manifest:** pre-TEST construction selects only the exact ordered
+  bucket IDs in `ml/splits/verified_egress_5s_exp0008_pretest_v1.json`, split ID
+  `verified-egress-5s-exp0008-pretest-v1`, membership SHA-256
+  `0e912e147d088aaed05e95bda04c6a46c72ed4dd16aafb6966c9e2aab26859e6`. Parsing stops after
+  the final frozen VALIDATION bucket; no TEST-tail record is read during TRAIN/VALIDATION
+  construction, and the manifest's TEST count is deliberately `null`/unreadable. The
+  loader fails closed on any ID or checksum mismatch.
+- **PLANNED — TEST construction (guarded, one shot):** TEST is every emitted egress
+  (`destination == 1`) five-second window that begins **after** the frozen final
+  VALIDATION bucket, with the **first 2 emitted windows discarded as guards**, derived
+  from the manifest's fixed boundary — **not** from any full-capture recomputation. This
+  is the "future guarded TEST construction" described in the prior review. TEST is
+  materialized only inside the explicitly confirmed score path
+  (`--score-frozen-test --confirm SCORE-EXP-0013-FROZEN-TEST-ONCE`) and scored exactly
+  once.
+- **PLANNED — exact frozen configuration (fixed before running):**
+  `BorderlineSMOTE(sampling_strategy="auto", k_neighbors=5, m_neighbors=10,
+  kind="borderline-1", random_state=0)` applied to TRAIN only, then
+  `RandomForestClassifier(n_estimators=300, class_weight=None, random_state=0,
+  max_depth=None, min_samples_leaf=1, n_jobs=-1)`, decision threshold `0.50`, on
+  EXP-0009b's original **33 cadence features** with no payload, availability, or
+  lag/trend features. This is EXP-0011b's model configuration, retrained fresh on the
+  corrected manifest's TRAIN population. EXP-0013 asserts the exact sampler and RF knobs;
+  it does **not** gate on EXP-0011b's pre-correction semantic fingerprint
+  `bb89557b34a1ff3850ae06a3e8151d70dad9f215837f5c0d5216e1a5b0f9cc40`, because the
+  corrected manifest and the rewritten cadence-feature pipeline legitimately produce a
+  fresh forest. A knob mismatch stops before any TEST row is read.
+- **PLANNED — cohort and rule:** DoS-containing versus pure-Normal windows;
+  other-attack-only windows excluded. No threshold sweep, no TEST tuning, no rerun, no
+  fusion. Configuration X is selected over EXP-0012's Configuration Y (see DECISION_LOG
+  2026-09-09) because Y did not improve CV recall despite winning the mechanical
+  precision-floor rule, and X is simpler with no unproven feature additions.
+- **PLANNED — outputs and stop:** create only `ml/exp0013_frozen_test.py` and
+  `tests/test_exp0013_frozen_test.py`; write ignored local
+  `data/experiments/exp0013_frozen_test.json` atomically. Report exact
+  precision/recall/F1/FPR/confusion counts and the full honest comparison table. Run the
+  complete suite before and after with exact counts. Show the full diff and the real
+  result, and wait for explicit go-ahead before any commit. Do not touch Layer A,
+  `app.py`, the dashboard, or unrelated files; no push.
+
+- **IMPLEMENTED — isolated construction:** added only `ml/exp0013_frozen_test.py` and its
+  synthetic test module. The runner imports EXP-0011b's `fit_final_0011b` directly so the
+  model recipe cannot drift, reuses `exp0008_cadence._test_block` for the manifest-derived
+  guarded TEST construction, gates on the manifest ID + checksum and on the exact sampler
+  and RF knobs, prepares only TRAIN/VALIDATION matrices before the confirmed score path,
+  and writes machine-readable JSON atomically. No payload, availability, or lag/trend
+  feature is present.
+- **TESTED — execution record:** pre-implementation full suite baseline **93 passed**.
+  New dedicated coverage `tests/test_exp0013_frozen_test.py` is **13 passed** and the
+  complete suite is **106 passed** (net **+13**). Tests prove: confirmation token
+  required before any work; manifest guard rejects a wrong split ID or checksum; TEST
+  construction starts after the final VALIDATION bucket and discards the first 2 guard
+  windows; the guarded score uses 33 features at threshold `0.50` with complete
+  confusion counts and no payload/lag features; a wrong RF knob stops before TEST
+  materialization; TEST-only record mutations leave the pre-TEST matrices byte-identical;
+  pre-TEST construction never enumerates TEST windows.
+- **VALIDATED — one TEST-blind frozen pass (threshold 0.50):** manifest verified
+  (`verified-egress-5s-exp0008-pretest-v1`, checksum
+  `0e912e147d088aaed05e95bda04c6a46c72ed4dd16aafb6966c9e2aab26859e6`); pre-TEST
+  parsing stopped after the final VALIDATION bucket (TEST count `null` during
+  construction). TRAIN/VALIDATION window counts were `28,040 / 9,345` (identical to
+  EXP-0011b by manifest design); resampled TRAIN was `29,902` rows (`14,951 / 14,951`).
+  The fresh forest fingerprint is
+  `d55a802eeb0b5effb356dc7fee700b5a882d18cfbe165be3ef897d8cb06c2023` (EXP-0011b
+  pre-correction was `bb89557b…`; differs by design). TEST was then materialized once:
+  `9,347` emitted windows, cohort `5,000` (`4,807` pure-Normal, `193` DoS-containing),
+  `4,347` other-attack windows excluded. Result: **precision `0.981132`, recall
+  `0.269430`, F1 `0.422764`, FPR `0.000208`, TN/FP/FN/TP `4,806/1/141/52`.** `52/193`
+  DoS windows detected; `141` missed. **NO TEST RERUN.**
+
+- **VALIDATED — full honest comparison table.** EXP-0013 is the **only** row that is a
+  validated, trustworthy, constructionally TEST-blind Type 1 DoS number. Every
+  EXP-0008/0009/0011 row is retained for the audit trail only and must not be treated as
+  comparable.
+
+  | experiment | scope / status | precision | recall | F1 | FPR | TN / FP / FN / TP |
+  |---|---|---|---|---|---|---|
+  | **EXP-0013** (this) | **VALIDATED — first TEST-blind frozen Type 1 DoS number** | **0.981132** | **0.269430** | **0.422764** | **0.000208** | **4,806 / 1 / 141 / 52** |
+  | EXP-0004 | CONTEXT — egress-only Isolation Forest; different (136 dominant-DoS) cohort | — | 0.000 (flag rate) | — | 0.007489 | — |
+  | EXP-0005b | OUT OF SCOPE — bidirectional traffic; 193 DoS vs 4,931 Normal | 0.630252 | 0.388601 | 0.480769 | 0.008923 | 4,887 / 44 / 118 / 75 |
+  | EXP-0008 Detector A | INVALIDATED — boundary-construction flaw, not constructionally TEST-blind, retained for audit trail only | 0.000000 | 0.000000 | 0.000000 | 0.000000 | 4,807 / 0 / 193 / 0 |
+  | EXP-0008 Detector B | INVALIDATED — boundary-construction flaw, not constructionally TEST-blind, retained for audit trail only | 0.634146 | 0.269430 | 0.378182 | 0.006241 | 4,777 / 30 / 141 / 52 |
+  | EXP-0009b | INVALIDATED — boundary-construction flaw; VALIDATION-only, never frozen-TEST scored; retained for audit trail only | 0.929825 | 0.522167 | 0.668770 | 0.001649 | (VALIDATION) 4,844 / 8 / 97 / 106 |
+  | EXP-0011b | INVALIDATED — boundary-construction flaw, not constructionally TEST-blind, retained for audit trail only; the `26.9% / 91%` result must NOT be cited, reused, or treated as final | 0.912281 | 0.269430 | 0.416000 | 0.001040 | 4,802 / 5 / 141 / 52 |
+
+- **VALIDATED — reading of the result:** the corrected boundary did **not** change the
+  substantive Type 1 DoS finding. On the identical cohort, EXP-0013 detects the same
+  `52/193` DoS windows as the invalidated EXP-0011b and EXP-0008 Detector B and misses
+  the same `141`; recall is `0.269430` (`≈27%`). The fresh fit tightened precision
+  (`0.912281 → 0.981132`) and FPR (`0.001040 → 0.000208`), with false positives
+  `5 → 1`. The `≈52%` VALIDATION recall seen across EXP-0009b/0011/0012 did not
+  generalize — consistent with EXP-0012b's finding of large fold-to-fold instability.
+- **LIMITATIONS:** one labelled testbed cannot establish universal DoS detectability; the
+  labelled attack is not established as a classic volumetric flood; response type is an
+  egress-visible proxy for an unseen query; the manifest freezes memberships EXP-0008
+  originally derived from full-capture eligibility, so the prospective freeze removes
+  future TEST-tail dependence but does not prove the historical source boundary was
+  chosen independently of TEST.
+- **STOP — phase closed for Type 1 DoS.** This is the final closing number for Type 1 DoS
+  in the current phase. No further Type 1 DoS variants or optimizations are proposed or
+  authorized. Full suite **106 passed**. Diff and result shown; **no commit or push
+  performed** pending explicit go-ahead.
