@@ -1806,3 +1806,211 @@ to conceal or replace it.
   in the current phase. No further Type 1 DoS variants or optimizations are proposed or
   authorized. Full suite **106 passed**. Diff and result shown; **no commit or push
   performed** pending explicit go-ahead.
+
+---
+
+### EXP-0010 · Synthetic egress-flood (Type 2 DoS) capability test of the existing EXP-0004 detector — 2026-09-09
+
+> **PRE-REGISTRATION — PLANNED.** Recorded before writing the injection/evaluation code,
+> before synthesizing any flood, and before scoring anything. Parameters below are fixed
+> now. This experiment **trains no model** and **modifies no detector code**: it measures
+> whether the already-validated EXP-0004 detector (deterministic rule layer OR Isolation
+> Forest) flags a clearly-labelled *synthetic* egress-channel flood injected into real
+> Normal egress windows.
+
+- **PLANNED — Type 1 vs Type 2 (see DECISION_LOG 2026-09-09):** the Turnipseed dataset's
+  `DoS` label is **Type 1** — an external Bad-CRC flood on the *inbound command* path.
+  It never crosses the diode, the slave's egress replies during it are byte-identical to
+  normal, and EXP-0013 closed it at recall `0.269430` / precision `0.981132`
+  (constructionally TEST-blind). **Type 2** is architecturally different: an insider or
+  compromised device flooding the *outbound* channel itself (excessive telemetry,
+  high-frequency sensor spam, log flooding) — traffic that by definition **does** cross
+  the diode because it *is* the egress stream. **No dataset in this project contains a
+  labelled Type 2 example.** The only available test method is synthetic injection into
+  real Normal egress traffic; every result table is labelled `SYNTHETIC INJECTION TEST`
+  and is never presented as captured attack data. This is not the fabricated-dataset
+  failure mode: the underlying frames are real verified capture, only the volume/rate
+  anomaly is synthetic, and it is labelled synthetic throughout.
+- **PLANNED — detector under test (unmodified):** the EXP-0004 combined operational
+  detector = `DeterministicRuleLayer` (out-of-profile function code / novel slave
+  address; frozen from TRAIN-normal) **OR** Isolation Forest (300 trees, `max_samples=
+  "auto"`, `contamination="auto"`, seed 0) over the 14 `IF_FEATURES`, standardiser frozen
+  from TRAIN-normal, threshold = VALIDATION-normal 99th-percentile score
+  `0.6745465823488428`. `ml/iforest_detector.py`, `ml/rules.py`, `ml/features_windowed.py`
+  are **not modified**. EXP-0010 reproduces the identical fit in-process (same seed,
+  config, TRAIN-normal population) and **asserts** its TEST-block `if_pred` is
+  element-wise equal to `run_detector()` before scoring any synthetic window; a mismatch
+  stops the experiment.
+- **PLANNED — corrected manifest for all boundary construction:** TRAIN / VALIDATION come
+  from `ml/splits/verified_egress_5s_exp0008_pretest_v1.json`, split ID
+  `verified-egress-5s-exp0008-pretest-v1`, membership SHA-256
+  `0e912e147d088aaed05e95bda04c6a46c72ed4dd16aafb6966c9e2aab26859e6`. TEST is the egress
+  five-second windows (`destination == 1`, ≥2 frames) whose bucket begins **after** the
+  final frozen VALIDATION bucket, with the first **2** emitted windows discarded as
+  guards — the manifest-derived construction, **not** a full-capture recomputation.
+  EXP-0010 **asserts** that the existing detector's own `contiguous_blocks(46,736)`
+  TRAIN / VALIDATION / TEST bucket sets are byte-identical to this manifest construction
+  (pre-checked: they are — TRAIN 28,040 / VALIDATION 9,345 / TEST 9,347); a mismatch
+  stops the experiment and is itself reported as a finding.
+- **PLANNED — why using TEST data here is appropriate:** this is a capability probe of an
+  **already-trained, already-frozen** detector, not model selection or training. No
+  EXP-0010 decision (threshold, feature, hyperparameter, architecture) is or can be
+  informed by what is seen on these windows — the detector is immutable. That is
+  categorically different from training-time TEST access, which biases a model toward the
+  held-out set. The real Normal TEST windows are used as a realistic substrate for
+  injection and as an untouched false-positive control.
+- **PLANNED — injection substrate:** every real **Normal** TEST window (`is_attack == 0`,
+  `categorized_attack` all `0`) — pre-checked count 4,807. Each is flooded independently;
+  the real frames of that window are the seed material.
+- **PLANNED — injection method (frame-level synthesis, uniform re-spacing):** for
+  severity multiplier `K`, build `target_n = round(K · n)` frames spanning the window's
+  5-second bucket, uniformly spaced (`t_i = bucket·5 + i·5/target_n`, `i = 0..target_n-1`;
+  constant gap `5/target_n`). Feature values are then computed by a helper that mirrors
+  `features_windowed.build_windows` exactly and is **asserted identical** to
+  `build_windows()` for every real Normal TEST window at `K = 1`. Two profiles, reported
+  as separate dose-response curves:
+  - **Profile A — distinct-frame flood:** the `target_n` frames cycle the window's real
+    frames (`real[i mod n]`) for address / function code / length / entropy, each given a
+    fresh unique `frame_id`. Only volumetric and timing features move
+    (`packet_count`, `packets_per_sec`, `bytes_per_sec` scale by `K`; `iat_mean/min/max
+    → 5/(target_n-1)`; `iat_std → 0`; `distinct_frame_ratio → 1.0`;
+    `repeat_frame_rate → 0`). This is the hardest, purest volumetric test: can the IF
+    catch a flood from **rate alone**? Models high-rate distinct telemetry / sensor spam.
+  - **Profile B — duplicate-frame flood:** the `target_n` frames are the `n` real
+    distinct frames plus `target_n - n` exact duplicates (same `frame_id`), ordered so
+    identical frames are adjacent. Additionally collapses `distinct_frame_ratio` (`→
+    n_distinct/target_n`) and raises `repeat_frame_rate`. Models a stuck sensor / cached
+    telemetry / log line re-emitted at high frequency.
+  Function codes stay `{0x03, 0x10}` and address stays the profiled value, so the rule
+  layer is expected to stay silent — flood detection therefore rests on the IF. Uniform
+  re-spacing is the standard constant-rate-flood model; real floods carry jitter, which
+  would not materially change the volumetric signal.
+- **PLANNED — severity levels (dose-response):** `K ∈ {1, 2, 5, 10, 20}`. `K = 1` is a
+  sanity anchor: no injection, both profiles must reproduce the EXP-0004 Normal-TEST
+  false-positive rate exactly. `2× / 5× / 10×` are the requested operating points; `20×`
+  shows the curve's high end. These multipliers are reasonable egress-flood proxies:
+  Normal egress here is regular ~2 s polling telemetry, so 2× is a mild but plausible
+  misconfiguration and 10–20× is an unambiguous flood well inside real DoS rate ranges.
+- **PLANNED — evaluation and reporting:** for each `(profile, K)` report, over the 4,807
+  injected windows: **detection rate** of the combined detector, plus rule-only and
+  IF-only rates, and the mean IF anomaly score vs. threshold. Separately report the
+  combined / IF-only **false-positive rate on the 4,807 untouched real Normal TEST
+  windows** (expected unchanged from EXP-0004's `36/4,807 = 0.749%`; confirmed, not
+  assumed). Every table is headed `SYNTHETIC INJECTION TEST`. If the existing detector
+  already catches Type 2 floods well, that is the finding — Type 2 would then be covered
+  by the existing pipeline. If it does not, that is the finding, and the entry will
+  **note but not build** what a minimal fix looks like (most likely a fixed
+  rate-threshold rule in the existing deterministic rule layer, a fast low-risk addition
+  since the rule layer already exists and a volumetric flood is not a subtle signal).
+- **PLANNED — outputs / scope:** new files only — `ml/exp0010_egress_flood.py`,
+  `tests/test_exp0010_egress_flood.py`, and gitignored `data/experiments/
+  exp0010_egress_flood.json`. Do **not** touch Layer A, `app.py`, `ml/iforest_detector.py`,
+  `ml/rules.py`, `ml/features_windowed.py`, or the Type 1 DoS files (EXP-0007…EXP-0013).
+  Run the full suite before and after with exact counts. Show the full diff and all
+  per-severity results, then wait for explicit go-ahead before any commit. No push.
+
+- **IMPLEMENTED — isolated code:** added only `ml/exp0010_egress_flood.py` and
+  `tests/test_exp0010_egress_flood.py`; JSON is gitignored at
+  `data/experiments/exp0010_egress_flood.json`. `FrozenExp0004Detector` reproduces the
+  EXP-0004 combined detector in-process (Isolation Forest 300 trees, seed 0, frozen
+  TRAIN-normal standardiser, threshold `0.6745465823488428`; rule layer from the frozen
+  TRAIN-normal profile). `synthesize_flood` is deterministic (no RNG). `_window_features`
+  mirrors `features_windowed.build_windows` and is asserted equal to `build_windows()` for
+  every real Normal TEST window at `K = 1`. `ml/iforest_detector.py`, `ml/rules.py`,
+  `ml/features_windowed.py` are unchanged.
+- **VALIDATED — gates (all passed before any synthetic window was scored):**
+  - *Boundary gate:* EXP-0004's `contiguous_blocks(46,736)` TRAIN / VALIDATION / TEST
+    bucket sets are byte-identical to `verified-egress-5s-exp0008-pretest-v1` (TRAIN
+    28,040 / VALIDATION 9,345) and to the manifest-derived guarded TEST construction
+    (9,347).
+  - *Identity gate:* the reproduced IF's `if_pred` on the real TEST block equals
+    `run_detector().if_pred` element-wise; the combined-detector TEST confusion is exactly
+    EXP-0004's `TN 4,771 / FP 36 / FN 3,793 / TP 747`; threshold equals the EXP-0004
+    frozen value.
+  - *Feature-helper gate:* `_window_features` reproduces `build_windows()` exactly on all
+    4,807 real Normal TEST windows.
+  - *K = 1 sanity:* both profiles at `K = 1` reproduce the untouched Normal-TEST
+    detection rate exactly.
+- **VALIDATED — false-positive control (untouched real Normal TEST, n = 4,807):** combined
+  FPR `0.007489`, identical to EXP-0004's `36/4,807`. Injecting floods into *other*
+  windows does not change the detector's behaviour on real Normal traffic (confirmed, not
+  assumed).
+
+- **VALIDATED — evaluation cohort (explicit, reproducible):** each `(profile, severity)`
+  row is scored against a two-class cohort of **9,614** windows —
+  - **negative class:** the **4,807** real untouched Normal TEST windows (`is_attack == 0`,
+    `categories == {0}`), scored once;
+  - **positive class:** the **same 4,807** windows, synthetic-flood-injected at that
+    `(profile, severity)`.
+  `FP` and `TN` are therefore constant across every row (the negative class is
+  unmodified, and injecting floods into other windows does not change the detector's
+  verdict on real Normal traffic — verified): `FP = 36`, `TN = 4,771`, exactly EXP-0004's
+  real-Normal-TEST split. `precision = TP/(TP+36)`, `recall = TP/(TP+FN) =` the flood
+  detection rate, `FPR = 36/4,807 = 0.007489`. The `1×` rows have no injection, so the
+  positive class *is* the negative class — they are the sanity anchor only, not a
+  meaningful precision/recall point.
+
+- **VALIDATED — SYNTHETIC INJECTION TEST — dose-response, combined detector (rule OR IF):**
+
+  | profile | severity | precision | recall | F1 | FPR | TN | FP | FN | TP |
+  |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+  | A — distinct-frame flood | 1× (sanity anchor) | 0.5000 | 0.0075 | 0.0148 | 0.007489 | 4,771 | 36 | 4,771 | 36 |
+  | A — distinct-frame flood | 2× | 0.9694 | **0.2376** | 0.3816 | 0.007489 | 4,771 | 36 | 3,665 | 1,142 |
+  | A — distinct-frame flood | 5× | 0.9694 | **0.2376** | 0.3816 | 0.007489 | 4,771 | 36 | 3,665 | 1,142 |
+  | A — distinct-frame flood | 10× | 0.9694 | **0.2376** | 0.3816 | 0.007489 | 4,771 | 36 | 3,665 | 1,142 |
+  | A — distinct-frame flood | 20× | 0.9694 | **0.2376** | 0.3816 | 0.007489 | 4,771 | 36 | 3,665 | 1,142 |
+  | B — duplicate-frame flood | 1× (sanity anchor) | 0.5000 | 0.0075 | 0.0148 | 0.007489 | 4,771 | 36 | 4,771 | 36 |
+  | B — duplicate-frame flood | 2× | 0.9926 | **1.0000** | 0.9963 | 0.007489 | 4,771 | 36 | 0 | 4,807 |
+  | B — duplicate-frame flood | 5× | 0.9926 | **1.0000** | 0.9963 | 0.007489 | 4,771 | 36 | 0 | 4,807 |
+  | B — duplicate-frame flood | 10× | 0.9926 | **1.0000** | 0.9963 | 0.007489 | 4,771 | 36 | 0 | 4,807 |
+  | B — duplicate-frame flood | 20× | 0.9926 | **1.0000** | 0.9963 | 0.007489 | 4,771 | 36 | 0 | 4,807 |
+
+  IF-only detection rate equals the combined rate here (the rule layer fires on 0 of all
+  20 rows); IF-only / rule-only rates and the mean IF score per row are in the JSON.
+  *These rows are a synthetic injection test, not results on captured attack data.*
+
+- **VALIDATED — reading of the result (mixed; one clear gap):**
+  - The **rule layer contributes nothing** to flood detection at any severity — it is a
+    function-code / address membership test and is blind to volume, exactly as designed.
+    All Type 2 detection here is the Isolation Forest.
+  - **Duplicate-frame floods (Profile B) are caught completely** — recall `1.0000`,
+    precision `0.9926`, F1 `0.9963` at every severity ≥ 2×. The collapsing
+    `distinct_frame_ratio` (1.0 → 0.05) is a direction the IF was trained to treat as
+    tightly constant, and it pushes the score decisively past threshold. A stuck sensor,
+    cached-telemetry loop, or repeated log line at ≥ 2× rate is already effectively
+    covered by the existing pipeline.
+  - **Pure-volumetric floods with distinct frames (Profile A) are mostly missed** —
+    recall only **`0.2376`** (precision `0.9694`, F1 `0.3816`), and **severity does not
+    help**: the mean IF anomaly score is
+    identical for 2× through 20× (`0.6617`) and sits just *below* the operating threshold
+    `0.6745`. This is the well-known Isolation Forest saturation property — once a point
+    is far outside the training support, extra distance does not lengthen its isolation
+    path. The ~24% that are caught are windows whose non-rate features (entropy, frame
+    length, read/write mix) were already near the boundary.
+  - Every injected window at ≥ 2× has `packets_per_sec ≥ 1.2`, versus a **TRAIN-normal
+    maximum of 0.8** and a **real Normal-TEST maximum of 0.8**. The volumetric signal is
+    unambiguous and cleanly separated; the IF simply does not convert it into a
+    threshold crossing for the distinct-frame case.
+- **NOTED, NOT BUILT — minimal fix:** a single fixed rate-threshold rule in the existing
+  `DeterministicRuleLayer` — flag a window when `packets_per_sec` exceeds the TRAIN-normal
+  maximum (`0.8`) — would flag **100%** of both profiles at all severities ≥ 2× with
+  **zero** new false positives on the 4,807 real Normal TEST windows (whose maximum is
+  `0.8`). It is low-risk: the rule layer already exists, the threshold is frozen from
+  TRAIN-normal exactly like the existing function-code profile, and a volumetric flood is
+  not a subtle signal. This is **not implemented in EXP-0010**; it is recorded as the
+  obvious next step if Type 2 coverage is wanted.
+- **TESTED — execution record:** pre-EXP-0010 full suite **106 passed**. Added
+  `tests/test_exp0010_egress_flood.py` = **8 passed** (7 fast synthetic unit tests + 1
+  `@pytest.mark.slow` end-to-end gate/dose-response test). Full suite after: **114 passed
+  in ~70 s** (net **+8**; the slow integration test re-runs the real detector +
+  `build_windows`, roughly doubling suite wall time — deselect with `-m 'not slow'` for
+  ~33 s).
+- **LIMITATIONS:** the flood is synthetically injected, not captured; uniform re-spacing
+  omits real timing jitter; Profiles A and B bracket two flood shapes and a real flood
+  may sit between them; this is one testbed's Normal egress profile and detectability may
+  differ elsewhere.
+- **STATUS — Type 2 DoS:** the existing detector **already covers** duplicate/near-
+  identical egress floods and **does not reliably cover** distinct-frame volumetric
+  floods (~24%, severity-independent). A one-line rate rule would close the gap. No
+  detector change is made here; **no commit or push performed** pending explicit
+  go-ahead.

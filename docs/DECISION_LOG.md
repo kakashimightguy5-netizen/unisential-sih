@@ -4,6 +4,82 @@ Format: **DATE · DECISION · OPTIONS CONSIDERED · WHY CHOSEN · IMPACT**
 
 ---
 
+### 2026-09-09 · PROPOSED (NOT IMPLEMENTED) — add a `packets_per_sec` rate rule to the deterministic rule layer for Type 2 DoS
+
+- **STATUS:** proposed follow-up only. **Nothing is built.** EXP-0010 is a diagnostic
+  capability test; this entry records the recommended fix it motivates so a later task
+  can pick it up without re-deriving it. "Diagnosed" is not "fixed".
+- **PROPOSAL:** add one deterministic rule to `ml/rules.py`'s `DeterministicRuleLayer` —
+  flag a five-second egress window whose `packets_per_sec` exceeds the TRAIN-normal
+  maximum (`0.8` on the current verified capture), frozen from TRAIN-normal exactly like
+  the existing function-code / address profile. OR-ed into the combined verdict alongside
+  the existing rule and the Isolation Forest, unchanged.
+- **EVIDENCE (EXP-0010, SYNTHETIC INJECTION TEST):** cohort = 4,807 real Normal TEST
+  windows (negative) vs. the same 4,807 flood-injected (positive); `FP = 36`, `TN = 4,771`
+  constant (= EXP-0004's real-Normal split). The existing rule-layer-OR-IF detector
+  catches duplicate-frame floods (Profile B) fully — recall `1.0000`, precision `0.9926`
+  at every severity ≥ 2× — but distinct-frame volumetric floods (Profile A) only at
+  recall `0.2376` (precision `0.9694`), and raising severity 2× → 20× does not help
+  because the IF anomaly score saturates just below the operating threshold. Every
+  synthetic flood at ≥ 2× has `packets_per_sec ≥ 1.2` against a TRAIN-normal maximum of
+  `0.8` and a real Normal-TEST maximum of `0.8`. A `packets_per_sec > 0.8` rule would
+  flag **100%** of both profiles at all severities ≥ 2× with **0** new false positives on
+  the 4,807 real Normal TEST windows.
+- **OPTIONS CONSIDERED:** (a) retrain / re-threshold the Isolation Forest to catch
+  volumetric floods — rejected: the IF's far-out-of-distribution score saturation is
+  structural, and re-thresholding trades Normal FPR for it; (b) add a learned rate model
+  — rejected as over-engineered for an unambiguous, cleanly separated signal; (c) one
+  frozen rate-threshold rule in the layer that already handles constant-on-normal
+  membership signals — chosen.
+- **WHY LOW-RISK:** the rule layer already exists and is already OR-ed into the verdict;
+  the threshold is a frozen TRAIN-normal statistic, not tuned on TEST; the signal is
+  volumetric and unsubtle; EXP-0010 measured 0 new false positives on real Normal TEST.
+  It does not touch the Isolation Forest, `app.py`, or Layer A.
+- **IMPACT IF ADOPTED:** closes the Type 2 (egress-channel flood) detection gap for both
+  flood shapes. Would be its own pre-registered experiment / change with its own frozen
+  TEST-blind evaluation and full-suite run; **not** folded into EXP-0010.
+
+---
+
+### 2026-09-09 · DECISION — EXP-0010 tests Type 2 (egress-channel) DoS by synthetic injection because no labelled example exists
+
+- **DECISION:** treat "DoS" as two distinct problems and test them separately.
+  **Type 1** (external-flood DoS) is what the Turnipseed dataset's `DoS` label represents:
+  a Bad-CRC flood on the *inbound command* path. It never crosses the diode; the slave's
+  egress replies during it are byte-identical to normal traffic. It is structurally hard
+  from a one-directional view and was closed at EXP-0013 (recall `0.269430`, precision
+  `0.981132`, TEST-blind). **Type 2** (egress-channel / diode-termination flood) is an
+  insider or compromised device flooding the *outbound* channel itself — excessive
+  telemetry, high-frequency sensor spam, log flooding. This traffic **does** cross the
+  diode by definition, because it *is* the egress stream. EXP-0010 tests whether the
+  existing EXP-0004 detector already catches Type 2, using synthetic injection.
+- **OPTIONS CONSIDERED:** (a) find a labelled Type 2 example in an available dataset;
+  (b) capture one in a lab; (c) synthetically inject a volume/rate anomaly into real
+  Normal egress windows and score the existing detector.
+- **WHY (c):** no dataset in this project — Turnipseed included — contains a labelled
+  egress-side volumetric flood; every `DoS`-labelled frame is inbound Bad-CRC. No lab
+  capture rig is in scope before the deadline. Synthetic injection is therefore the only
+  available method. It is legitimate here and **not** the earlier fabricated-dataset
+  failure mode: the frames are real verified capture, only the rate/volume anomaly is
+  synthetic, it is a capability probe of an already-frozen detector (no model is trained
+  or tuned on it), and every result is labelled `SYNTHETIC INJECTION TEST` throughout —
+  never presented as a real captured attack.
+- **WHY TEST-portion windows are acceptable here:** EXP-0010 trains nothing and changes
+  no detector code, threshold, or feature. The detector is immutable during the
+  experiment, so nothing it "sees" can bias it toward the held-out set. Using the real
+  Normal TEST windows as injection substrate and as an untouched false-positive control
+  is categorically different from training-time TEST access.
+- **IMPACT:** if the existing rule-layer-OR-Isolation-Forest detector already flags the
+  synthetic floods, Type 2 DoS is effectively covered by the existing pipeline — a
+  genuine, reportable positive result. If it does not, EXP-0010 will note (not build) a
+  minimal fix: a fixed rate-threshold rule in the existing deterministic rule layer,
+  which is low-risk because the rule layer already exists and a volumetric flood is not a
+  subtle signal. No detector change is made in EXP-0010 itself. All boundary construction
+  uses the corrected `verified-egress-5s-exp0008-pretest-v1` manifest; the existing
+  detector's split is asserted byte-identical to it before scoring.
+
+---
+
 ### 2026-09-09 · DECISION — EXP-0013 Configuration X selected for the one trustworthy Type 1 DoS frozen TEST
 
 - **DECISION:** run exactly one genuinely TEST-blind frozen evaluation for Type 1 DoS
