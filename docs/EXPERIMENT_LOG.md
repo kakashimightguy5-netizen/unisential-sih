@@ -947,3 +947,60 @@ to conceal or replace it.
   grouping metadata; and the labelled attack is not established as a classic
   volumetric flood. EXP-0007's withdrawn outputs are not evidence and were not used for
   tuning or comparison.
+
+---
+
+### EXP-0006 · Layer A DoS payload / imbalance / model ablation — 2026-09-09
+
+> **PRE-REGISTRATION — PLANNED.** Recorded before any EXP-0006 payload audit, feature
+> extraction, model fit, validation, or TEST scoring. EXP-0005/0005b and their files
+> remain unchanged.
+
+- **PLANNED — question:** measure independently whether Layer A DoS performance changes
+  from (A) adding audited ARFF payload fields, (B-a) training-fold-only SMOTE with the
+  original Random Forest, or (B-b) changing from Random Forest to gradient boosting on
+  the original data; then measure the pre-specified combination of all three. Do not
+  collapse these ablations into one headline number.
+- **PLANNED — fixed success rule:** relative to EXP-0005b recall `0.388601`, an
+  individual change is a **meaningful improvement** only if held-out TEST recall rises
+  by at least 10 percentage points (to `>=0.488601`) while precision remains `>=0.55`.
+  The combined run uses the same rule. Report all outcomes regardless of pass/fail; do
+  not tune features, hyperparameters, sampling, or thresholds after TEST is viewed.
+- **PLANNED — unchanged cohort/split:** use the verified 274,628-row ARFF aligned to the
+  EXP-0005 bidirectional TXT, identical 50,080 five-second buckets and identical
+  contiguous TRAIN/VALIDATION/TEST indices with one-window guards. Positive means any
+  `categorized result == 6` frame is present; negative means a pure-Normal window.
+  Other-attack-only windows remain outside the binary cohort. Fit/resample on TRAIN
+  only; neither VALIDATION nor TEST is resampled. Fixed classification threshold `0.5`.
+- **PLANNED — payload leakage audit before use:** audit separately the 11 candidate ARFF
+  payload fields: `setpoint`, `gain`, `reset rate`, `deadband`, `cycle time`, `rate`,
+  `system mode`, `control scheme`, `pump`, `solenoid`, `pressure measurement`. `crc
+  rate` is not a candidate because the existing schema already marks it artifact-suspect
+  and its standard Modbus meaning is invalid for this artifact. For each candidate,
+  report Normal/DoS row presence, missingness, unique observed values, and observed
+  value overlap. Exclude a field if presence alone perfectly separates DoS from Normal,
+  if non-missing value sets are disjoint with both groups represented, or if it is
+  constant on Normal but changes only during DoS. Missingness indicators are not model
+  inputs, preventing frame-type presence from becoming a proxy. If semantics remain
+  ambiguous after this audit, stop rather than score Change A.
+- **PLANNED — Change A alone:** add surviving payload fields through new EXP-0006 code,
+  preserving the original 15-feature matrix unchanged. Aggregate each surviving field
+  per window as the mean of available values; impute missing window aggregates using
+  TRAIN-cohort medians frozen before TEST. Train the exact EXP-0005b Random Forest
+  (`300` trees, `class_weight="balanced"`, seed `0`) without SMOTE.
+- **PLANNED — Change B(a) alone:** on only the original 15 EXP-0005b features, apply
+  standard SMOTE (`sampling_strategy="auto"`, `k_neighbors=5`, seed `0`) to the TRAIN
+  cohort only, then train the exact EXP-0005b Random Forest except that SMOTE supplies
+  the balancing and `class_weight=None` isolates SMOTE's effect.
+- **PLANNED — Change B(b) alone:** on the original 15 features and original unresampled
+  TRAIN cohort, train `xgboost.XGBClassifier` with fixed defaults except
+  `n_estimators=300`, `random_state=0`, `n_jobs=-1`, `eval_metric="logloss"`, and
+  `scale_pos_weight = n_train_normal / n_train_dos`. XGBoost is already a declared
+  project dependency. This isolates model choice from payload and SMOTE.
+- **PLANNED — combined:** surviving payload-expanded matrix + TRAIN-only SMOTE + the
+  same fixed XGBoost configuration, with `scale_pos_weight=1` because SMOTE balances
+  the TRAIN classes. Run only after A, B(a), and B(b) have each been scored and recorded
+  in memory. Report precision, recall, F1, FPR, and confusion counts for every row.
+- **PLANNED — outputs/scope:** new isolated `ml/exp0006_detector.py`, new EXP-0006 tests,
+  and local machine-readable audit/results under ignored `data/experiments/`. Do not
+  modify Layer B, `app.py`, EXP-0005/0005b implementation files, or their existing tests.
