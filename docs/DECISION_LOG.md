@@ -91,6 +91,74 @@ Format: **DATE · DECISION · OPTIONS CONSIDERED · WHY CHOSEN · IMPACT**
 
 ---
 
+### 2026-09-09 · PLANNED — test EXP-0011 protocol, sampler, RF-grid, and ensemble follow-ups on VALIDATION only
+
+- **PLANNED — decision:** keep EXP-0009b as the incumbent and independently evaluate
+  four preregistered follow-ups without opening TEST: diagnose and conditionally use
+  `0x03` response pressure (0011a), compare Borderline-SMOTE and ADASYN (0011b), run a
+  nine-point RF grid after frozen standard SMOTE (0011c), and average frozen-recipe RF/
+  XGBoost probabilities equally (0011d). Report every candidate and retain EXP-0009b if
+  no new configuration strictly wins the common rule.
+- **PLANNED — protocol/payload choice:** Modbus `0x03` Read Holding Registers responses
+  return register values, while `0x10` Write Multiple Registers responses acknowledge
+  only starting address and quantity. Confirm this against canonical shapes and measured
+  TRAIN/VALIDATION pressure counts. If pre-TEST `0x10` pressure is universally absent,
+  treat it as structural and expose only seven `0x03` summaries plus an explicit
+  availability flag; missing numeric values use declared zero placeholders and there is
+  no `0x10` pressure field. If `0x10` pressure exists outside TRAIN, classify split
+  sparsity and stop 0011a rather than widening TRAIN or inventing values.
+- **PLANNED — frozen comparisons:** 0011b uses library Borderline-SMOTE and ADASYN with
+  fixed default variant choices/k=5/seed 0; 0011c evaluates exactly depth None/10/20 ×
+  leaf 1/2/5; 0011d uses equal probability weights only. All retain original cadence
+  features and frozen model/resampling settings except the single dimension named by
+  the sub-experiment. Resampling and fitting are TRAIN-only.
+- **PLANNED — selection and impact:** each successful candidate receives the same
+  0.10–0.90 by 0.05 VALIDATION sweep and EXP-0009 precision≥0.50/max-recall/F1 rule.
+  Rank selected points by recall, F1, precision with incumbent-first exact ties. This
+  prevents novelty bias. Code is isolated in new EXP-0011 modules/tests; EXP-0008/0009,
+  prior experiments, Layer A, `app.py`, and dashboard remain untouched. No EXP-0011
+  TEST materializer or scorer is allowed. Stop with `TEST NOT RUN`, show results/full
+  diff, and wait before commit or push.
+- **VALIDATED — protocol decision:** official Modbus V1.1b3 §6.3/§6.12 and the observed
+  shapes agree that `0x03` returns register values while `0x10` acknowledges address and
+  quantity only. All `0x03` TRAIN/VALIDATION frames had pressure and all `0x10` frames
+  had none, including every class, so the earlier gate failure is structural rather than
+  split sparsity. Permit the preregistered `0x03`-only features with explicit
+  availability; continue to forbid any invented `0x10` pressure.
+- **VALIDATED — outcome and choice:** the common VALIDATION rule formally selects 0011a
+  at threshold `0.20` (precision `0.568528`, recall `0.551724`, F1 `0.560000`, FPR
+  `0.017519`, TN/FP/FN/TP `4,767/85/91/112`) over incumbent 0009b at `0.60`
+  (`0.929825/0.522167/0.668770`, FPR `0.001649`, `4,844/8/97/106`). This is a narrow
+  recall gain of six true positives at the cost of 77 extra false positives and a large
+  precision/F1 regression, not broad improvement. Borderline-SMOTE and the equal-weight
+  ensemble each selected `0.963636/0.522167/0.677316`; ADASYN tied the incumbent; no RF
+  grid point improved recall, and depth None/leaf 5 won that grid by frozen tie order.
+  The ensemble improves precision only, not recall, at its selected point; neither full
+  curve globally Pareto-dominates the other. Recommend 0011a only because the written
+  rule prioritizes feasible recall—not because it is newer or uniformly better.
+- **VALIDATED — impact/stop:** retain the recommendation as VALIDATION-selected and
+  unconfirmed. Multiple comparisons reused one VALIDATION block, pressure remains
+  ARFF-aligned rather than independently TXT-decoded, and the availability flag may
+  encode schedule/presence. **TEST NOT RUN.** No integration, commit, or push is implied;
+  one frozen TEST score still requires explicit authorization.
+- **AUTHORIZED OVERRIDE — recorded before TEST:** retain 0011a as the mechanical
+  recall-first result but do **not** advance it: +6 TP required +77 FP, worsened three of
+  four reported rates, and its availability flag has an unresolved schedule/presence
+  leakage question. Advance 0011b Borderline-SMOTE + RF at threshold `0.50` instead,
+  with the original 33 cadence features and fingerprint
+  `bb89557b34a1ff3850ae06a3e8151d70dad9f215837f5c0d5216e1a5b0f9cc40`. This explicit
+  human deployment-suitability decision does not rewrite the preregistered mechanical
+  rule. **TEST had not been run when this override was recorded.**
+- **VALIDATED — one-shot outcome:** the guarded EXP-0011b fingerprint matched before
+  TEST access. Its single threshold-0.50 TEST score was precision `0.912281`, recall
+  `0.269430`, F1 `0.416000`, FPR `0.001040`, TN/FP/FN/TP `4,802/5/141/52` on 4,807
+  Normal plus 193 DoS windows. Against EXP-0008 Detector B on the identical cohort, it
+  preserves the same 52 TP/141 FN while reducing FP from 30 to 5; however, the
+  VALIDATION recall did not generalize and 73.1% of DoS windows remain missed. Retain
+  this exact result without tuning or rerun. **NO TEST RERUN.**
+
+---
+
 ### 2026-09-09 · PLANNED — evaluate isolated EXP-0009 recall improvements on VALIDATION only
 
 - **PLANNED — decision:** preserve EXP-0008's exact egress-only cohort, guarded split,

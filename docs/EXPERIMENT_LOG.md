@@ -1545,3 +1545,149 @@ to conceal or replace it.
   requirements, or frozen result was changed; no commit or push performed.
 
 ---
+
+### EXP-0011 · Validation-only follow-up to EXP-0009 — 2026-09-09
+
+> **PRE-REGISTRATION — PLANNED.** Recorded before the EXP-0011 baseline test run,
+> protocol/payload diagnostic, resampling, model fitting, hyperparameter comparison,
+> ensemble construction, or VALIDATION scoring. Frozen TEST remains unopened and no
+> EXP-0011 TEST path is authorized or implemented.
+
+- **PLANNED — inherited boundary:** use only verified aligned response/egress rows
+  (`destination == 1`, ARFF `command response == 0`) and preserve EXP-0008's exact
+  five-second eligible windows, guarded TRAIN 28,040 / VALIDATION 9,345 / TEST 9,347
+  split, DoS-containing versus pure-Normal cohort, exclusion of other-attack-only
+  windows, 33 cadence features, TRAIN-only immutable type discovery/baselines, and
+  canonical mapper. EXP-0007 outputs remain invalid; EXP-0008/0009 code, tests, and
+  results remain read-only. No TEST row/value/label/feature/prediction/metric may be
+  materialized during EXP-0011.
+- **PLANNED — common sweep and recommendation rule:** for every successful candidate,
+  sweep thresholds 0.10 through 0.90 inclusive by 0.05. Select maximum recall subject
+  to precision ≥0.50; ties use higher F1, then precision, then higher threshold. If no
+  point is feasible, use maximum F1, then recall, precision, and higher threshold. Rank
+  candidates and frozen EXP-0009b by their selected points using recall, then F1, then
+  precision; exact configuration ties prefer the existing EXP-0009b, followed by 0011a,
+  0011b Borderline-SMOTE, 0011b ADASYN, the written 0011c grid order, then 0011d. A
+  candidate meaningfully beats the baseline only if this ranking is strictly improved.
+- **PLANNED — 0011a protocol diagnosis and conditional model:** verify Modbus semantics
+  and actual canonical shapes: function `0x03` Read Holding Registers responses contain
+  byte count plus returned register values, whereas function `0x10` Write Multiple
+  Registers responses normally echo starting address and quantity and contain no
+  returned measurement value. Audit non-missing pressure by TRAIN/VALIDATION type and
+  class. If `0x10` has no pressure throughout pre-TEST data and the protocol/shape check
+  agrees, classify the gate as a schema/protocol limitation. Add only the seven frozen
+  numeric `0x03` pressure summaries plus `func_03_pressure_available`; when unavailable,
+  numeric summaries use a declared zero placeholder interpreted only with that flag.
+  Define no `0x10` pressure feature. Train standard-SMOTE + RF exactly as 0009b and sweep
+  VALIDATION. If any `0x10` pressure exists outside TRAIN, classify this as split
+  sparsity and stop 0011a—do not widen TRAIN, alter the split, or invent/impute values.
+  Any contradictory protocol/shape evidence also stops the sub-experiment.
+- **PLANNED — 0011b sampler comparison:** on the original 33 cadence features, replace
+  standard SMOTE independently with
+  `BorderlineSMOTE(sampling_strategy="auto", k_neighbors=5, random_state=0)` and
+  `ADASYN(sampling_strategy="auto", n_neighbors=5, random_state=0)`. Resample TRAIN
+  only; retain RF `n_estimators=300`, `class_weight=None`, `random_state=0`,
+  `n_jobs=-1`; report threshold 0.60 plus the full sweep/selected point. If a library
+  sampler fails, report that candidate stopped without changing settings.
+- **PLANNED — 0011c small RF grid:** use EXP-0009b's original 33 cadence features and
+  exact standard SMOTE, then evaluate all nine combinations of
+  `max_depth ∈ {None, 10, 20}` × `min_samples_leaf ∈ {1, 2, 5}`. Every RF retains 300
+  trees, `class_weight=None`, seed 0, and `n_jobs=-1`. Sweep each on unchanged
+  VALIDATION, select by the common rule, and break exact ties by written Cartesian order
+  (depth None/10/20, then leaf 1/2/5). Report all nine selected rows and the winning
+  curve.
+- **PLANNED — 0011d RF/XGBoost ensemble:** reproduce EXP-0009b RF and EXP-0009c
+  XGBoost probabilities from their frozen recipes on the original cadence features;
+  combine only by equal-weight probability average `(p_rf + p_xgb) / 2`; sweep unchanged
+  VALIDATION. Report threshold 0.60 and the selected point. Across the 17 RF and 17
+  ensemble thresholds, report whether either model Pareto-dominates the other (precision
+  and recall no worse with at least one strict improvement), including whether the
+  ensemble beats RF on both metrics, only one, or neither.
+- **PLANNED — outputs and stop:** create only `ml/exp0011_payload_diagnostic.py`,
+  `ml/exp0011_validation.py`, and dedicated tests; write ignored local
+  `data/experiments/exp0011_validation.json` atomically. Report all candidates,
+  regressions, diagnostic evidence, full comparison, and the honest final recommendation
+  even if it remains EXP-0009b. Run the complete suite before and after and report exact
+  counts. Stop with **TEST NOT RUN**, show the full diff/results, and wait before any
+  commit. Do not touch Layer A, `app.py`, dashboard, prior experiment files, or push.
+
+- **IMPLEMENTED — isolated construction:** added only the two preregistered EXP-0011
+  modules and two synthetic test modules. The runner has no TEST scorer or confirmation
+  token, prepares only TRAIN/VALIDATION matrices, applies every sampler to TRAIN only,
+  uses one standard-SMOTE resample across the nine RF-grid fits, forms the ensemble by
+  the frozen arithmetic mean, and writes machine-readable JSON atomically. Eight new
+  0011a columns are seven numeric `0x03` summaries plus the explicit availability flag;
+  there is no `0x10` pressure column.
+- **VALIDATED — protocol and measured diagnosis:** the official *MODBUS Application
+  Protocol Specification V1.1b3* §6.3 and §6.12 defines `0x03` responses as byte count
+  plus returned registers and `0x10` responses as starting address plus quantity written.
+  The discovered canonical shapes exactly matched `(3,0,23,18,0)` and
+  `(16,0,8,-1,0)`. Every canonical `0x03` pre-TEST frame had pressure: TRAIN Normal/DoS/
+  other `21,384/326/6,179`, VALIDATION `7,262/146/2,169`. Every canonical `0x10` frame
+  had no pressure: TRAIN frame counts `21,387/518/16,076`, VALIDATION
+  `7,263/305/5,680`, all with zero non-missing values. This is therefore
+  **SCHEMA_LIMITATION — 0x03-ONLY PAYLOAD AUTHORIZED**, not split sparsity. The
+  TRAIN-normal `0x03` baseline was `8.27919195936214`.
+- **VALIDATED — common cohort and incumbent:** the unchanged VALIDATION cohort contained
+  5,055 windows (`4,852` Normal, `203` DoS). Reproduced EXP-0009b at threshold `0.60`
+  exactly: precision `0.929825`, recall `0.522167`, F1 `0.668770`, FPR `0.001649`,
+  TN/FP/FN/TP `4,844/8/97/106`.
+- **VALIDATED — selected points for 0011a/b/d:** under the preregistered sweep rule,
+  0011a selected `0.20`: precision `0.568528`, recall `0.551724`, F1 `0.560000`, FPR
+  `0.017519`, counts `4,767/85/91/112`. At `0.60`, it was `0.963303/0.517241/0.673077`
+  precision/recall/F1 with FPR `0.000824` and counts `4,848/4/98/105`.
+  Borderline-SMOTE selected `0.50`: `0.963636/0.522167/0.677316`, FPR `0.000824`,
+  `4,848/4/97/106`; at `0.60` it was `0.990566/0.517241/0.679612`, FPR `0.000206`,
+  `4,851/1/98/105`. ADASYN selected `0.55` and exactly tied the incumbent point; at
+  `0.60` it was also `0.990566/0.517241/0.679612`, FPR `0.000206`,
+  `4,851/1/98/105`. The ensemble selected `0.80`: `0.963636/0.522167/0.677316`, FPR
+  `0.000824`, `4,848/4/97/106`; at `0.60` it was `0.576087/0.522167/0.547804`, FPR
+  `0.016076`, `4,774/78/97/106`. The ensemble selected point improves precision but
+  not recall versus RF—it does **not** beat RF on both. Each curve has all 17 frozen
+  thresholds; each model family also dominates some points of the other curve, so there
+  is no global Pareto dominance.
+- **VALIDATED — 0011c grid:** selected threshold and precision/recall/F1 for the written
+  grid order were: None/1 `0.60, 0.929825/0.522167/0.668770`; None/2 `0.55,
+  0.913793/0.522167/0.664577`; None/5 `0.55, 0.946429/0.522167/0.673016`; 10/1 `0.50,
+  0.946429/0.522167/0.673016`; 10/2 `0.45, 0.929825/0.522167/0.668770`; 10/5 `0.45,
+  0.921739/0.522167/0.666667`; 20/1 `0.60, 0.938053/0.522167/0.670886`; 20/2 `0.50,
+  0.791045/0.522167/0.629080`; and 20/5 `0.55, 0.938053/0.522167/0.670886`. None/5
+  wins because it ties 10/1 exactly and precedes it in the frozen Cartesian order.
+- **VALIDATED — recommendation:** 0011a at threshold `0.20` strictly wins the declared
+  recall-first rule, detecting six additional DoS windows (`112` versus `106` TP), but
+  its precision falls by `0.361297`, F1 falls by `0.108770`, and false positives rise
+  from `8` to `85`. Thus it is the formal candidate to send to one eventual frozen TEST
+  score, not an across-metric improvement. Borderline-SMOTE and the ensemble improve
+  precision/F1 but not recall; ADASYN ties; no 0011c setting improves recall. Repeated
+  comparisons on one VALIDATION block and ARFF-only pressure decoding remain material
+  limitations.
+- **TESTED — execution record:** pre-implementation suite baseline was **64 passed**.
+  Final dedicated coverage is **14 passed** and the complete suite is **78 passed**
+  (net **+14**), subject to the final verification command recorded with the diff. The
+  first modeling invocation completed fits but failed before accepted output because
+  nested read-only mappings were not JSON serializable; recursive strict-JSON
+  normalization was added, tests were extended, and VALIDATION was rerun. This was an
+  implementation-output correction, not a rule or model change. **TEST NOT RUN. No
+  commit or push performed.**
+- **AUTHORIZED SELECTION OVERRIDE — recorded before TEST:** 0011a was investigated and
+  remains the mechanical recall-first winner, but it is **not selected**: its six extra
+  true positives cost 77 extra false positives and regress precision, F1, and FPR, while
+  `func_03_pressure_available` retains an unresolved schedule/presence leakage question.
+  The final frozen-TEST configuration is instead **0011b Borderline-SMOTE + RF at 0.50**,
+  using only EXP-0009b's 33 cadence features, TRAIN-only resampling, and fingerprint
+  `bb89557b34a1ff3850ae06a3e8151d70dad9f215837f5c0d5216e1a5b0f9cc40`; this is a
+  human deployment-suitability override after VALIDATION, not a retroactive change to
+  the preregistered selection rule. **TEST NOT YET RUN at the time of this record.**
+- **VALIDATED — one frozen TEST pass:** after that selection override, the exact guarded
+  EXP-0011b configuration was refitted from TRAIN, its fingerprint matched
+  `bb89557b34a1ff3850ae06a3e8151d70dad9f215837f5c0d5216e1a5b0f9cc40`, and TEST
+  was materialized and scored exactly once at threshold `0.50`. The cohort contained
+  `4,807` pure-Normal and `193` DoS-containing windows; `4,347` other-attack windows
+  remained excluded. Result: precision `0.912281`, recall `0.269430`, F1 `0.416000`,
+  FPR `0.001040`, TN/FP/FN/TP `4,802/5/141/52`. No payload or availability feature was
+  used. Compared with EXP-0008 Detector B on the identical TEST cohort, recall and TP/FN
+  are unchanged, while false positives fall `30→5`, precision rises `0.634146→0.912281`,
+  and F1 rises `0.378182→0.416000`. The VALIDATION recall `0.522167` did not hold on
+  frozen TEST; 141/193 DoS windows remain missed. **NO TEST RERUN.**
+
+---
