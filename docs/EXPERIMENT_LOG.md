@@ -1351,3 +1351,197 @@ to conceal or replace it.
   in 32.24 s**, with no reported skip.
 
 ---
+
+### EXP-0012b · Corrected manifest-backed causal block CV — 2026-09-09
+
+> **PRE-REGISTRATION — PLANNED.** Recorded after invalidating EXP-0012 and before fitting
+> or viewing any corrected CV metric. Frozen TEST access and scoring remain forbidden.
+
+- **PLANNED — correction:** replace full-capture-derived cut positions with exact ordered
+  TRAIN 28,040 and VALIDATION 9,345 bucket memberships from tracked split manifest
+  `verified-egress-5s-exp0008-pretest-v1`, membership SHA-256
+  `0e912e147d088aaed05e95bda04c6a46c72ed4dd16aafb6966c9e2aab26859e6`.
+  Pre-TEST parsing must stop after its final VALIDATION bucket and must not read TEST-tail
+  records. Missing/ineligible manifest buckets fail closed.
+- **PLANNED — provenance limit:** the manifest freezes the memberships previously recorded
+  by EXP-0008 prospectively. Because EXP-0008 originally computed them from full-capture
+  eligibility, this does not rehabilitate EXP-0008/0009/0011 or prove that the historical
+  source boundary was selected independently of TEST. It eliminates future dependence on
+  TEST-tail content while preserving the historical memberships for comparability.
+- **PLANNED — regression gate:** mutate only synthetic TEST-tail destination/eligibility
+  and labels, then require byte-identical ordered TRAIN and VALIDATION bucket-ID sets,
+  identical pre-TEST records/artifacts, and proof that iteration stops before TEST.
+- **PLANNED — frozen comparison:** otherwise retain EXP-0012 exactly: configurations X/Y,
+  33 versus 49 features, five past-only expanding folds with guards, fold-local TRAIN-only
+  preprocessing and Borderline-SMOTE, 300-tree RF, threshold 0.50, aggregation, precision
+  floor, winner rule, and limitations. Write `exp0012b_block_cv.json`; never overwrite the
+  invalid original result. **TEST NOT RUN.**
+- **TESTED — boundary correction:** the manifest loader verifies its fixed ID and membership
+  digest, ordered unique/disjoint blocks, and TRAIN/VALIDATION guard. The new regression
+  mutates only synthetic TEST-tail destination/eligibility and labels, then proves ordered
+  TRAIN and VALIDATION bucket tuples and their byte serializations are identical. A second
+  generator test raises if the parser attempts to iterate beyond final VALIDATION. The
+  pre-fit affected suite passed **17/17** and the full suite passed **92/92 in 32.64 s**.
+- **VALIDATED — corrected fold populations:** after causal prefix exclusion, validation
+  Normal/DoS counts were fold 1 `3336/88`, fold 2 `4735/86`, fold 3 `4326/87`, fold 4
+  `2080/87`, and fold 5 `2516/87`. No fold was thin relative to the others; each retained
+  86–88 positives. The corrected manifest preserves the prior pre-TEST memberships, so
+  these counts match the invalid run by design, not because its integrity claim survived.
+- **VALIDATED — corrected per-fold X:** precision/recall/F1/FPR and TN/FP/FN/TP were fold 1
+  `0.058333/0.556818/0.105603/0.237110`, `2545/791/39/49`; fold 2
+  `1.000000/0.232558/0.377358/0.000000`, `4735/0/66/20`; fold 3
+  `0.928571/0.448276/0.604651/0.000693`, `4323/3/48/39`; fold 4
+  `0.730769/0.218391/0.336283/0.003365`, `2073/7/68/19`; fold 5
+  `0.666667/0.735632/0.699454/0.012719`, `2484/32/23/64`.
+- **VALIDATED — corrected per-fold Y:** fold 1
+  `0.109677/0.386364/0.170854/0.082734`, `3060/276/54/34`; fold 2
+  `1.000000/0.232558/0.377358/0.000000`, `4735/0/66/20`; fold 3
+  `1.000000/0.448276/0.619048/0.000000`, `4326/0/48/39`; fold 4
+  `1.000000/0.218391/0.358491/0.000000`, `2080/0/68/19`; fold 5
+  `1.000000/0.735632/0.847682/0.000000`, `2516/0/23/64`.
+- **VALIDATED — corrected means ± population SD:** X precision/recall/F1/FPR was
+  `0.676868±0.332675 / 0.438335±0.196592 / 0.424670±0.209644 /
+  0.050778±0.093277`; Y was `0.821935±0.356129 / 0.404244±0.187667 /
+  0.474687±0.234629 / 0.016547±0.033094`. Only Y meets mean precision `≥0.80`, so it
+  mechanically wins again, but it lowers mean recall by `0.034091`; its gain is F1 and
+  false-positive suppression, and the very large fold variance remains. X's mean recall
+  is `0.083832` below the withdrawn EXP-0011b single-split `0.522167`, which remains
+  evidence that one validation block was optimistic/unstable, not a valid benchmark.
+- **STOP:** the corrected runner read only through the final manifest VALIDATION bucket;
+  TEST count is deliberately `null`. No TEST row, label, feature, prediction, or metric
+  was materialized or scored. Y remains a provisional, unstable pre-TEST winner and no
+  TEST authorization is implied. Final verification after the manifest-integrity test was
+  added passed **93/93 in 32.32 s**; `git diff --check` passed.
+
+---
+
+### EXP-0012 · INVALIDATED — Causal lag/trend features with block-respecting CV — 2026-09-09
+
+> **INVALIDATED.** `partition_pretest_inputs()` enumerated full-capture eligible egress
+> windows and derived its 60/20/20 indices from their total. Changing only nominal
+> TEST-tail records' destination/eligibility changed both TRAIN and VALIDATION bucket IDs.
+> TEST was not scored, but its tail was materialized during boundary construction and
+> could alter every fold. All X/Y metrics and the Y recommendation below are withdrawn,
+> retained only as an audit trail, and must not be cited or used to authorize TEST.
+>
+> **SHARED IMPACT.** EXP-0008, EXP-0009, and EXP-0011 used the same pre-TEST path;
+> EXP-0009 payload alignment called it independently, and the already-run EXP-0008 and
+> EXP-0011b TEST scorers refit through it. Their historical validation claims are not
+> constructionally TEST-blind. Already-viewed TEST results remain audit evidence only and
+> are not rerun. The corrected prospective manifest cannot retroactively cure those runs.
+
+> **PRE-REGISTRATION — PLANNED.** Recorded before implementing EXP-0012 features/CV,
+> fitting any EXP-0012 model, or viewing any EXP-0012 metric. Frozen TEST is excluded.
+
+- **PLANNED — purpose and boundary:** repair the single-VALIDATION selection methodology
+  whose `0.522167` EXP-0011b recall did not generalize to its one frozen TEST score
+  (`0.269430`). Use only verified egress rows (`destination == 1`) and the existing
+  five-second eligible TRAIN 28,040 + VALIDATION 9,345 windows. Preserve the
+  DoS-containing versus pure-Normal cohort and exclude other-attack-only windows. No TEST
+  row, label, feature, prediction, or metric may be materialized; no TEST CLI exists.
+- **PLANNED — model scope:** LSTM/GRU is explicitly out of scope. The total available
+  DoS-window pool is roughly 600–900 before splitting, at or below the user-supplied
+  literature-informed floor of roughly 320–800 positives for rare-event deep learning,
+  and the observed split variance makes additional sequence-model capacity unjustified.
+  Add compact causal history summaries to the established tabular RF instead.
+- **PLANNED — configurations:** X reproduces EXP-0011b's original 33 cadence columns. Y
+  uses those 33 plus, separately for response types `0x03` and `0x10`, the exact prior
+  five emitted windows' `deviation_mean` as lag 1–5, their least-squares slope, slope
+  direction (`-1/0/+1`), and population variance: 16 new columns, 49 total. The current
+  window and all future windows are forbidden. Source 3 remains grouping metadata, not a
+  model input; no payload, pressure, availability, timestamp, bucket, or label is input.
+- **PLANNED — sequence starts:** history resets for every independently constructed fold
+  training or validation block. Exclude each block's first five windows rather than
+  fabricating padding or exposing an availability flag. Record the exact exclusions and
+  apply the same eligibility rows to X and Y so their comparison is paired.
+- **PLANNED — five folds:** build six contiguous chronological segments from TRAIN+
+  VALIDATION, selecting boundaries from sixths of the chronologically ordered eligible
+  DoS positions to improve class balance without shuffling. Exclude one window on both
+  sides of every boundary globally. Fold 1 trains on segment 1 and validates on segment
+  2; folds 2–5 expand training through all earlier segments and validate on the next.
+  All training precedes validation. Report every boundary/guard and actual total/cohort/
+  Normal/DoS/other count; retain and disclose sparse folds rather than adjusting them.
+- **PLANNED — fold-local leakage control:** in every fold, discover response types from
+  fold-TRAIN pure-Normal egress only, and calculate cadence baselines/CUSUM thresholds
+  from fold TRAIN only before constructing its train/validation windows. Do not reuse
+  full-TRAIN learned preprocessing. Randomly shuffled stratified k-fold is forbidden
+  because adjacent cadence windows and traffic regimes are temporally correlated.
+- **PLANNED — fixed learner/evaluation:** inside each configuration/fold only, apply
+  `BorderlineSMOTE(sampling_strategy="auto", k_neighbors=5, random_state=0)` to training
+  rows only, retaining installed defaults `kind="borderline-1"` and `m_neighbors=10`.
+  Fit RF `n_estimators=300`, `class_weight=None`, `random_state=0`, `n_jobs=-1`,
+  `max_depth=None`, `min_samples_leaf=1`; score untouched validation at fixed threshold
+  `0.50`. There is no threshold sweep. Report per-fold confusion counts and precision,
+  recall, F1, FPR plus arithmetic mean, population variance, and standard deviation.
+- **PLANNED — winner rule:** feasible means mean CV precision ≥`0.80`. Among feasible
+  configurations maximize mean recall, then mean F1, mean precision, minimize mean FPR,
+  then minimize recall variance; an exact tie retains X. If neither is feasible, maximize
+  mean F1 with the same subsequent tie-breakers and explicitly disclose the failed floor.
+  Recommend Y for a later one-shot TEST only if it strictly beats X. If X wins/ties,
+  retain already-tested EXP-0011b and do not rerun it. Compare X's CV distribution with
+  the old single-split VALIDATION result, and report instability or a negative lag result
+  plainly.
+- **PLANNED — implementation and stop:** create only `ml/exp0012_features.py`,
+  `ml/exp0012_block_cv.py`, and their two dedicated test files; atomically write ignored
+  `data/experiments/exp0012_block_cv.json`. Existing EXP-0008/0009/0011 files/results,
+  Layer A, `app.py`, dashboard, requirements, and TEST artifacts stay untouched. Baseline
+  suite: **81 passed in 39.98 s**. Run dedicated/full tests before CV, show real
+  results and full diff, then stop before commit or push.
+
+- **IMPLEMENTED — isolated causal/CV path:** added only the two EXP-0012 modules and two
+  dedicated test files. Configuration Y adds 16 columns (five prior deviations, slope,
+  direction, and variance for each of `0x03`/`0x10`) to X's 33. History is block-local;
+  the first five windows of every independently built segment are excluded for both X/Y.
+  Six positive-stratified contiguous segments produce five past-only expanding folds,
+  with ten boundary windows globally excluded. Every fold independently discovers types,
+  fits TRAIN-normal cadence baselines/CUSUM thresholds, resamples fold TRAIN only, and
+  scores untouched validation at `0.50`. The runner imports no TEST materializer and has
+  no TEST option, token, scorer, or result field beyond `test_materialized: false`.
+- **VALIDATED — fold layout and counts:** segment window/Normal/DoS/other counts were
+  `5205/2809/93/2303`, `6419/3337/92/2990`, `8963/4735/91/4137`,
+  `7805/4326/92/3387`, `4380/2080/92/2208`, and `4603/2516/92/1995`.
+  After each validation block's five-window causal prefix exclusion, fold binary cohorts
+  were respectively Normal/DoS `3336/88`, `4735/86`, `4326/87`, `2080/87`, and
+  `2516/87`. Thus every validation fold retained 86–88 DoS windows; no sparse-positive
+  fold occurred. Expanding TRAIN cohort Normal/DoS counts were `2804/93`, `6140/181`,
+  `10875/267`, `15201/354`, and `17281/441`, and Borderline-SMOTE balanced each fold to
+  the corresponding Normal count.
+- **VALIDATED — per-fold X metrics at threshold 0.50:** precision/recall/F1/FPR and
+  TN/FP/FN/TP were: fold 1 `0.058333/0.556818/0.105603/0.237110`,
+  `2545/791/39/49`; fold 2 `1.000000/0.232558/0.377358/0.000000`,
+  `4735/0/66/20`; fold 3 `0.928571/0.448276/0.604651/0.000693`,
+  `4323/3/48/39`; fold 4 `0.730769/0.218391/0.336283/0.003365`,
+  `2073/7/68/19`; fold 5 `0.666667/0.735632/0.699454/0.012719`,
+  `2484/32/23/64`.
+- **VALIDATED — per-fold Y metrics at threshold 0.50:** fold 1
+  `0.109677/0.386364/0.170854/0.082734`, `3060/276/54/34`; fold 2
+  `1.000000/0.232558/0.377358/0.000000`, `4735/0/66/20`; fold 3
+  `1.000000/0.448276/0.619048/0.000000`, `4326/0/48/39`; fold 4
+  `1.000000/0.218391/0.358491/0.000000`, `2080/0/68/19`; fold 5
+  `1.000000/0.735632/0.847682/0.000000`, `2516/0/23/64`.
+- **VALIDATED — mean/variance/stability:** X mean precision/recall/F1/FPR was
+  `0.676868/0.438335/0.424670/0.050778`; population variance was
+  `0.110673/0.038648/0.043951/0.008701` and population standard deviation
+  `0.332675/0.196592/0.209644/0.093277`. Y mean was
+  `0.821935/0.404244/0.474687/0.016547`; variance
+  `0.126828/0.035219/0.055051/0.001095` and standard deviation
+  `0.356129/0.187667/0.234629/0.033094`. Both configurations are highly regime-sensitive,
+  especially fold 1. Y reduces mean recall by `0.034091` versus X, but improves mean F1
+  by `0.050017`, mean precision by `0.145067`, and mean FPR by `0.034231`.
+- **VALIDATED — selection and interpretation:** only Y satisfies the preregistered mean
+  precision floor (`0.821935 ≥ 0.80`); X does not (`0.676868`). Therefore Y is the formal
+  winner and may proceed to one later explicitly authorized frozen TEST score. This is
+  not a uniform lag-feature win: Y has lower mean recall, folds 2–5 have unchanged recall,
+  and fold 1 loses 15 TP while removing 515 FP. Its advantage is primarily false-positive
+  suppression and F1, not additional DoS detection. X's CV mean recall `0.438335` is below
+  EXP-0011b's single-split `0.522167`, while its very large fold spread (`0.218391` to
+  `0.735632`) supplies further evidence that one validation block was not a stable
+  estimator. Neither CV mean predicts frozen TEST performance.
+- **TESTED — verification/stop:** the pre-change baseline was **81 passed in 39.98 s**.
+  One initial dedicated run had **1 failed, 8 passed** because a synthetic test stub lacked
+  `CadenceBaseline` fields; the stub—not production logic—was corrected. Dedicated tests
+  then passed **9/9**, and the pre-CV full suite passed **90/90 in 32.67 s**. EXP-0012 ran
+  once and wrote strict JSON. **TEST NOT RUN.** No prior experiment, Layer A, `app.py`,
+  requirements, or frozen result was changed; no commit or push performed.
+
+---

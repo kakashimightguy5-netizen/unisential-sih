@@ -4,6 +4,93 @@ Format: **DATE · DECISION · OPTIONS CONSIDERED · WHY CHOSEN · IMPACT**
 
 ---
 
+### 2026-09-09 · INVALIDATED — EXP-0012 boundary construction depended on TEST-tail eligibility
+
+- **INVALIDATED — decision:** withdraw all original EXP-0012 X/Y folds, aggregates, and
+  its recommendation. Retain them below only as an audit trail; do not cite them or use
+  them to authorize TEST.
+- **INVALIDATED — evidence:** `partition_pretest_inputs()` first enumerated every eligible
+  egress window in the full capture and calculated 60/20/20 cut positions from that total.
+  Mutating only nominal TEST-tail records so their destination/window eligibility changed
+  altered both returned TRAIN and VALIDATION bucket sets. Thus TEST was not scored, but
+  TEST-tail values were materialized and could change the pre-TEST population.
+- **INVALIDATED — shared impact:** EXP-0008, EXP-0009, and EXP-0011 all used this shared
+  pre-TEST constructor. EXP-0009's payload alignment called it a second time; EXP-0008 and
+  EXP-0011b's guarded TEST paths also refit through it. Their historical validation claims
+  are not constructionally TEST-blind, and already-consumed TEST results cannot be
+  rehabilitated or rerun. Preserve all results as invalid/qualified audit evidence.
+- **CORRECTION PRE-REGISTERED:** freeze the exact prior TRAIN 28,040 and VALIDATION 9,345
+  bucket memberships in versioned manifest `verified-egress-5s-exp0008-pretest-v1`, digest
+  `0e912e147d088aaed05e95bda04c6a46c72ed4dd16aafb6966c9e2aab26859e6`. Future pre-TEST
+  construction selects only those IDs and stops reading after the final VALIDATION bucket.
+  This prospective freeze prevents future tail dependence but does not retroactively
+  validate the source split.
+- **VALIDATED — EXP-0012b:** the eligibility-changing tail-mutation and stop-before-tail
+  proofs passed, as did the full 92-test suite before fitting. The corrected run reproduced
+  the same folds because the manifest intentionally freezes the prior memberships. X mean
+  precision/recall/F1/FPR ± population SD was `0.676868±0.332675 /
+  0.438335±0.196592 / 0.424670±0.209644 / 0.050778±0.093277`; Y was
+  `0.821935±0.356129 / 0.404244±0.187667 / 0.474687±0.234629 /
+  0.016547±0.033094`. Y mechanically wins the precision-floor rule again but lowers mean
+  recall, and both remain highly regime-sensitive. Treat Y only as a provisional pre-TEST
+  winner. **TEST NOT READ OR RUN; TEST count remains unknown/null.**
+
+---
+
+### 2026-09-09 · INVALIDATED — original EXP-0012 causal-feature block CV (audit trail)
+
+- **PLANNED — decision:** compare two tabular Random Forest configurations on only the
+  existing egress-only TRAIN+VALIDATION timeline: X is EXP-0011b's original 33 cadence
+  features, and Y adds strictly prior-window lag/trend features. Use five deterministic
+  contiguous forward-chaining folds, not shuffled individual-window folds. Frozen TEST
+  remains unopened, and neither configuration receives a TEST path in this experiment.
+- **PLANNED — LSTM/GRU ruled out:** the available DoS-containing window pool is only
+  roughly 600–900 before splitting, at or below the user-supplied literature-informed
+  floor of roughly 320–800 positive examples for rare-event deep sequence learning.
+  Given that borderline sample size and the observed single-split overfitting, a full
+  LSTM/GRU adds unjustified capacity and is out of scope. Test causal lag/trend summaries
+  in the established tabular RF instead.
+- **PLANNED — temporal CV choice:** ordinary stratified k-fold would randomly intermix
+  adjacent five-second windows whose cadence states and traffic regimes are temporally
+  correlated. Use past-only expanding training and one globally excluded window on each
+  side of every contiguous segment boundary. Choose segment cut points from sixths of
+  chronologically ordered DoS-window positions to improve positive balance without
+  shuffling or breaking chronology; report actual per-fold DoS counts and any sparsity.
+- **PLANNED — causal features and edge rule:** for each of `0x03` and `0x10`, add the
+  prior five emitted windows' `deviation_mean`, least-squares slope, slope direction, and
+  population variance. Never use the current/future window. Reset history at each
+  independently built fold block and exclude its first five windows instead of padding
+  or adding an availability flag.
+- **PLANNED — frozen evaluation:** both X and Y use fold-local TRAIN-only response-type
+  discovery, cadence baselines and CUSUM calibration; fold-TRAIN-only Borderline-SMOTE
+  (`auto`, k=5, seed 0, installed `borderline-1`/m=10 defaults); the EXP-0011b 300-tree RF
+  (`class_weight=None`, seed 0, `n_jobs=-1`, depth None, leaf 1); and threshold `0.50`.
+  Report per-fold and mean/population-variance/std precision, recall, F1, and FPR.
+- **PLANNED — selection/impact:** feasible means mean CV precision ≥`0.80`; among feasible
+  configurations maximize mean recall, then mean F1, mean precision, lower mean FPR, and
+  lower recall variance. Exact ties retain X. If neither is feasible, maximize mean F1
+  with the same later tie-breakers and disclose failure of the precision floor. Y may be
+  recommended for one later authorized TEST score only if it strictly wins. If X wins or
+  ties, retain the already-tested EXP-0011b without rerunning TEST. New EXP-0012 files
+  only; no integration, commit, or push before review.
+- **IMPLEMENTED/TESTED — outcome:** isolated EXP-0012 code constructs five causal
+  forward folds with fold-local preprocessing and TRAIN-only resampling; nine dedicated
+  tests pass and the complete suite increased from 81 to 90 passing tests. No TEST path
+  exists. One initial synthetic-test stub failure was corrected and disclosed.
+- **VALIDATED — decision:** X mean precision/recall/F1/FPR was
+  `0.676868/0.438335/0.424670/0.050778`; Y was
+  `0.821935/0.404244/0.474687/0.016547`. Only Y meets the frozen mean-precision floor, so
+  Y formally wins and may be considered for one later explicitly authorized frozen TEST.
+  This is a precision/F1/FPR improvement, not a recall improvement: Y mean recall is
+  `0.034091` lower, with unchanged recall in folds 2–5 except fold 1 where it trades 15 TP
+  for 515 fewer FP. Both show large fold variance; Y recall ranges `0.218391–0.735632` and
+  X `0.218391–0.735632`, while fold-1 precision is only `0.109677` for Y and `0.058333`
+  for X. The re-baselined X mean recall below the old single-split `0.522167`, plus this
+  spread, confirms that a single validation block was unstable. **TEST NOT RUN.** Retain
+  this as a pre-TEST recommendation only; no integration, commit, or push.
+
+---
+
 ### 2026-09-09 · PLANNED — evaluate isolated EXP-0009 recall improvements on VALIDATION only
 
 - **PLANNED — decision:** preserve EXP-0008's exact egress-only cohort, guarded split,

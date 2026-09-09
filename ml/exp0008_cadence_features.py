@@ -2,9 +2,12 @@
 """Leakage-controlled egress cadence features for EXP-0008."""
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 from collections import Counter, defaultdict
 from dataclasses import dataclass
+from pathlib import Path
 from statistics import mean, median, pstdev
 from types import MappingProxyType
 from typing import Callable, Iterable, Mapping
@@ -26,6 +29,14 @@ AUDIT_MIN_FRAMES = 1_000
 AUDIT_MIN_IATS = 200
 AUDIT_MIN_WINDOWS = 100
 AUDIT_MAX_WEIGHTED_CV_RATIO = 0.80
+PRETEST_SPLIT_PATH = (
+    Path(__file__).resolve().parent / "splits"
+    / "verified_egress_5s_exp0008_pretest_v1.json"
+)
+EXPECTED_PRETEST_SPLIT_ID = "verified-egress-5s-exp0008-pretest-v1"
+EXPECTED_PRETEST_MEMBERSHIP_SHA256 = (
+    "0e912e147d088aaed05e95bda04c6a46c72ed4dd16aafb6966c9e2aab26859e6"
+)
 
 Shape = tuple[int, int, int, int, int]
 TypeMap = Mapping[Shape, int]
@@ -66,6 +77,19 @@ class BlockData:
 
 
 @dataclass(frozen=True)
+class PreTestSplit:
+    split_id: str
+    membership_sha256: str
+    train_bucket_ids: tuple[int, ...]
+    validation_bucket_ids: tuple[int, ...]
+    train_validation_guard_bucket_ids: tuple[int, ...] = ()
+
+    @property
+    def final_pretest_bucket_id(self) -> int:
+        return self.validation_bucket_ids[-1]
+
+
+@dataclass(frozen=True)
 class PreTestInputs:
     train: BlockData
     validation: BlockData
@@ -73,7 +97,9 @@ class PreTestInputs:
     total_emitted_windows: int
     train_window_count: int
     validation_window_count: int
-    test_window_count: int
+    test_window_count: int | None
+    split_id: str = "legacy-unspecified"
+    split_membership_sha256: str = "legacy-unspecified"
 
 
 @dataclass(frozen=True)
@@ -128,35 +154,83 @@ def _contiguous_blocks(n: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     )
 
 
+def _membership_digest(
+    train_bucket_ids: Iterable[int], validation_bucket_ids: Iterable[int],
+) -> str:
+    encoded = json.dumps({
+        "train_bucket_ids": list(train_bucket_ids),
+        "validation_bucket_ids": list(validation_bucket_ids),
+    }, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def load_pretest_split(path: Path = PRETEST_SPLIT_PATH) -> PreTestSplit:
+    """Load and fail closed on the tracked pre-TEST membership manifest."""
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    split_id = payload["split_id"]
+    train = tuple(int(item) for item in payload["train_bucket_ids"])
+    validation = tuple(int(item) for item in payload["validation_bucket_ids"])
+    guards = tuple(
+        int(item) for item in payload["guards"]["between_train_validation_bucket_ids"]
+    )
+    membership_sha256 = payload["membership_sha256"]
+    if split_id != EXPECTED_PRETEST_SPLIT_ID:
+        raise ValueError(f"unknown pre-TEST split id: {split_id}")
+    if membership_sha256 != EXPECTED_PRETEST_MEMBERSHIP_SHA256:
+        raise ValueError("unexpected pre-TEST split membership digest")
+    if _membership_digest(train, validation) != membership_sha256:
+        raise ValueError("pre-TEST split manifest membership digest mismatch")
+    if not train or not validation:
+        raise ValueError("pre-TEST split manifest requires both blocks")
+    for name, values in (("TRAIN", train), ("VALIDATION", validation), ("guard", guards)):
+        if tuple(sorted(set(values))) != values:
+            raise ValueError(f"{name} bucket ids must be unique and strictly ordered")
+    if set(train) & set(validation) or set(train + validation) & set(guards):
+        raise ValueError("pre-TEST split bucket memberships must be disjoint")
+    if train[-1] >= validation[0] or guards != tuple(
+        range(train[-1] + 1, validation[0])
+    ):
+        raise ValueError("pre-TEST split chronology or TRAIN/VALIDATION guard is invalid")
+    return PreTestSplit(
+        split_id=split_id, membership_sha256=membership_sha256,
+        train_bucket_ids=train, validation_bucket_ids=validation,
+        train_validation_guard_bucket_ids=guards,
+    )
+
+
 def partition_pretest_inputs(
     records: Iterable[FrameRecord] | None = None,
+    *, split: PreTestSplit | None = None,
 ) -> PreTestInputs:
-    """Partition by egress window layout while retaining no TEST record values."""
-    egress = sorted(
-        (
-            record for record in (iter_records() if records is None else records)
-            if record.destination == EGRESS_DESTINATION
-        ),
-        key=lambda record: (record.timestamp, record.record_index),
-    )
+    """Select exact frozen TRAIN/VALIDATION buckets without reading the TEST tail."""
+    frozen = load_pretest_split() if split is None else split
+    allowed = set(frozen.train_bucket_ids + frozen.validation_bucket_ids)
+    final_bucket = frozen.final_pretest_bucket_id
     buckets: dict[int, list[FrameRecord]] = defaultdict(list)
-    for record in egress:
-        buckets[math.floor(record.timestamp / WINDOW_SECONDS)].append(record)
-    emitted = tuple(sorted(
-        bucket for bucket, values in buckets.items()
-        if len(values) >= MIN_FRAMES_PER_WINDOW
-    ))
-    train_indices, validation_indices, test_indices = _contiguous_blocks(len(emitted))
+    total_egress_frames = 0
+    source = iter_records() if records is None else records
+    for record in source:
+        bucket = math.floor(record.timestamp / WINDOW_SECONDS)
+        if bucket > final_bucket:
+            break
+        if record.destination != EGRESS_DESTINATION:
+            continue
+        total_egress_frames += 1
+        if bucket in allowed:
+            buckets[bucket].append(record)
 
-    def make_block(name: str, indices: np.ndarray) -> BlockData:
-        selected = tuple(emitted[index] for index in indices)
-        if not selected:
-            return BlockData(name, (), (), MappingProxyType({}))
-        low, high = selected[0], selected[-1]
-        block_records = tuple(
-            record for record in egress
-            if low <= math.floor(record.timestamp / WINDOW_SECONDS) <= high
-        )
+    def make_block(name: str, selected: tuple[int, ...]) -> BlockData:
+        missing = [
+            bucket for bucket in selected
+            if len(buckets.get(bucket, ())) < MIN_FRAMES_PER_WINDOW
+        ]
+        if missing:
+            preview = ", ".join(map(str, missing[:5]))
+            raise ValueError(f"frozen {name} buckets missing or ineligible: {preview}")
+        block_records = tuple(sorted(
+            (record for bucket in selected for record in buckets[bucket]),
+            key=lambda item: (item.timestamp, item.record_index),
+        ))
         categories = MappingProxyType({
             bucket: frozenset(record.categorized_attack for record in buckets[bucket])
             for bucket in selected
@@ -164,12 +238,15 @@ def partition_pretest_inputs(
         return BlockData(name, block_records, selected, categories)
 
     return PreTestInputs(
-        train=make_block("train", train_indices),
-        validation=make_block("validation", validation_indices),
-        total_egress_frames=len(egress), total_emitted_windows=len(emitted),
-        train_window_count=len(train_indices),
-        validation_window_count=len(validation_indices),
-        test_window_count=len(test_indices),
+        train=make_block("train", frozen.train_bucket_ids),
+        validation=make_block("validation", frozen.validation_bucket_ids),
+        total_egress_frames=total_egress_frames,
+        total_emitted_windows=len(allowed),
+        train_window_count=len(frozen.train_bucket_ids),
+        validation_window_count=len(frozen.validation_bucket_ids),
+        test_window_count=None,
+        split_id=frozen.split_id,
+        split_membership_sha256=frozen.membership_sha256,
     )
 
 
@@ -497,9 +574,10 @@ def build_scoring_windows(
 
 def prepare_pretest_artifacts(
     records: Iterable[FrameRecord] | None = None,
+    *, split: PreTestSplit | None = None,
 ) -> PreTestArtifacts:
     """Create all frozen artifacts without retaining or scoring TEST records."""
-    inputs = partition_pretest_inputs(records)
+    inputs = partition_pretest_inputs(records, split=split)
     type_map = discover_response_types(inputs.train)
     audit = audit_response_types(inputs.train, inputs.validation, type_map)
     if not audit["passed"]:

@@ -15,9 +15,10 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
 
 from exp0008_cadence_features import (
-    DOS_CATEGORY, EGRESS_DESTINATION, MIN_FRAMES_PER_WINDOW, WINDOW_SECONDS,
-    BlockData, CadenceWindow, PreTestArtifacts, _contiguous_blocks,
-    build_scoring_windows, prepare_pretest_artifacts,
+    DOS_CATEGORY, EGRESS_DESTINATION, GUARD_WINDOWS, MIN_FRAMES_PER_WINDOW,
+    WINDOW_SECONDS,
+    BlockData, CadenceWindow, PreTestArtifacts,
+    build_scoring_windows, load_pretest_split, prepare_pretest_artifacts,
 )
 from features_txt import FrameRecord, iter_records
 
@@ -155,6 +156,8 @@ def prepare_experiment(
         "experiment": "EXP-0008",
         "scope": {
             "direction": "egress only", "destination": EGRESS_DESTINATION,
+            "split_id": artifacts.inputs.split_id,
+            "split_membership_sha256": artifacts.inputs.split_membership_sha256,
             "cadence_source": 3,
             "cohort": "DoS-containing versus pure-Normal five-second windows",
             "total_egress_frames": artifacts.inputs.total_egress_frames,
@@ -203,11 +206,13 @@ def prepare_experiment(
 
 
 def _test_block(records: Iterable[FrameRecord] | None = None) -> BlockData:
-    """Materialize TEST values only inside the explicitly guarded score path."""
+    """Materialize post-manifest TEST values only inside the guarded score path."""
+    split = load_pretest_split()
     egress = sorted(
         (
             record for record in (iter_records() if records is None else records)
             if record.destination == EGRESS_DESTINATION
+            and math.floor(record.timestamp / WINDOW_SECONDS) > split.final_pretest_bucket_id
         ),
         key=lambda record: (record.timestamp, record.record_index),
     )
@@ -218,8 +223,9 @@ def _test_block(records: Iterable[FrameRecord] | None = None) -> BlockData:
         bucket for bucket, values in buckets.items()
         if len(values) >= MIN_FRAMES_PER_WINDOW
     ))
-    _, _, test_indices = _contiguous_blocks(len(emitted))
-    selected = tuple(emitted[index] for index in test_indices)
+    if len(emitted) <= 2 * GUARD_WINDOWS:
+        return BlockData("test", (), (), {})
+    selected = emitted[2 * GUARD_WINDOWS:]
     selected_set = set(selected)
     test_records = tuple(
         record for record in egress

@@ -1,4 +1,5 @@
 """Synthetic integrity proofs for EXP-0008 cadence features."""
+import json
 from dataclasses import replace
 from inspect import signature
 from types import MappingProxyType
@@ -6,11 +7,12 @@ from types import MappingProxyType
 import numpy as np
 import pytest
 
+import exp0008_cadence_features as cadence
 from exp0008_cadence_features import (
     AUDIT_MIN_FRAMES, CUSUM_ALLOWANCE, BlockData, CadenceBaseline,
     _contiguous_blocks, audit_response_types, build_scoring_windows,
     calculate_baselines, calibrate_cusum_thresholds, canonical_response_type,
-    discover_response_types, replay_cusum,
+    PreTestSplit, discover_response_types, partition_pretest_inputs, replay_cusum,
 )
 from features_txt import FrameRecord
 
@@ -165,3 +167,68 @@ def test_contiguous_split_keeps_one_window_guard_at_each_boundary():
     assert validation[0] == 61 and validation[-1] == 78
     assert test[0] == 81
     assert set(range(100)) - set(np.concatenate((train, validation, test))) == {59, 60, 79, 80}
+
+
+def frozen_synthetic_split():
+    return PreTestSplit(
+        "synthetic-pretest-v1", "synthetic", (0, 1, 2), (5, 6), (3, 4),
+    )
+
+
+def pretest_capture():
+    rows = []
+    index = 1
+    for bucket in range(10):
+        for offset in (0.1, 1.1):
+            rows.append(record(index, bucket * 5.0 + offset))
+            index += 1
+    return tuple(rows)
+
+
+def test_test_tail_eligibility_mutation_cannot_change_frozen_boundary_ids():
+    original = pretest_capture()
+    mutated = tuple(
+        replace(item, destination=3, categorized_attack=42)
+        if int(item.timestamp // 5.0) >= 7 else item
+        for item in original
+    )
+    split = frozen_synthetic_split()
+    left = partition_pretest_inputs(
+        original, split=split,
+    )
+    right = partition_pretest_inputs(
+        mutated, split=split,
+    )
+    assert left.train.emitted_buckets == right.train.emitted_buckets
+    assert left.validation.emitted_buckets == right.validation.emitted_buckets
+    assert json.dumps(left.train.emitted_buckets).encode() == json.dumps(
+        right.train.emitted_buckets,
+    ).encode()
+    assert json.dumps(left.validation.emitted_buckets).encode() == json.dumps(
+        right.validation.emitted_buckets,
+    ).encode()
+    assert left.train.records == right.train.records
+    assert left.validation.records == right.validation.records
+
+
+def test_manifest_loader_rejects_membership_tampering(tmp_path):
+    payload = json.loads(cadence.PRETEST_SPLIT_PATH.read_text(encoding="utf-8"))
+    payload["train_bucket_ids"][0] += 1
+    path = tmp_path / "tampered.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(ValueError, match="membership digest mismatch"):
+        cadence.load_pretest_split(path)
+
+
+def test_partition_stops_before_iterating_test_tail():
+    split = frozen_synthetic_split()
+
+    def records():
+        yield from pretest_capture()[:15]
+        raise AssertionError("TEST tail was iterated")
+
+    inputs = partition_pretest_inputs(
+        records(), split=split,
+    )
+    assert inputs.train.emitted_buckets == (0, 1, 2)
+    assert inputs.validation.emitted_buckets == (5, 6)

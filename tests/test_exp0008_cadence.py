@@ -39,6 +39,14 @@ def serializable_pretest(result):
     return json.dumps(result, sort_keys=True, separators=(",", ":"))
 
 
+def synthetic_split():
+    train, validation, _ = cadence._contiguous_blocks(30)
+    return cadence.PreTestSplit(
+        "synthetic-pretest-v1", "synthetic",
+        tuple(map(int, train)), tuple(map(int, validation)), (17, 18),
+    )
+
+
 def test_mutating_only_test_rows_changes_no_pretest_artifact(monkeypatch):
     monkeypatch.setattr(cadence, "AUDIT_MIN_FRAMES", 1)
     monkeypatch.setattr(cadence, "AUDIT_MIN_IATS", 1)
@@ -60,6 +68,7 @@ def test_mutating_only_test_rows_changes_no_pretest_artifact(monkeypatch):
         for item in original
     )
 
+    monkeypatch.setattr(cadence, "load_pretest_split", synthetic_split)
     left, left_artifacts, left_model = prepare_experiment(original)
     right, right_artifacts, right_model = prepare_experiment(mutated)
 
