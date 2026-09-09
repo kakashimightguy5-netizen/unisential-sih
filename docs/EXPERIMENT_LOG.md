@@ -763,3 +763,187 @@ to conceal or replace it.
   was performed.
 - **VALIDATED — artifact:** machine-readable output is local at
   `data/experiments/exp0005b_diagnostic.json` (ignored `data/` tree).
+
+---
+
+### EXP-0008 · Corrected TRAIN-discovered egress cadence DoS experiment — 2026-09-09
+
+> **PRE-REGISTRATION — PLANNED.** Recorded before any EXP-0008 real-data type
+> discovery, support/overlap audit, baseline fit, CUSUM calibration, supervised fit,
+> validation output, or TEST scoring. EXP-0007 is invalidated and retained unchanged as
+> an audit trail; none of its outputs or metrics is an EXP-0008 input, tuning target, or
+> performance reference.
+
+- **PLANNED — background and four explicit corrections:** EXP-0007 was withdrawn because
+  (1) its response-shape audit included TEST Normal rows, (2) its 1,000-frame gate
+  counted all TRAIN frames rather than TRAIN-normal frames, (3) its baselines grouped
+  raw function codes while scoring required exact parser-certain shapes, and (4) its
+  calibration and inference replays used different CUSUM state processes. EXP-0008
+  corrects these respectively by (1) discovering the immutable type map from TRAIN
+  pure-Normal rows only, (2) counting canonically mapped TRAIN-normal frames exactly,
+  (3) injecting one canonical mapping function into audit, baseline, calibration, and
+  scoring, and (4) calling one label-independent CUSUM replay implementation for both
+  calibration and inference.
+- **PLANNED — hard observation boundary and dataset:** use only records with
+  `destination == 1` from the verified `data/raw/gas_pipeline_raw.txt`, sha256
+  `ce2d69e3ada867b498a1db4560d609c35d23667f4f5cf2dea57ddd63fe7d93e3`,
+  274,628 source rows. No `destination == 3` row or bidirectional feature is permitted.
+  Source identity is audit/grouping metadata only and is excluded from model inputs.
+  This is the primary in-scope unidirectional DoS attempt.
+- **PLANNED — windows, split, and cohort:** form absolute five-second egress windows,
+  retaining windows with at least two egress frames; split ordered windows contiguously
+  60/20/20 with one discarded window at each side of both boundaries. Never re-split
+  after cohort filtering. Positive windows contain at least one
+  `categorized_attack == 6` egress frame; negative windows are exactly pure-Normal
+  (`categories == {0}`); other-attack-only windows are excluded from binary fitting and
+  metrics. TEST is scored once only after explicit sign-off.
+- **PLANNED — mandatory rule (a), TRAIN-only discovery:** derive candidate shapes only
+  from source-3, egress, TRAIN pure-Normal frames using the egress-visible tuple
+  `(function_code, is_request, frame_len_bytes, byte_count, length_anomaly)`. Freeze an
+  immutable exact-shape-to-type map before examining VALIDATION. **Code enforcement:**
+  the discovery API accepts a TRAIN-only partition object, not full-capture,
+  VALIDATION, or TEST records.
+- **PLANNED — mandatory rule (b), held-out blindness:** any pre-TEST check needing data
+  beyond TRAIN is limited to the fixed VALIDATION partition; VALIDATION may establish
+  the predeclared class-overlap gate but may not change discovered types, constants,
+  features, or models. TEST values and labels are not materialized by preparation.
+  **Code enforcement:** pre-TEST artifact builders accept only explicit TRAIN and
+  VALIDATION records, while TEST scoring is a separate guarded API/CLI action.
+- **PLANNED — mandatory rule (c), exact sufficiency population:** proceed only if exactly
+  two parser-certain response types are discovered and each has at least 1,000
+  **TRAIN-normal canonically mapped frames**, 200 eligible TRAIN-normal same-type IATs,
+  and 100 TRAIN-normal windows. **Code enforcement:** the support audit first restricts
+  to TRAIN windows whose complete category set is `{0}`, then counts only frames
+  accepted by the canonical mapper; all-TRAIN frame counts are never the gate input.
+- **PLANNED — mandatory rule (d), one canonical assignment:** one function maps a frame
+  through the immutable TRAIN-discovered exact-shape map after enforcing source 3 and
+  `destination == 1`. The same callable object is passed to the type-sufficiency audit,
+  TRAIN-normal baseline builder, CUSUM calibration replay, and final feature/scoring
+  replay. **Code enforcement:** all four stage APIs expose the mapper dependency and
+  tests assert object identity plus observed calls; no stage groups raw function codes.
+- **PLANNED — mandatory rule (e), one CUSUM state process:** use one one-sided per-type
+  replay implementation for calibration and inference:
+  `S_t = max(0, S_(t-1) + z_positive - 0.5)`, where
+  `z_positive = max(0, IAT - expected_IAT) / max(std_IAT, 1e-6,
+  0.01 * expected_IAT)`. State resets only at replay/block start, thereby separating
+  splits/guards; labels never reset runtime state, and threshold crossings are reported
+  without changing the trajectory. **Code enforcement:** calibration and scoring both
+  call the same replay function; calibration only derives quantiles from its output.
+- **PLANNED — audit/stop gate:** both frozen types must overlap pure-Normal and
+  DoS-containing windows in TRAIN and VALIDATION. Each type's eligible TRAIN-normal IAT
+  CV must be below the pooled eligible TRAIN-normal CV, and the IAT-count-weighted type
+  CV must be at most `0.80 ×` pooled CV. The pooled population uses the same canonical
+  mapped frames. If any discovery, support, overlap, or tightening condition fails,
+  record `STOPPED — AUDIT GATE` and do not fit or TEST-score either detector.
+- **PLANNED — cadence baseline and features:** fit per-type expected IAT mean, median,
+  population standard deviation, CV, and scale from canonically mapped TRAIN-normal
+  events only. IAT pairing never crosses a guard, split, or non-pure-Normal baseline
+  interval. Freeze the EXP-0007 feature *definitions* as a design reference only:
+  per-type event/IAT counts, IAT mean/std/max, signed and positive deviation summaries,
+  positive-z mean/max, missed-cycle sum/count, CUSUM end/max/alarm count, plus aggregate
+  event/missed-cycle/alarm/max/active-type values. EXP-0007 fitted values and outputs are
+  forbidden. Labels, source/destination, timestamps, and bucket IDs are not features.
+- **PLANNED — Detector A:** calibrate each type's threshold as the 99th percentile
+  (`numpy.quantile(..., method="higher")`) of pure-Normal TRAIN window CUSUM maxima,
+  bounded below by `0.5`. Replay the complete chronological TRAIN block with the same
+  inference state process; labels select calibration maxima after replay but do not
+  alter state. Alert a scored window if any type crosses its frozen threshold.
+- **PLANNED — Detector B:** train `sklearn.ensemble.RandomForestClassifier` on only the
+  TRAIN DoS-containing/pure-Normal cohort and frozen cadence matrix, with
+  `n_estimators=300`, `class_weight="balanced"`, `random_state=0`, `n_jobs=-1`, and
+  probability threshold `0.5`. Record a deterministic semantic fingerprint of
+  hyperparameters and learned tree arrays before TEST. VALIDATION is descriptive and
+  cannot tune this detector.
+- **PLANNED — proof tests before any frozen TEST run:** synthetic tests must (1) mutate
+  only TEST rows, including function/shape/label values, and prove that the discovered
+  map, audit, baselines, thresholds, feature schema, RF hyperparameters, and learned
+  forest fingerprint are unchanged; (2) prove the 1,000-frame population is exactly
+  TRAIN-normal rather than all TRAIN; and (3) prove all four mapping stages use the same
+  canonical function object. Additional tests cover egress rejection, shape certainty,
+  guards, baseline pairing, CUSUM arithmetic/state identity, calibration quantile,
+  forbidden metadata, RF configuration, and the explicit TEST guard.
+- **PLANNED — fixed decision/reporting rule:** the pre-TEST audit either passes every
+  fixed gate and EXP-0008 stops for sign-off, or stops without TEST. There is **no
+  detector-performance pass/fail gate**. After explicit `proceed`, report one frozen
+  TEST pass exactly as observed—precision, recall, F1, FPR, and TN/FP/FN/TP for both
+  detectors, including weak or null results. No feature, type, state rule, threshold,
+  hyperparameter, or probability cutoff may change after TEST; no second frozen pass is
+  authorized under EXP-0008.
+- **PLANNED — comparison and limitations:** the final table will include EXP-0004 only
+  as an egress-only but different dominant-DoS cohort and EXP-0005b only as explicitly
+  **out-of-scope bidirectional** context. EXP-0007 numbers will not be reproduced or
+  cited. A response type remains an egress-visible proxy for an unseen query, `source`
+  is dataset grouping metadata, this labelled attack is not established as a classic
+  volumetric flood, and one testbed cannot validate universal DoS detection.
+- **PLANNED — isolated files/output:** add only `ml/exp0008_cadence_features.py`,
+  `ml/exp0008_cadence.py`, dedicated EXP-0008 tests, and ignored local pre-TEST/final
+  JSON artifacts. Do not alter EXP-0007 files, Layer A, `app.py`, EXP-0004/0005/0005b
+  files, or the existing EXP-0006 block above. Run and report exact full-suite counts;
+  show the complete diff before any commit, and do not commit or push without explicit
+  approval.
+
+#### EXP-0008 outcome — one frozen TEST pass after explicit sign-off
+
+- **IMPLEMENTED — isolated corrected path:** `ml/exp0008_cadence_features.py` keeps
+  TEST records out of every pre-TEST artifact API, discovers an immutable response-shape
+  map from TRAIN pure-Normal rows, and routes audit, baseline, calibration, and scoring
+  through one canonical mapper. Calibration and inference both call the same
+  label-independent CUSUM replay. `ml/exp0008_cadence.py` freezes and fingerprints the
+  TRAIN-fitted Random Forest, defaults to pre-TEST preparation, and requires the exact
+  confirmation token for TEST scoring. EXP-0007 code and artifacts were not reused.
+- **TESTED — construction proofs before TEST:** the first dedicated synthetic run had
+  one incorrect hand-calculated test expectation (`3.0` rather than the frozen
+  recurrence's correct `2.5`); only that test expectation changed. The rerun passed
+  **9/9 in 2.91 s**. Tests prove TEST-only value/shape/label mutations leave the type
+  map, audit, baseline, CUSUM thresholds, feature schema, RF parameters, and learned
+  forest fingerprint unchanged; prove support means TRAIN-normal canonical frames;
+  and prove all four stages share/call the same mapper and both CUSUM stages share the
+  same replay. The full pre-TEST suite passed **53/53 in 32.14 s** with no reported
+  skips. The prior 44-test set was reconstructed after editing and passed **44/44 in
+  31.59 s** because the literal before-edit command was blocked before execution; this
+  is not represented as a contemporaneous baseline.
+- **VALIDATED — TRAIN-only discovery and audit:** the immutable map contains exactly
+  `0x03 -> (3,0,23,18,0)` and `0x10 -> (16,0,8,-1,0)`, discovered only from source-3
+  egress TRAIN pure-Normal frames. Exact TRAIN-normal frame support was 21,384 and
+  21,387; eligible TRAIN-normal IATs were 20,803 and 20,816; TRAIN-normal windows were
+  14,951 and 14,941. Both types overlapped DoS-containing windows in TRAIN (232/359)
+  and VALIDATION (98/203), with VALIDATION pure-Normal windows 4,852/4,848. Weighted
+  per-type CV `0.044673` was 0.671052 of pooled CV `0.066571`, passing the fixed gate.
+- **VALIDATED — frozen pre-TEST artifacts:** thresholds from the identical inference
+  state process were `396318.476154` (`0x03`) and `202709.185269` (`0x10`). Their
+  magnitude is reported without adjustment: unlike the invalidated method, state was
+  not reset from labels or alarms. The RF semantic fingerprint before TEST was
+  `43fa2ef7fd3112eaf572f6b38a3f64590df424d249140fea454b2534074d3833`.
+  Descriptive VALIDATION results were CUSUM precision/recall/F1/FPR all `0`, and RF
+  precision `0.514706`, recall `0.517241`, F1 `0.515971`, FPR `0.020404`; they did not
+  change the frozen design.
+- **VALIDATED — one authorized TEST execution:** after explicit user sign-off, the
+  guarded scorer was invoked once. It scored 5,000 cohort windows: 4,807 pure-Normal
+  and 193 DoS-containing; 4,347 other-attack-only TEST windows were excluded. The
+  complete UTF-8 result was persisted to ignored local
+  `data/experiments/exp0008_cadence.json`. No second TEST invocation or post-result
+  tuning was performed.
+
+  | detector | precision | recall | F1 | FPR | TN | FP | FN | TP |
+  |---|---:|---:|---:|---:|---:|---:|---:|---:|
+  | Detector A — canonical per-type CUSUM | 0.000000 | 0.000000 | 0.000000 | 0.000000 | 4,807 | 0 | 193 | 0 |
+  | Detector B — cadence Random Forest | 0.634146 | 0.269430 | 0.378182 | 0.006241 | 4,777 | 30 | 141 | 52 |
+
+- **VALIDATED — required contextual comparison:** cohorts and observation boundaries
+  differ, so the historical rows are context rather than like-for-like rankings.
+
+  | experiment / detector | observation and DoS cohort | precision | recall / flag rate | F1 | FPR |
+  |---|---|---:|---:|---:|---:|
+  | EXP-0004 combined IF+rule — context | egress-only; 136 **dominant-DoS** category windows | not derivable | 0.000000 | not derivable | 0.007489 detector-wide Normal FPR |
+  | EXP-0005b RF — **OUT OF SCOPE / BIDIRECTIONAL** | pre-diode bidirectional; 193 DoS-containing vs 4,931 pure-Normal | 0.630252 | 0.388601 | 0.480769 | 0.008923 |
+  | EXP-0008 Detector A | egress-only; 193 DoS-containing vs 4,807 pure-Normal | 0.000000 | 0.000000 | 0.000000 | 0.000000 |
+  | EXP-0008 Detector B | egress-only; 193 DoS-containing vs 4,807 pure-Normal | 0.634146 | 0.269430 | 0.378182 | 0.006241 |
+
+- **VALIDATED — interpretation/limitations:** under this frozen method, Detector A made
+  no TEST alerts and detected no DoS windows. Detector B detected 52/193 DoS-containing
+  windows while producing 30/4,807 Normal false positives. This is held-out evidence
+  only for this labelled testbed and split, not universal DoS capability. Response type
+  remains an egress-visible proxy for an unseen query; source is non-feature dataset
+  grouping metadata; and the labelled attack is not established as a classic
+  volumetric flood. EXP-0007's withdrawn outputs are not evidence and were not used for
+  tuning or comparison.

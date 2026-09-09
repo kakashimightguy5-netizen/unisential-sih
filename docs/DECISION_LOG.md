@@ -4,6 +4,43 @@ Format: **DATE · DECISION · OPTIONS CONSIDERED · WHY CHOSEN · IMPACT**
 
 ---
 
+### 2026-09-09 · PLANNED — rerun corrected egress cadence method under fresh EXP-0008
+
+- **PLANNED — decision:** implement a fresh egress-only EXP-0008 rather than repairing
+  or rerunning invalidated EXP-0007. Discover exact response shapes from TRAIN
+  pure-Normal rows only, count exactly canonically mapped TRAIN-normal support, route
+  audit/baseline/calibration/scoring through one mapper object, and route calibration
+  and inference through one label-independent CUSUM replay implementation.
+- **PLANNED — options considered:** (a) abandon cadence after invalidation; (b) patch and
+  rerun EXP-0007; (c) preserve EXP-0007 as an invalid audit trail and pre-register a
+  constructionally TEST-blind EXP-0008. Choose (c). Patching the old ID after viewing
+  TEST would erase the experimental boundary; abandoning the hypothesis would confuse
+  implementation defects with evidence against egress cadence.
+- **PLANNED — why:** EXP-0007's shape discovery touched TEST, its support gate counted
+  all TRAIN labels, its fitted and scored populations used different type assignment,
+  and its calibration state process differed from inference. EXP-0008 makes these
+  controls API and identity-test properties rather than prose assumptions. EXP-0007
+  outputs—including its discarded detector metrics—are forbidden as inputs, tuning
+  targets, or comparative evidence.
+- **PLANNED — impact/controls:** EXP-0008 remains strictly `destination == 1`, uses the
+  established chronological guarded split and fixed CUSUM/RF settings, and has no
+  performance pass/fail gate. Synthetic tests must prove arbitrary TEST-value mutation
+  cannot alter any pre-TEST artifact. After TRAIN/VALIDATION preparation, work stops for
+  explicit sign-off before one frozen TEST score; no post-TEST tuning or rerun is
+  authorized. Code is isolated in new EXP-0008 modules/tests. Existing EXP-0006,
+  EXP-0007, Layer A, EXP-0004/0005/0005b, and dashboard files remain unchanged.
+- **VALIDATED — outcome after explicit TEST sign-off:** the TRAIN/VALIDATION audit and
+  all construction proofs passed before one guarded TEST execution. Detector A CUSUM
+  detected 0/193 DoS-containing windows with 0/4,807 Normal false positives
+  (precision/recall/F1/FPR all `0`). Detector B RF detected 52/193 with 30/4,807 Normal
+  false positives (precision `0.634146`, recall `0.269430`, F1 `0.378182`, FPR
+  `0.006241`). No post-TEST tuning or second frozen pass was performed. Detector A is
+  not supported as an effective detector under this design; Detector B shows limited
+  held-out egress-only signal on this one testbed but misses 141/193 DoS windows and is
+  not evidence of general capability. EXP-0004 remains different-cohort context and
+  EXP-0005b remains explicitly bidirectional/out of scope.
+
+---
 ### 2026-09-08 · RETRACTION — `gas_pipeline_raw.txt` (sha256 45de4266…fbbd) was AI-generated, not a capture; EXP-0001/0002/0003 retracted
 
 - **Decision:** the raw hex-frame file used by EXP-0001, EXP-0002 and EXP-0003
