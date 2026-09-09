@@ -2014,3 +2014,231 @@ to conceal or replace it.
   floods (~24%, severity-independent). A one-line rate rule would close the gap. No
   detector change is made here; **no commit or push performed** pending explicit
   go-ahead.
+
+---
+
+### EXP-0014 · Diagnostic — why does the EXP-0004 detector miss MSCI / MPCI? — 2026-09-09
+
+> **PRE-REGISTRATION — PLANNED.** Recorded before writing the diagnostic code and before
+> reading any per-window Isolation Forest score. **This is diagnostic / investigative
+> only — no model is trained, retrained, re-thresholded, or changed, and no feature is
+> added.** It characterises *why* EXP-0004's combined detector flags almost no MSCI
+> (`2/324`) or MPCI (`8/741`) egress windows, and classifies the likely root cause for
+> each. MSCI and MPCI first; NMRI and CMRI are a separate later diagnostic. **No fix is
+> built or proposed as an implementation task here** — only the *category* of fix each
+> diagnosis would indicate.
+
+- **PLANNED — what MSCI / MPCI are (thesis-cited, `docs/00-dataset-provenance.md`
+  BLOCKER 1):**
+  - **MSCI** = *Malicious State Command Injection* (`categorized result == 3`). A
+    command-injection attack that modifies the **state** of the physical process.
+    Specific attacks (Table 3.6): `13` Pump ("randomly changes the state of the pump"),
+    `14` Solenoid, `15` System Mode, `16–17` Critical Condition ("places the system in a
+    Critical Condition … not included in normal activity").
+  - **MPCI** = *Malicious Parameter Command Injection* (`categorized result == 4`). A
+    command-injection attack that modifies **control parameters**. Specific attacks:
+    `1–2` Setpoint, `3–4` PID Gain, `5–6` Reset Rate, `7–8` Rate, `9–10` Deadband,
+    `11–12` Cycle Time — each "outside and inside the range of normal operation."
+  - **Direction:** both are **command-side** (`command response == 1`, inbound). The
+    malicious value (new setpoint / gain / pump state) travels in the injected command.
+    An egress-only observer (`destination == 1`, `command response == 0`) never sees the
+    command — only the slave's response.
+  - **Pre-checked egress reality (frame-level):** every egress frame that carries an
+    MSCI or MPCI label is a `function 0x10`, 8-byte **write-echo response**, and those
+    echoes are structurally identical to normal write echoes — `start_register 3049`,
+    `quantity 18`, `byte_count −1`, `length_anomaly 0`, `crc_ok 0`, `address 4`, message
+    entropy exactly `3.0000` — for Normal, MSCI and MPCI alike. The echo does not encode
+    which value was written. Read responses (`function 0x03`, 23-byte) in the same
+    windows are label `0` (Normal). This will be stated as measured fact, not assumed.
+- **PLANNED — corrected manifest for all boundary needs:** window blocks are assigned
+  from `ml/splits/verified_egress_5s_exp0008_pretest_v1.json` (split ID
+  `verified-egress-5s-exp0008-pretest-v1`, membership SHA-256
+  `0e912e147d088aaed05e95bda04c6a46c72ed4dd16aafb6966c9e2aab26859e6`) for TRAIN /
+  VALIDATION, and the manifest-derived guarded TEST construction (windows after the
+  final VALIDATION bucket, first 2 discarded as guards). EXP-0014 asserts EXP-0004's own
+  `contiguous_blocks(46,736)` split is byte-identical to this before using any score,
+  exactly as EXP-0010 did.
+- **PLANNED — detector reproduced, not modified:** EXP-0014 reconstructs the EXP-0004
+  combined detector in-process (Isolation Forest 300 trees, seed 0, standardiser frozen
+  from TRAIN-normal, threshold `0.6745465823488428`; rule layer from the frozen
+  TRAIN-normal profile) and **asserts** its real-TEST `if_pred` equals `run_detector()`
+  element-wise and its combined-TEST confusion equals EXP-0004's exact
+  `TN 4,771 / FP 36 / FN 3,793 / TP 747` before any diagnostic score is read.
+  `ml/iforest_detector.py`, `ml/rules.py`, `ml/features_windowed.py` are not touched.
+- **PLANNED — feature-level diagnostic:** for **pure** MSCI windows (`categories ⊆ {0, 3}`,
+  MSCI present) versus Normal, and separately pure MPCI versus Normal, report per-feature
+  **mean ± population SD and Cohen's d** across all 16 `WINDOW_FEATURES` (the EXP-0004
+  Isolation-Forest inputs plus the two rule-layer fields). Normal reference is reported
+  two ways: (i) the full pure-Normal window population, and (ii) a **temporally matched**
+  sample — for each attack window the nearest pure-Normal window by window index — to
+  control for slow drift in the physical process. Effect sizes are graded by the
+  pre-existing EXP-0003/0004 convention (`|d| < 0.2` negligible, `0.2–0.5` small,
+  `0.5–0.8` medium, `> 0.8` large).
+- **PLANNED — Isolation Forest score diagnostic (no retraining):** score every MSCI and
+  every MPCI window with EXP-0004's already-fitted model. Report the score distribution
+  (min / p10 / p25 / median / p75 / p90 / max, mean), the fraction at or above the
+  operating threshold, and where the mass sits relative to two anchors: the
+  **Normal-window mean score** (`≈ 0.47` — the "deep normal" region) and the
+  **threshold** (`0.6745`). Clustering near the threshold indicates a
+  calibration/threshold problem; sitting down at the Normal mean indicates
+  feature-blindness. Report all-blocks and TEST-block-only.
+- **PLANNED — class-size context:** report exact MSCI and MPCI window counts for TRAIN /
+  VALIDATION / TEST (containing ≥ 1 such frame, and pure), alongside DoS's
+  `359 / 203 / 193` and the pure-Normal `14,951 / 4,852 / 4,807`. Note that the current
+  detector is **unsupervised** (fitted on Normal only), so class size does not limit it
+  directly; the counts bound what a future *supervised* fix could use.
+- **PLANNED — honest diagnosis, per category separately (MSCI and MPCI may differ):**
+  classify the likely root cause as (a) feature blindness — existing features do not
+  capture what the attack changes; (b) threshold / calibration — signal present but
+  under the decision threshold; (c) extreme class imbalance — too few examples for any
+  method; (d) something else. State which **category of fix** each diagnosis indicates
+  (e.g. new payload/pressure-dynamics features; a targeted deterministic rule; a
+  threshold change; more labelled data / a supervised model) **without building it**.
+- **PLANNED — outputs / scope:** new files only — `ml/exp0014_cmd_injection_diag.py`,
+  `tests/test_exp0014_cmd_injection_diag.py`, and gitignored
+  `data/experiments/exp0014_cmd_injection_diag.json`. Tests reproduce EXP-0004's model /
+  predictions exactly (EXP-0010 identity-check discipline) and cover the stats helpers.
+  Do **not** touch EXP-0004's trained model, `ml/iforest_detector.py`, `ml/rules.py`,
+  `ml/features_windowed.py`, the DoS files (EXP-0007…EXP-0013), Layer A, or `app.py`.
+  Run the full suite before and after with exact counts. Show the full diff and every
+  finding, then wait for explicit go-ahead before any commit. No push.
+
+- **IMPLEMENTED — isolated diagnostic code:** added only `ml/exp0014_cmd_injection_diag.py`
+  and `tests/test_exp0014_cmd_injection_diag.py`; JSON is gitignored at
+  `data/experiments/exp0014_cmd_injection_diag.json`. `FrozenExp0004Detector` reproduces
+  the EXP-0004 combined detector in-process from the same `ml/features_windowed` +
+  `ml/iforest_detector` primitives — one `build_windows()` call, TRAIN-normal standardiser
+  and Isolation Forest (300 trees, seed 0, `contamination`/`max_samples` `"auto"`),
+  threshold as the VALIDATION-normal 99th-percentile score, rule layer fitted on the
+  TRAIN-normal profile. *(Deviation from the pre-registration, which said "assert `if_pred`
+  equals `run_detector()` element-wise": calling `run_detector()` re-runs `build_windows()`
+  and roughly triples the test's wall time. The reproduction is instead gated on
+  EXP-0004's exact frozen regression constants — the identical threshold and TEST
+  confusion that `tests/test_detector.py` already asserts — which is an equally strong
+  identity check.)* No model is trained beyond that reproduction; nothing is scored until
+  the gates pass. `ml/iforest_detector.py`, `ml/rules.py`, `ml/features_windowed.py` unchanged.
+- **VALIDATED — gates (all passed before any diagnostic score was read):** EXP-0004's
+  `contiguous_blocks(46,736)` TRAIN / VALIDATION / TEST buckets are byte-identical to
+  `verified-egress-5s-exp0008-pretest-v1` and its manifest-derived guarded TEST
+  construction; the reproduced threshold equals EXP-0004's frozen
+  `0.6745465823488428` **exactly** (`|Δ| < 1e-12`); the reproduced combined-detector
+  TEST confusion is exactly `TN 4,771 / FP 36 / FN 3,793 / TP 747`.
+- **VALIDATED — what is actually visible on egress (measured fact):** every egress frame
+  carrying an MSCI (`3,950` frames) or MPCI (`10,206` frames) label is a `function 0x10`,
+  8-byte **write-echo response** with `start_register 3049`, `quantity 18`,
+  `byte_count −1`, `length_anomaly 0`, `crc_ok 0`, `address 4`, message entropy exactly
+  `3.0000` — **identical to a normal write echo** on every field. Read responses
+  (`function 0x03`, 23-byte) in these windows are label `0`. The injected command
+  (`command response == 1`, inbound) — which carries the malicious setpoint / gain / pump
+  state — is never on the egress side.
+
+- **VALIDATED — EXP-0004 combined detector on MSCI / MPCI, TEST block (positive = TEST
+  windows containing ≥ 1 such frame; negative = pure-Normal TEST windows; detector
+  unchanged; FP / TN are EXP-0004's frozen Normal split):**
+
+  | category | recall | precision | F1 | FP rate (of Normal) | TP / FN / FP / TN |
+  |---|---:|---:|---:|---:|---:|
+  | **MSCI** | **0.43 %** | 5.26 % | 0.80 % | 0.7489 % | `2 / 460 / 36 / 4,771` |
+  | **MPCI** | **1.56 %** | 35.71 % | 2.99 % | 0.7489 % | `20 / 1,260 / 36 / 4,771` |
+
+  The `36` false positives / `0.7489 %` FP rate is exactly EXP-0004's frozen Normal-FP
+  (`36/4,807`) — the detector is not modified. MSCI recall against the narrower
+  *dominant*-MSCI cohort EXP-0004's per-category table used (`324` windows) is
+  `2/324 = 0.62 %`, matching that table; this diagnostic uses the broader *containing*
+  cohort (`462`) throughout.
+- **VALIDATED — class-size context:** MSCI/MPCI egress window counts (containing ≥ 1 such
+  frame) are TRAIN / VALIDATION / TEST `1,791 / 521 / 462` (MSCI) and
+  `4,356 / 1,510 / 1,280` (MPCI), versus DoS's `359 / 203 / 193` and pure-Normal
+  `14,951 / 4,852 / 4,807`. MSCI and MPCI have **5× and 12× more** training windows than
+  DoS. Pure windows (this category + Normal only): MSCI `1,080 / 296 / 322`, MPCI
+  `2,402 / 864 / 739`. The current detector is unsupervised (Normal-only fit), so class
+  size does not limit it directly; these counts show a future supervised fix would not
+  be data-starved.
+
+- **VALIDATED — feature-level diagnostic (pure windows vs nearest-index-matched pure-Normal;
+  Cohen's d, EXP-0003/0004 grading):**
+
+  | | max \|d\| across all 16 features | features with \|d\| ≥ 0.2 |
+  |---|---:|---|
+  | **MSCI** | `0.513` — `payload_entropy_std` (**medium**) | `payload_entropy_std` `+0.51`, `payload_entropy_mean` `+0.38`, `distinct_frame_ratio` `−0.25`, `frac_func_read` `−0.25`, `frac_func_write` `+0.25`, `mean_frame_len` `−0.25` (all small) |
+  | **MPCI** | `0.268` — `frac_func_write` (**small**) | `frac_func_write` `+0.27`, `frac_func_read` `−0.27`, `mean_frame_len` `−0.27`, `distinct_frame_ratio` `−0.25` (all small) |
+
+  Volumetric / timing features (`packet_count`, `packets_per_sec`, `bytes_per_sec`,
+  `iat_mean/std/min/max`, `repeat_frame_rate`) are `|d| ≤ 0.16` for both. The small
+  read/write-ratio and `mean_frame_len` shifts come from the injected write frames
+  slightly changing the per-window frame mix. MSCI's `payload_entropy_*` signal is a
+  **second-order** effect: state changes disturb the physical pressure, so the
+  normal-labelled read-response payloads within an MSCI window vary more. MPCI (gradual
+  parameter drift) produces no entropy signal.
+
+- **VALIDATED — Isolation Forest score diagnostic (EXP-0004's already-fitted model, no retraining):**
+
+  | | n windows | score min / median / p90 / max | mean | Normal-window mean | threshold | IF flag rate (all / TEST) | median position (0 = Normal mean, 1 = threshold) |
+  |---|---:|---|---:|---:|---:|---:|---:|
+  | **MSCI** | 2,774 | `0.398 / 0.484 / 0.566 / 0.697` | `0.492` | `0.473` | `0.6745` | `0.0083 / 0.0043` | **`0.055`** |
+  | **MPCI** | 7,146 | `0.397 / 0.470 / 0.573 / 0.726` | `0.485` | `0.473` | `0.6745` | `0.0091 / 0.0141` | **`−0.015`** |
+
+  The rule layer fires on `4` MSCI and `11` MPCI windows across all blocks (novel-address
+  / bad-func-code coincidence in mixed windows, not the command injection). Both score
+  distributions sit essentially **on top of** the Normal-window distribution: the median
+  is within `±0.02` of the Normal-window mean and `< 6%` of the way to the threshold;
+  even the p90 (`≈ 0.57`) is far below the threshold (`0.6745`), and only the extreme
+  max just grazes it. A threshold low enough to catch half of MSCI (`≈ 0.484`) would sit
+  barely above the Normal mean and flag a large fraction of Normal traffic.
+
+- **VALIDATED — DIAGNOSIS (per category; a fix is described only by *category*, not built):**
+  - **MPCI → (a) feature blindness. Unambiguous.** Every EXP-0004 feature is `|d| ≤ 0.27`
+    (small at most) against matched Normal; the IF scores MPCI windows at or *below* the
+    Normal-window mean (median position `−0.015`) — the model sees them as ordinary
+    Normal traffic. **Not (b):** scores are deep-normal, not near threshold; no feasible
+    threshold separates them. **Not (c):** `4,356` TRAIN windows, 12× DoS. Root cause:
+    the parameters MPCI changes travel in the unseen inbound command; the egress echo is
+    identical to normal; and a parameter nudge "inside the range of normal operation" is
+    too subtle to perturb 5-second window aggregates.
+    *Indicated category of fix (not built):* **new response-side content features** —
+    decode the `pressure measurement` value from the `0x03` read response and model its
+    dynamics (setpoint-tracking error, oscillation, drift), the only egress-visible
+    consequence of the injected command, then a supervised model to weight them. A
+    threshold change or more raw frames would not help.
+  - **MSCI → primarily (a) feature blindness, with a partial signal the current model
+    cannot exploit.** 14 of 16 features are `|d| ≤ 0.25`; two IF-input features carry a
+    real but modest signal (`payload_entropy_std` `d = +0.51` medium, `payload_entropy_mean`
+    `+0.38` small) from the pressure disturbance that discrete state changes cause. Yet
+    the IF still scores MSCI at median position `0.055` and flags `0.4–0.8%` — a medium
+    effect on 2 of 14 features, diluted by 12 near-identical features, does not lengthen
+    an isolation path enough. **Not (b)**, **not (c)** (`1,791` TRAIN windows, 5× DoS).
+    *Indicated category of fix (not built):* feature engineering that **isolates and
+    amplifies the pressure-disturbance signal** the entropy features only hint at
+    (explicit pressure-value variance / dynamics features), and/or a **supervised model**
+    that can weight the two informative features the unsupervised IF averages away; a
+    narrow deterministic rule on `payload_entropy_std` is a cheaper partial option worth
+    measuring first. Not calibration, not data volume.
+
+- **VALIDATED — honest limitation on "under-investment":** part of this gap is
+  **structural**, like DoS — the command-injection payload genuinely never crosses the
+  diode. What is *not* structural, and is under-investment: the response-side
+  `pressure measurement` value **does** cross the diode and is currently used by **no**
+  feature. There is real headroom there, but it is bounded by how detectable a
+  mis-tuned controller is from its output pressure alone — which for the subtlest MPCI
+  parameter tweaks may be close to a hard ceiling. The correct expectation is
+  "meaningfully better than `1%`", not "`100%` like MFCI/Recon".
+- **TESTED — execution record:** pre-EXP-0014 full suite **114 passed**. Added
+  `tests/test_exp0014_cmd_injection_diag.py` = **8 passed** (7 fast stats-helper /
+  confusion-arithmetic tests + 1 `@pytest.mark.slow` gate/structure test). Full suite
+  after: **122 passed** (net **+8**). The `@pytest.mark.slow` EXP-0014 test builds the
+  46,736-window feature matrix once and reproduces the EXP-0004 model
+  (`build_windows()` dominates its ~35 s); it does **not** call `run_detector()`.
+  `-m 'not slow'` runs **109 passed, 13 deselected**.
+- **LIMITATIONS:** Cohen's d compares aggregate window features and the matched-Normal
+  sample controls for slow drift by window index, not every confounder; the MSCI entropy
+  signal is a second-order pressure effect, not the injected command; one testbed;
+  egress-only.
+- **STATUS — MSCI / MPCI:** diagnosed, **not fixed**. On the frozen TEST block the
+  EXP-0004 combined detector gets MSCI recall `0.43 %` / precision `5.26 %` / F1
+  `0.80 %` and MPCI recall `1.56 %` / precision `35.71 %` / F1 `2.99 %`, at the
+  unchanged `0.7489 %` Normal FP rate. Both gaps are primarily feature blindness (the
+  injected command is inbound; the egress echo is uninformative); MSCI leaks a weak
+  pressure-disturbance signal into entropy that the unsupervised IF cannot use, MPCI
+  leaks none. Fix category identified (response-side pressure-value features ± a
+  supervised model); no fix built or scheduled here. NMRI / CMRI diagnostic is a
+  separate follow-up. **No commit or push performed** pending explicit go-ahead.

@@ -4,6 +4,36 @@ Format: **DATE · DECISION · OPTIONS CONSIDERED · WHY CHOSEN · IMPACT**
 
 ---
 
+### 2026-09-09 · DECISION — diagnose the MSCI / MPCI detection gap before proposing any fix (EXP-0014)
+
+- **DECISION:** run a diagnostic-only experiment (EXP-0014) on the two worst non-DoS
+  per-category gaps in EXP-0004's combined detector — MSCI (`2/324` flagged) and MPCI
+  (`8/741`) — to establish *why* they are missed, before any feature or model work.
+  MSCI and MPCI first (most severe); NMRI (`109/1,131`) and CMRI (`232/1,812`) are a
+  later separate diagnostic.
+- **OPTIONS CONSIDERED:** (a) assume it is the same "under-investment" story as elsewhere
+  and jump straight to building features / a supervised model; (b) assume a structural
+  ceiling like the diode explains it and deprioritise; (c) diagnose first — measure
+  feature separation and the already-trained Isolation Forest's actual per-window scores,
+  and classify the root cause per category.
+- **WHY (c):** unlike Type 1 DoS, there is no known physics/architecture reason these
+  categories should be near-zero — no dedicated feature engineering or diagnostic has
+  ever been done on them. But "under-investment" is a hypothesis, not a finding.
+  Committing feature/model effort without knowing whether the signal is (a) absent from
+  egress, (b) present but under-threshold, or (c) starved of examples risks building the
+  wrong fix. A cheap measurement settles it.
+- **WHY DIAGNOSTIC-ONLY:** EXP-0004's model is frozen and must not move while its gaps
+  are being characterised; a fix is a separate pre-registered change with its own
+  TEST-blind evaluation. EXP-0014 reproduces the EXP-0004 model exactly (EXP-0010
+  identity-check discipline), reads scores, and writes findings — it trains nothing.
+- **IMPACT:** EXP-0014 produces a per-category root-cause classification (feature
+  blindness / calibration / class imbalance / other) and names the *category* of fix
+  each would indicate, with no fix built. It uses the corrected
+  `verified-egress-5s-exp0008-pretest-v1` manifest for all block assignment. New files
+  only; EXP-0004 / DoS files / Layer A / `app.py` untouched.
+
+---
+
 ### 2026-09-09 · PROPOSED (NOT IMPLEMENTED) — add a `packets_per_sec` rate rule to the deterministic rule layer for Type 2 DoS
 
 - **STATUS:** proposed follow-up only. **Nothing is built.** EXP-0010 is a diagnostic
