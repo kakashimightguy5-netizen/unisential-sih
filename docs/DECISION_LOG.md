@@ -4,6 +4,35 @@ Format: **DATE · DECISION · OPTIONS CONSIDERED · WHY CHOSEN · IMPACT**
 
 ---
 
+### 2026-09-10 · DECISION — diagnose the NMRI / CMRI detection gap (EXP-0015); response-side, so no diode caveat
+
+- **DECISION:** run a diagnostic-only experiment (EXP-0015) on the remaining two weak
+  per-category rows in EXP-0004's combined detector — NMRI (`109/1,131` flagged,
+  `9.6 %`) and CMRI (`232/1,812`, `12.8 %`) — completing the per-category gap review
+  that EXP-0014 began with MSCI/MPCI. Same rigor: reproduce the frozen detector, read its
+  scores, classify the root cause, build nothing.
+- **OPTIONS CONSIDERED:** (a) assume NMRI/CMRI share DoS/MSCI/MPCI's structural limit and
+  deprioritise; (b) assume they are a pure feature gap because the name says
+  "response injection"; (c) confirm the direction from the dataset documentation and the
+  raw frames, then measure feature separation and the already-trained IF's per-window
+  scores.
+- **WHY (c):** the direction is the decisive fact and must be verified, not assumed. It
+  was: every NMRI and CMRI frame is `destination == 1`, `function 0x03` read response —
+  the forged pressure telemetry the slave sends back. Zero inbound frames. So unlike
+  DoS (inbound flood blocked by the diode) and MSCI/MPCI (malicious command payload
+  never crosses the diode), **the NMRI/CMRI malicious content is the egress traffic
+  itself**. A low-recall finding here is a feature/model gap, not a structural
+  observation limit — which changes whether it is worth fixing.
+- **WHY DIAGNOSTIC-ONLY:** EXP-0004's model stays frozen while its gaps are characterised;
+  a fix is a separate pre-registered change with its own TEST-blind evaluation. EXP-0015
+  reproduces the EXP-0004 model exactly and only reads from it.
+- **IMPACT:** EXP-0015 produces a per-category root-cause classification and names the
+  category of fix each indicates, with no fix built, and states plainly that the diode
+  caveat does not apply here. Corrected manifest for all block assignment. New files
+  only; EXP-0004 / DoS files / EXP-0014 / Layer A / `app.py` untouched.
+
+---
+
 ### 2026-09-09 · DECISION — diagnose the MSCI / MPCI detection gap before proposing any fix (EXP-0014)
 
 - **DECISION:** run a diagnostic-only experiment (EXP-0014) on the two worst non-DoS

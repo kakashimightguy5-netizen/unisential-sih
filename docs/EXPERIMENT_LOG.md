@@ -2242,3 +2242,220 @@ to conceal or replace it.
   leaks none. Fix category identified (response-side pressure-value features ± a
   supervised model); no fix built or scheduled here. NMRI / CMRI diagnostic is a
   separate follow-up. **No commit or push performed** pending explicit go-ahead.
+
+---
+
+### EXP-0015 · Diagnostic — why does the EXP-0004 detector miss NMRI / CMRI? — 2026-09-10
+
+> **PRE-REGISTRATION — PLANNED.** Recorded before writing the diagnostic code and before
+> reading any per-window Isolation Forest score. **Diagnostic / investigative only — no
+> model is trained, retrained, re-thresholded, or changed, and no feature is added.** It
+> characterises *why* EXP-0004's combined detector flags only `109/1,131` NMRI (`9.6 %`)
+> and `232/1,812` CMRI (`12.8 %`) egress windows, and classifies the likely root cause
+> for each. This completes the per-category gap review begun for MSCI/MPCI in EXP-0014.
+> **No fix is built or scheduled here** — only the *category* of fix each diagnosis
+> indicates.
+
+- **PLANNED — what NMRI / CMRI are (thesis-cited, `docs/00-dataset-provenance.md` BLOCKER 1,
+  same source as EXP-0014):**
+  - **NMRI** = *Naïve Malicious Response Injection* (`categorized result == 1`). A
+    **response-injection** attack: the forged reply has "sporadic and out of bounds
+    behavior that would not be present in normal operation" — the attacker lacks
+    physical-process knowledge. Specific attacks: `29–31` Random Value ("random pressure
+    measurements are sent to the master"), `32` Negative Pressure ("sends back a negative
+    pressure reading from the slave").
+  - **CMRI** = *Complex Malicious Response Injection* (`categorized result == 2`). A
+    **response-injection** attack that "mimic[s] certain behaviors which occur within
+    normal bounds" to evade detection. Specific attacks: `25–26` Rise/Fall ("sends back
+    pressure readings which create trends"), `27–28` Slope ("randomly increases/decreases
+    pressure reading by a random slope"), `33–34` Fast, `35` Slow ("high then low
+    setpoint changing fast/slow").
+  - **Direction — the decisive question, pre-checked as measured fact:** both are
+    **response-side / egress**. Every NMRI-labelled frame (`7,753`) and every
+    CMRI-labelled frame (`13,035`) is `destination == 1`, `function 0x03`, 23-byte
+    **read response** — the pressure telemetry the slave sends back. **Zero** NMRI/CMRI
+    frames occur on the inbound command path. The forged pressure value **is** the egress
+    traffic.
+  - **Therefore the "malicious value never crosses the diode" caveat that bounds
+    DoS / MSCI / MPCI does NOT apply to NMRI / CMRI.** The tampered content is directly
+    present in egress. Any low recall here is a plain feature/model gap, not a structural
+    observation limit. EXP-0015 will state this explicitly in the diagnosis either way.
+- **PLANNED — corrected manifest for all boundary needs:** window blocks are assigned from
+  `ml/splits/verified_egress_5s_exp0008_pretest_v1.json` (split ID
+  `verified-egress-5s-exp0008-pretest-v1`, membership SHA-256
+  `0e912e147d088aaed05e95bda04c6a46c72ed4dd16aafb6966c9e2aab26859e6`) for TRAIN /
+  VALIDATION, and the manifest-derived guarded TEST construction. EXP-0015 asserts
+  EXP-0004's `contiguous_blocks(46,736)` split is byte-identical to this.
+- **PLANNED — detector reproduced, not modified (EXP-0010/0014 identity discipline):**
+  EXP-0015 reconstructs the EXP-0004 combined detector in-process (Isolation Forest 300
+  trees, seed 0, standardiser frozen from TRAIN-normal, threshold as the VALIDATION-normal
+  99th-percentile score; rule layer from the TRAIN-normal profile) and **asserts**, before
+  any diagnostic score is read: (i) its real-TEST `if_pred` equals `run_detector().if_pred`
+  element-wise; (ii) its reproduced threshold equals EXP-0004's frozen
+  `0.6745465823488428` (`|Δ| < 1e-12`); (iii) its combined-TEST confusion equals
+  EXP-0004's exact `TN 4,771 / FP 36 / FN 3,793 / TP 747`. `ml/iforest_detector.py`,
+  `ml/rules.py`, `ml/features_windowed.py` are not touched.
+- **PLANNED — full metrics (same format as EXP-0014):** for NMRI and CMRI separately, on
+  the unchanged EXP-0004 combined detector, report precision / recall / F1 / FPR and
+  `TP / FN / FP / TN` for:
+  - the **containing** cohort — positive = TEST windows with ≥ 1 that-category frame;
+  - the **dominant** cohort — positive = TEST windows whose lowest non-zero
+    `categorized_attack` is that category (the definition EXP-0004's per-category table
+    used: NMRI `1,131`, CMRI `1,812`), to reconcile with the known `109/1,131` and
+    `232/1,812`.
+  Negative class for both = the `4,807` pure-Normal TEST windows; `FP` / `TN` are
+  EXP-0004's frozen Normal split (`36 / 4,771`).
+- **PLANNED — feature-level diagnostic:** for **pure** NMRI windows (`categories ⊆ {0, 1}`,
+  NMRI present) versus Normal, and pure CMRI versus Normal, report per-feature mean ±
+  population SD and **Cohen's d** across all 16 `WINDOW_FEATURES`, against both the full
+  pure-Normal population and a **nearest-window-index matched** Normal sample. Grade by
+  the EXP-0003/0004 convention (`|d| < 0.2` negligible, `0.2–0.5` small, `0.5–0.8` medium,
+  `> 0.8` large).
+- **PLANNED — Isolation Forest score diagnostic (no retraining):** score every NMRI and
+  CMRI window with EXP-0004's fitted model; report min / p10 / p25 / median / p75 / p90 /
+  max and mean, the IF flag fraction, and the median score's position between the
+  Normal-window mean score and the frozen threshold — the same table as EXP-0014.
+- **PLANNED — class-size context:** exact NMRI and CMRI TRAIN / VALIDATION / TEST window
+  counts (containing and pure), alongside DoS `359 / 203 / 193`, MSCI `1,791`, MPCI
+  `4,356`, and pure-Normal `14,951 / 4,852 / 4,807`.
+- **PLANNED — honest diagnosis, per category separately:** classify as (a) feature
+  blindness, (b) threshold / calibration, (c) class imbalance, (d) something else. State
+  explicitly that the diode caveat does **not** apply (these are response-side), so a
+  low-recall finding here is a feature/model gap. Name the **category of fix** each
+  diagnosis indicates (e.g. features that decode the response `pressure measurement`
+  value and its dynamics; a supervised model; a targeted rule) **without building it**.
+- **PLANNED — outputs / scope:** new files only — `ml/exp0015_response_injection_diag.py`,
+  `tests/test_exp0015_response_injection_diag.py`, and gitignored
+  `data/experiments/exp0015_response_injection_diag.json`. Tests reproduce EXP-0004's
+  model / predictions exactly (EXP-0010/0014 identity-check discipline) and cover the
+  stats helpers. Do **not** touch EXP-0004's trained model, `ml/iforest_detector.py`,
+  `ml/rules.py`, `ml/features_windowed.py`, the DoS files (EXP-0007…EXP-0013), the
+  MSCI/MPCI diagnostic (EXP-0014), Layer A, or `app.py`. Run the full suite before and
+  after with exact counts. Show the full diff and every finding, then wait for explicit
+  go-ahead before any commit. No push.
+
+- **IMPLEMENTED — isolated diagnostic code:** added only
+  `ml/exp0015_response_injection_diag.py` and
+  `tests/test_exp0015_response_injection_diag.py`; JSON is gitignored at
+  `data/experiments/exp0015_response_injection_diag.json`. `FrozenExp0004Detector`
+  reproduces the EXP-0004 combined detector in-process and is gated three ways before any
+  diagnostic score is read (see below). No model is trained beyond that reproduction;
+  `ml/iforest_detector.py`, `ml/rules.py`, `ml/features_windowed.py` unchanged.
+- **VALIDATED — gates (all passed):** the reproduced Isolation Forest's `if_pred` on the
+  real TEST block equals `run_detector().if_pred` **element-wise**; the reproduced
+  threshold equals EXP-0004's frozen `0.6745465823488428` (`|Δ| < 1e-12`); the reproduced
+  combined-detector TEST confusion is exactly `TN 4,771 / FP 36 / FN 3,793 / TP 747`;
+  EXP-0004's `contiguous_blocks(46,736)` split is byte-identical to
+  `verified-egress-5s-exp0008-pretest-v1`.
+- **VALIDATED — direction (measured fact — the decisive question):** every NMRI-labelled
+  frame (`7,753`) and every CMRI-labelled frame (`13,035`) is `destination == 1`,
+  `function 0x03`, 23-byte **read response** — the pressure telemetry the slave sends
+  back. **Zero** NMRI/CMRI frames on the inbound command path. NMRI/CMRI forge the
+  response payload, and that payload **is** the egress traffic. **The "malicious value
+  never crosses the diode" caveat that bounds DoS / MSCI / MPCI does NOT apply here.** Any
+  low-recall finding is a plain feature/model gap.
+- **VALIDATED — class-size context:** NMRI window counts (containing ≥ 1 frame) TRAIN /
+  VALIDATION / TEST `3,093 / 1,098 / 1,131`, pure `1,839 / 678 / 715`. CMRI containing
+  `5,337 / 1,795 / 1,826`, pure `3,238 / 1,086 / 1,198`. Both dwarf DoS's `359`; CMRI is
+  comparable to MPCI's `4,356`. Not data-starved.
+
+- **VALIDATED — EXP-0004 combined detector on NMRI / CMRI, TEST block (negative = the
+  `4,807` pure-Normal TEST windows; `FP / TN = 36 / 4,771`, EXP-0004's frozen split;
+  detector unchanged):**
+
+  | category | cohort | n⁺ | recall | precision | F1 | combined TP | of which IF-only | of which rule-only |
+  |---|---|---:|---:|---:|---:|---:|---:|---:|
+  | **NMRI** | containing / dominant | 1,131 | **9.64 %** | 75.17 % | 17.08 % | 109 | 85 | 93 |
+  | **NMRI** | **pure** (real RI detection) | 715 | **1.12 %** | 18.18 % | 2.11 % | 8 | 8 | **0** |
+  | **CMRI** | containing | 1,826 | 12.71 % | 86.57 % | 22.16 % | 232 | 137 | 201 |
+  | **CMRI** | dominant | 1,812 | **12.80 %** | 86.57 % | 22.31 % | 232 | 137 | 201 |
+  | **CMRI** | **pure** (real RI detection) | 1,198 | **2.34 %** | 43.75 % | 4.44 % | 28 | 28 | **0** |
+
+  FP rate is `0.7489 %` (`36 / 4,807`) on every row — EXP-0004's frozen Normal FP,
+  unchanged. The **containing / dominant** rows (`9.64 % / 12.80 %`) reconcile with the
+  known per-category table `109/1,131` and `232/1,812` **exactly** — but they are
+  **misleading**: on those cohorts the deterministic **rule layer fires on `93` / `201`**
+  of the flagged windows, because those windows also contain a co-occurring MFCI or Recon
+  frame (a foreign function code), which is what the rule catches — *not* the response
+  injection. On **pure** NMRI/CMRI windows (no co-attack, so the rule cannot fire on a
+  foreign code) the combined detector flags **`8/715 = 1.12 %` (NMRI)** and
+  **`28/1,198 = 2.34 %` (CMRI)**, entirely from the Isolation Forest. **The detector's
+  actual detection of the forgery itself is ~1–2 %, right down with MSCI/MPCI.**
+
+- **VALIDATED — feature-level diagnostic (pure windows vs nearest-index-matched Normal):**
+
+  | | max \|d\| over 16 features | features with \|d\| ≥ 0.2 |
+  |---|---:|---|
+  | **NMRI** | `0.354` — `distinct_frame_ratio` (**small**) | `distinct_frame_ratio` `+0.35`, `frac_func_read` `+0.31`, `frac_func_write` `−0.31`, `mean_frame_len` `+0.31`, `payload_entropy_mean` `−0.26`, `bytes_per_sec` `+0.23` (all small) |
+  | **CMRI** | `0.592` — `payload_entropy_mean` (**medium**) | `payload_entropy_mean` `−0.59`, `payload_entropy_std` `+0.45`, `distinct_frame_ratio` `+0.25`, `frac_func_read` `+0.21`, `frac_func_write` `−0.21`, `mean_frame_len` `+0.21` (rest small) |
+
+  The small `distinct_frame_ratio` / `frac_func_read` / `mean_frame_len` / `bytes_per_sec`
+  cluster (both categories) is a mild volumetric effect: the injection tools add extra
+  read responses, so these windows carry a few more `0x03` frames. CMRI additionally has
+  a **medium** byte-entropy signal — its "smooth trend / slope" forged readings are more
+  repetitive (`payload_entropy_mean` down `0.055`) and more variable within a window
+  (`payload_entropy_std` up). NMRI's "random / out-of-bounds" readings barely shift byte
+  entropy (`d = −0.26`).
+
+- **VALIDATED — Isolation Forest score diagnostic (EXP-0004's fitted model, no retraining):**
+
+  | | n windows | score median / p90 / max | Normal-window mean | threshold | IF flag rate (all blocks) | median position (0 = Normal mean, 1 = threshold) |
+  |---|---:|---|---:|---:|---:|---:|
+  | **NMRI** | 5,322 | `0.475 / 0.624 / 0.708` | `0.473` | `0.6745` | `0.0445` | **`0.010`** |
+  | **CMRI** | 8,962 | `0.491 / 0.630 / 0.739` | `0.473` | `0.6745` | `0.0436` | **`0.088`** |
+
+  Both distributions sit on top of the Normal-window distribution: the median is at
+  (NMRI) or `9 %` toward (CMRI) the threshold from the Normal mean, and even p90 (`≈ 0.63`)
+  is below the threshold (`0.6745`). CMRI is marginally closer than MSCI/MPCI/NMRI (whose
+  positions were `~0.05` or below).
+
+- **VALIDATED — DIAGNOSIS (per category; fix described only by *category*, not built):**
+  - **NMRI → (a) feature blindness. The diode caveat does NOT apply.** The forged pressure
+    readings are egress traffic, but no feature decodes the value — and the byte entropy
+    of "random / out-of-bounds" values barely differs from normal (`d = −0.26`). Real
+    detection is `1.1 %`; the IF scores NMRI windows at the Normal-window mean (position
+    `0.010`). **Not (b)** (deep normal, not near threshold). **Not (c)** (`3,093` TRAIN
+    windows, 9× DoS). This is a pure feature/model gap on a fully-observable attack.
+    *Indicated category of fix (not built):* decode the response `pressure measurement`
+    value and add **physical-plausibility / out-of-bounds checks** (range, sign,
+    rate-of-change) — NMRI is *defined* as naive out-of-bounds behaviour, so a simple
+    decoded-value bound is likely to be highly effective and is the **cheapest, highest-
+    yield fix in the whole per-category review**. A supervised model on decoded-value
+    features is the fuller option.
+  - **CMRI → (a) feature blindness, with the strongest salvageable signal of any missed
+    category so far. The diode caveat does NOT apply.** Real detection is `2.3 %`, but
+    `payload_entropy_mean` carries a **medium** effect (`d = −0.59`) and `payload_entropy_std`
+    a near-medium one — the artificial trends/slopes measurably flatten and destabilise
+    the frame byte entropy. The IF uses these features yet still cannot convert the signal
+    (median position `0.088`): two informative features against twelve flat ones do not
+    lengthen an isolation path. **Not (b)**, **not (c)** (`5,337` TRAIN windows).
+    *Indicated category of fix (not built):* decode the pressure value and add **temporal-
+    dynamics features** (trend vs. expected, autocorrelation, slope) — CMRI is designed to
+    stay within static bounds but creates unnatural *motion* — plus a **supervised model**
+    that can weight the entropy signal the unsupervised IF averages away. CMRI is harder
+    than NMRI (it mimics normal bounds by design) but has real, measured headroom.
+- **VALIDATED — contrast with EXP-0014 (MSCI/MPCI):** MSCI/MPCI are *partly structural* —
+  the malicious command payload never crosses the diode, only its physical effect does.
+  NMRI/CMRI are **not structural at all**: the malicious content is the egress read
+  response. The current ~1–2 % detection is entirely because the pipeline has no feature
+  that decodes the response payload value. Combined with healthy class sizes and (for
+  NMRI) an obvious cheap bound check, NMRI/CMRI are the clearest "under-investment,
+  directly fixable" rows in the per-category review.
+- **TESTED — execution record:** pre-EXP-0015 full suite **122 passed**. Added
+  `tests/test_exp0015_response_injection_diag.py` = **8 passed** (7 fast stats /
+  confusion-arithmetic / cohort-selection tests + 1 `@pytest.mark.slow` gate/direction
+  test that calls `run_detector()` as pre-registered). Full suite after: **130 passed
+  in ~101 s** (net **+8**). Three slow integration tests now (EXP-0010, EXP-0014,
+  EXP-0015); `-m 'not slow'` runs **116 passed, 14 deselected**.
+- **LIMITATIONS:** Cohen's d compares aggregate window features and the matched-Normal
+  sample controls for slow drift by window index, not every confounder; the forged
+  pressure value itself is not a feature so any signal here is its second-order effect on
+  frame byte entropy and window frame mix; one testbed; egress-only.
+- **STATUS — NMRI / CMRI:** diagnosed, **not fixed**. Both are response-side (no diode
+  caveat) and both are feature blindness: the EXP-0004 detector's real detection of the
+  forgery is `1.12 %` (NMRI) / `2.34 %` (CMRI); the per-category-table `9.6 % / 12.8 %`
+  is the rule layer catching co-occurring MFCI/Recon frames, not response injection.
+  NMRI has an obvious cheap fix (decoded-value bound check); CMRI needs decoded-value
+  dynamics features + a supervised model. This completes the per-category gap review
+  (DoS, MSCI, MPCI, NMRI, CMRI). No fix built or scheduled. **No commit or push
+  performed** pending explicit go-ahead.
