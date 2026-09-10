@@ -57,7 +57,7 @@ Full detail: `docs/07_SYSTEM_ARCHITECTURE.md`.
 
 ## Current Status
 
-**Core dataset ML pipeline implemented and tested; application layers remain planned.**
+**VALIDATED: EXP-0017 offline detector. IMPLEMENTED: saved-evaluation dashboard.**
 
 - Dataset: verified and hash-recorded. `data/raw/IanArffDataset.arff` and the current
   `data/raw/gas_pipeline_raw.txt` each contain 274,628 row-aligned records. BLOCKER 1
@@ -65,14 +65,21 @@ Full detail: `docs/07_SYSTEM_ARCHITECTURE.md`.
   resolved; see `docs/00-dataset-provenance.md`.
 - **Integrity correction (2026-09-08):** EXP-0001, EXP-0002, EXP-0003, and DIAG-0001
   were run on a fabricated TXT artifact and are retracted. Do not cite their figures.
-- **EXP-0004** rebaselines the detector on verified TXT sha256 `ce2d69e3…93e3`:
-  46,736 windows; combined rule-or-IF TEST precision 0.954, recall 0.165, F1 0.281,
-  FPR 0.0075. Per-category results and limitations are in `docs/EXPERIMENT_LOG.md`.
-  Full tests: 19 passed on the recorded environment.
-- Implemented: TXT parsing, egress filtering, five-second window features, deterministic
-  protocol rule, Isolation Forest, validation-only thresholding, explanations, and
-  evaluation tests. PCAP ingestion, reusable model artifacts/inference, API, database,
-  and dashboard remain planned.
+- **VALIDATED - EXP-0017 is the primary benchmark.** Permanent protocol-rule OR
+  PressureBoundsRule OR Isolation Forest: TEST TN=4767, FP=40, FN=2166, TP=2374;
+  precision 98.3430%, recall 52.2907%, F1 68.2773%, Normal FPR 0.8321%.
+  [Actual per-category results and identities](docs/EXP0017_RESULTS.md).
+  **EXP-0004: superseded by EXP-0017, retained for historical comparison** in the
+  original experiment logs; its historical results are not rewritten.
+- **IMPLEMENTED - pressure-data limitation:** the rule uses ARFF pressure values
+  row-aligned to TXT canonical 0x03 responses, **NOT live packet-byte decoding**.
+  Register map/scale is undocumented. Bounds [0.482759, 38.7471] are empirical
+  TRAIN-normal extrema. This is an offline simulated data-diode view of one testbed.
+- **IMPLEMENTED:** TXT parsing, egress filtering, five-second window features,
+  protocol and pressure rules, Isolation Forest, validation-only thresholding,
+  explanations, and Streamlit saved-evaluation dashboard. Dashboard/test reloads
+  do not rescore TEST. **PLANNED:** PCAP pressure decoding, reusable trained-model
+  inference service, API and database.
 - BLOCKER 4 (licence) remains mitigated but requires team verification before public
   release.
 

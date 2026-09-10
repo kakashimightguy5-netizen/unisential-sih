@@ -1,4 +1,4 @@
-"""Feature-deviation explanations for synthetic and real EXP-0004 alerts."""
+"""Feature-deviation explanations for synthetic and real EXP-0017 alerts."""
 from types import SimpleNamespace
 
 import numpy as np
@@ -114,11 +114,11 @@ def test_test_index_is_validated():
         explain_alert(result, 0.0)
 
 
-def test_real_exp0004_test_alerts_are_all_explained(detector_result):
+def test_real_exp0017_test_alerts_are_all_explained(detector_result):
     explanations = explain_flagged_alerts(detector_result, top_k=5)
     expected_indices = np.flatnonzero(detector_result.comb_pred)
 
-    assert len(explanations) == 783  # EXP-0004: 747 true positives + 36 false positives
+    assert len(explanations) == 2414  # EXP-0017: 2374 true positives + 40 false positives
     assert len(explanations) == int(detector_result.comb_pred.sum())
     assert [item.test_index for item in explanations] == expected_indices.tolist()
     for item in explanations:

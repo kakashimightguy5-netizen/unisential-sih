@@ -3,8 +3,13 @@
 Covers Tier 1 (MVP) only. Tier 2 tests are added if/when Tier 2 features are built.
 Status legend: `planned` / `implemented` / `tested` / `validated`.
 
-**Status:** T-01 and T-02 are **tested** — `tests/test_detector.py` (full pipeline,
-`slow`) and `tests/test_rules.py` (rule-layer mechanism, fast); green as of EXP-0004.
+**TESTED:** T-01 and T-02 use the single saved EXP-0017 evaluation in
+`tests/test_detector.py`, plus synthetic rule checks in `tests/test_rules.py`.
+EXP-0004 is superseded by EXP-0017, retained for historical comparison.
+The adapted suite passed 147 tests; four historical integration tests replay saved
+summaries, not historical scoring. See [EXP0017_RESULTS.md](EXP0017_RESULTS.md).
+**IMPLEMENTED limitation:** pressure is ARFF-row-aligned, NOT decoded from live
+packet bytes; the register map/scale remains undocumented.
 All other cases (T-03..T-18) remain `planned`.
 
 Each case: **Input · Expected processing · Expected output · Pass/fail condition.**
@@ -40,10 +45,11 @@ Test data lives under `data/processed/test_fixtures/` (small, hand-checked, egre
     meaningful pass condition.
 - **Pass/fail (implemented).** The test asserts the **aggregate false-positive rate
   over all 4,807 held-out normal TEST windows**, at the exact recorded operating
-  point (EXP-0004):
-  - **rule layer: exactly 0 %** — it is a membership test, no score, no threshold.
-  - **IF / combined: 0.749 %**, below the 1 % validation-normal target on this TEST
-    block; the test retains a 5 % operating ceiling and pins the exact value.
+  point (EXP-0017, VALIDATED):
+  - **protocol rule: 0 / 4,807**; pressure rule: **4 / 4,807**.
+  - **IF: 36 / 4,807; combined: 40 / 4,807 (0.8321 %)**. The IF uses a
+    VALIDATION-normal 1 % target; the rule has no calibrated FPR target. The test
+    retains the existing 5 % operating ceiling and pins the exact observed value.
 
 ### T-02 · PROTOCOL anomaly (TS-1)  — *tested* (`tests/test_rules.py`, `tests/test_detector.py`)
 - **Input:** real MFCI and Reconnaissance TEST windows (which carry Modbus function
@@ -51,15 +57,17 @@ Test data lives under `data/processed/test_fixtures/` (small, hand-checked, egre
   unit test.
 - **Expected processing:** the **deterministic rule layer** (`ml/rules.py`) fires on
   any window containing a function code outside the learned valid set or a novel
-  address, independent of the IF (EXP-0004).
+  address, independent of the IF (unchanged protocol component in EXP-0017).
 - **Expected output:** alerts on the affected windows; the reason is the rule hit
   (`invalid_function_code=0x..` / `novel_address=..`).
 - **Pass/fail (implemented):**
   - unit: profile frozen from train-normal; fires on out-of-profile code / novel
     address; silent on in-profile traffic; both reasons reported when both anomalous.
-  - full pipeline: rule layer flags **100 %** of MFCI TEST windows and **100 %** of
+  - saved pipeline output: protocol rule flags **100 %** of MFCI TEST windows and **100 %** of
     Recon TEST windows, every reason contains `invalid_function_code=`, and it fires
-    on **0 / 4,807** Normal TEST windows. Matches EXP-0004.
+    on **0 / 4,807** Normal TEST windows. EXP-0017 preserves this protocol behavior;
+    its additional pressure rule flags four Normal windows with observed-value and
+    TRAIN-normal-bound explanations.
 - **Not yet covered:** the shifted-but-valid function-code *mix* path
   (`function_code_dist_divergence` via the IF) — no fixture for it yet.
 

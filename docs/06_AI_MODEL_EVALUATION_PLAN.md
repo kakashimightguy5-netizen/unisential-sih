@@ -1,5 +1,14 @@
 # 06 — AI Model & Evaluation Plan
 
+> **VALIDATED current baseline: EXP-0017. EXP-0004 is superseded by EXP-0017,
+> retained for historical comparison.** EXP-0004 measurements and interpretations
+> below describe the historical protocol-rule OR IF detector. The current detector
+> permanently adds PressureBoundsRule; actual confusion is TN=4767, FP=40,
+> FN=2166, TP=2374 (recall 52.2907%, precision 98.3430%, Normal FPR 0.8321%).
+> See [EXP0017_RESULTS.md](EXP0017_RESULTS.md) for all measured categories.
+> **Pressure is ARFF-row-aligned, NOT live packet-byte decoding; register map/scale
+> is undocumented and bounds are empirical TRAIN-normal extrema.**
+
 Every quantitative result in this document comes from the recorded EXP-0004 entry in
 `EXPERIMENT_LOG.md`. Status legend: `planned` / `implemented` / `tested` / `validated`;
 the core dataset detector is tested, while application-layer work remains planned.

@@ -15,25 +15,25 @@ if str(ML_DIR) not in sys.path:
 
 from explain import explain_alert
 from features_windowed import CATEGORY_NAMES
-from iforest_detector import run_detector
+from exp0017_operational import load_payload, load_result
 
 CAVEAT = (
-    "Recall is category-dependent: protocol-violation attacks are well detected, "
-    "value-manipulation attacks are weakly detected, and DoS is structurally "
-    "invisible on egress by design."
+    "EXP-0017: protocol rules OR PressureBoundsRule OR Isolation Forest. "
+    "Pressure uses ARFF 'pressure measurement' row-aligned to TXT 0x03 responses, "
+    "NOT live packet-byte decoding. Register map/scale remains undocumented. "
+    "Bounds are empirical TRAIN-normal extrema. This is an offline simulated "
+    "data-diode view of one testbed; recall remains category-dependent."
 )
 
 
-@st.cache_resource(show_spinner="Running the validated EXP-0004 detector…")
+@st.cache_resource(show_spinner="Loading saved EXP-0017 evaluation…")
 def load_detector():
-    return run_detector()
+    return load_result()
 
 
 @st.cache_data
 def count_dataset_rows() -> int:
-    path = ROOT / "data" / "raw" / "gas_pipeline_raw.txt"
-    with path.open("r", encoding="utf-8") as source:
-        return sum(1 for _ in source)
+    return load_payload()["identity"]["raw_row_count"]
 
 
 def utc_timestamp(epoch: float) -> str:
@@ -63,12 +63,17 @@ def metric_row(result, name: str, predictions: np.ndarray) -> dict:
     }
 
 
-st.set_page_config(page_title="SIH26145 — EXP-0004 Detector", layout="wide")
-st.title("SIH26145 — EXP-0004 Egress Anomaly Detector")
+st.set_page_config(page_title="SIH26145 — EXP-0017 Detector", layout="wide")
+st.title("SIH26145 — EXP-0017 Egress Anomaly Detector")
 st.caption("Single-page demo • 5-second windows • frozen TRAIN-normal baseline")
 st.info(CAVEAT)
+st.caption("EXP-0004 superseded by EXP-0017, retained for historical comparison.")
 
-result = load_detector()
+try:
+    result = load_detector()
+except (OSError, ValueError, KeyError) as exc:
+    st.error(f"Approved EXP-0017 output unavailable or invalid: {exc}")
+    st.stop()
 combined = result.metrics(result.comb_pred)
 
 st.header("1. Validated dataset and headline results")
@@ -162,12 +167,13 @@ st.caption(
 st.header("4. Naive baseline vs. combined detector")
 comparison = pd.DataFrame([
     metric_row(result, "Stage 0 naive baseline", result.base_pred),
-    metric_row(result, "Combined rule OR IF", result.comb_pred),
+    metric_row(result, "Protocol OR pressure OR IF", result.comb_pred),
 ])
 formatted = comparison.copy()
 for column in ("Precision", "Recall", "F1", "FPR"):
     formatted[column] = formatted[column].map("{:.3%}".format)
 st.dataframe(formatted, width="stretch", hide_index=True)
 st.caption(
-    "All metrics and confusion counts above are recomputed from the current EXP-0004 TEST run."
+    "VALIDATED EXP-0017 evaluation: metrics are calculated from saved predictions. "
+    "Dashboard loads do not score TEST."
 )

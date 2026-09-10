@@ -893,3 +893,40 @@ Format: **DATE · DECISION · OPTIONS CONSIDERED · WHY CHOSEN · IMPACT**
 - **Impact:** noted in `02_REQUIREMENTS_SPEC.md` FR-9, `07_SYSTEM_ARCHITECTURE.md`,
   `10_DEMO_SUCCESS_CRITERIA.md`, `00_PROJECT_CHARTER.md` (MVP delivery surface), and
   `README.md`.
+# 2026-09-10 — EXP-0017 baseline supersession — PLANNED
+
+Human-approved decision: permanently include PressureBoundsRule in the operational
+detector and supersede EXP-0004 as the headline baseline. EXP-0004 is superseded by
+EXP-0017, retained for historical comparison; do not delete or rewrite its results.
+The EXP-0017 benchmark is PLANNED until the pre-registered single guarded evaluation
+passes (method and exact decision criteria: EXPERIMENT_LOG.md, EXP-0017).
+
+Pressure comes from ARFF row alignment to canonical TXT 0x03 responses, NOT live
+packet-byte decoding. TRAIN-normal min/max is empirical, not a physical safety
+specification. Preserve this limitation prominently in the dashboard and overview.
+Use only the versioned, checksummed EXP-0008 pretest manifest for split boundaries.
+User authorized saved historical-output regression in place of historical reruns
+and one shared guarded EXP-0017 output for tests/dashboard. Missing historical
+arrays mean explicitly skipped pre-change tests, not fabricated before counts.
+No protected experiment or Layer A files are modified. Dashboard diff must be shown
+before application. No commit, push, or repeat TEST scoring is authorized.
+
+## 2026-09-10 - EXP-0017 supersession completed - VALIDATED
+
+The single authorized operational evaluation passed all seven pre-registered
+identity gates: TN=4767, FP=40, FN=2166, TP=2374; recall 52.2907%, precision
+98.3430%, Normal FPR 0.8321%. EXP-0017 is the primary benchmark; EXP-0004 is
+superseded by EXP-0017, retained for historical comparison without rewriting its
+original results. Full actual category results: [EXP0017_RESULTS.md](EXP0017_RESULTS.md).
+
+**TESTED:** adapted before suite 126 passed / 12 skipped; after suite 147 passed /
+0 skipped. Four historical integration tests replay saved summaries; no historical
+scoring was repeated. The initial before run's two filesystem setup errors and its
+retry are disclosed in EXPERIMENT_LOG.md. The dashboard loads saved results and
+displays pressure explanations and the prominent ARFF-row-alignment limitation.
+Its exact proposed diff was shown before application. Pressure is NOT decoded from
+live packet bytes. No protected experiment or Layer A files were modified.
+
+The saved evaluation and consumed-attempt ledger remain local, currently ignored
+under `data/`; include them explicitly when a future commit/package is approved.
+No commit or push is authorized or performed by this decision record.

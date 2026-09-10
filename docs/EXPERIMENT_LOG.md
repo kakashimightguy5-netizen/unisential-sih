@@ -13,8 +13,9 @@
 > `data/raw/gas_pipeline_raw.txt` (sha256 `ce2d69e3…93e3`, 274,628 rows), which is
 > confirmed row-for-row aligned to `IanArffDataset.arff`.
 
-Every model run, split, audit, and benchmark gets an entry here. EXP-0004 is the
-current verified-dataset result. Retracted entries remain below only as an audit trail.
+Every model run, split, audit, and benchmark gets an entry here. EXP-0017 is the
+VALIDATED current baseline. EXP-0004 is superseded by EXP-0017, retained for historical
+comparison. Retracted entries remain below only as an audit trail.
 
 Entry template:
 
@@ -2652,3 +2653,106 @@ to conceal or replace it.
   Wiring it into `run_detector` would improve EXP-0004's whole-block attack recall
   `16.5 % → 52.3 %` for `+4` false positives — a baseline update flagged for a separate
   decision. **No commit or push performed** pending explicit go-ahead.
+# EXP-0017 — PLANNED baseline supersession (2026-09-10)
+
+Pre-registration written before EXP-0017 execution. Human authorization: wire the
+pressure rule permanently; one guarded TEST evaluation; reuse saved historical
+outputs in the test harness; no commit or push. EXP-0004 is superseded by EXP-0017
+as the operational baseline; its original results remain historical comparison,
+unaltered. The new benchmark remains PLANNED until the evaluation succeeds.
+
+Exact method: preserve the EXP-0004 IF features, seed 0, 300 trees, TRAIN-normal
+standardization and VALIDATION-normal 99th-percentile threshold. Add
+PressureBoundsRule permanently to the deterministic-rule OR IF verdict, fitting
+finite canonical 0x03 ARFF-row-aligned pressure on TRAIN-normal only using min/max.
+Pressure is NOT decoded from live packet bytes; the register map/scale remains
+undocumented. This is an offline simulated data-diode view of one testbed.
+
+All memberships use the checksummed manifest
+`ml/splits/verified_egress_5s_exp0008_pretest_v1.json`, split ID
+`verified-egress-5s-exp0008-pretest-v1`. TRAIN and VALIDATION use exact manifest
+bucket IDs; TEST uses eligible buckets after the final manifest VALIDATION bucket,
+excluding the first two eligible guard buckets, as in the existing guarded path.
+Never derive split fractions from total capture length. Verify raw TXT and ARFF
+identity and row alignment. No feature, threshold, bound, or model selection on TEST.
+
+Decision rule fixed in advance: success requires threshold exactly
+0.6745465823488428; TRAIN-normal pressure bounds [0.482759, 38.7471] (the
+user's 0.4828 lower bound is rounded; exact value read from the saved EXP-0016
+artifact before EXP-0017 execution); old-rule OR IF
+confusion exactly (4771,36,3793,747) and new operational confusion exactly
+(4767,40,2166,2374), in TN/FP/FN/TP order; element-wise new verdict equals old-rule
+OR IF OR pressure; all pressure hits have bound explanations. Report dominant
+category totals/flags for Normal, MFCI, Recon, NMRI, CMRI, MSCI, MPCI and DoS,
+plus pure and containing cohorts for comparison with EXP-0016. These are expected
+identity criteria from the user's frozen specification, NOT new observed results.
+Failure of any gate is reported without tuning or rescoring TEST.
+
+Execution discipline: first install a saved-output-only historical test adapter and
+run the pre-change suite; historical detector-array tests without saved arrays must
+be explicitly skipped rather than scored or claimed passed. Preserve exact observed
+passed/skipped/failed counts. Run synthetic/pretest checks before TEST. Extend the
+existing exact-confirmation gated TEST pattern for EXP-0017 with an exclusive
+attempt ledger; even a failed attempt consumes authorization. Persist the single
+evaluation's arrays, windows, reasons, identities and category results as JSON with
+checksum (no pickle, weights, or raw capture). Subsequent regression tests and
+dashboard loads only read that saved result. Historical result replay is artifact
+regression, not rerun validation. Run the entire adapted suite after integration,
+reporting the exact counts and replay/skip limitations. Do not modify protected
+EXP-0005 through EXP-0013 or Layer A files. Show the exact proposed app.py diff
+before editing it; show full final diff and actual output before any commit.
+
+## EXP-0017 execution outcome - VALIDATED (2026-09-10)
+
+- **IMPLEMENTED:** PressureBoundsRule is permanently OR-ed into `run_detector()`;
+  combined rule hits preserve both protocol and pressure explanations. The default
+  entry point rejects unconfirmed scoring. An exclusive attempt ledger protects
+  the one authorized TEST evaluation; pytest and Streamlit load its saved JSON.
+- **VALIDATED:** one guarded evaluation started at `2026-09-10T15:21:05.683317+00:00`.
+  Actual TEST TN=4767, FP=40, FN=2166, TP=2374. Precision
+  `0.9834299917149959`; recall `0.5229074889867842`; F1 `0.6827725050330745`;
+  Normal FPR `0.008321198252548368`. Threshold `0.6745465823488428`;
+  TRAIN-normal pressure extrema `[0.482759, 38.7471]`.
+- **VALIDATED:** all seven fixed identity checks passed, including saved EXP-0016
+  cohort comparison. Historical protocol OR IF component predictions from this same
+  evaluation reproduce TN=4771, FP=36, FN=3793, TP=747; no second scoring run.
+  No historical saved IF vector exists for an independent element-wise old/new
+  comparison. The new three-way OR composition is checked element-wise.
+
+| Dominant category | Windows | Operational flags | Rate |
+|---|---:|---:|---:|
+| Normal | 4807 | 40 | 0.832120% FPR |
+| MFCI | 227 | 227 | 100% |
+| Recon | 169 | 169 | 100% |
+| NMRI | 1131 | 866 | 76.569408% |
+| CMRI | 1812 | 1089 | 60.099338% |
+| MSCI | 324 | 15 | 4.629630% |
+| MPCI | 741 | 8 | 1.079622% |
+| DoS | 136 | 0 | 0% |
+
+- **TESTED execution record:** first adapted pre-change attempt: **124 passed,
+  12 skipped, 2 setup errors**, due to pytest temporary-directory permissions;
+  authorized environment retry: **126 passed, 12 skipped**. No historical TEST
+  scoring occurred. Twelve tests lacked saved detector arrays; four passing tests
+  replayed historical JSON. These counts do not claim a fresh 138-test baseline.
+- **TESTED before real scoring:** first synthetic guard/storage/split check run:
+  **5 passed, 3 skipped**; after adding the synthetic pipeline leakage check:
+  **6 passed, 3 skipped**. Synthetic TEST-tail changes did not alter the fitted
+  standardizer, pressure bounds, or threshold. All skipped cases awaited the saved
+  real evaluation.
+- **TESTED after integration:** full adapted suite **147 passed, 0 skipped,
+  0 failed**, in 20.32 seconds. The 12 previously skipped tests now use saved
+  arrays; 9 EXP-0017 tests were added. Four historical tests remain saved-summary
+  regression, not experimental reruns. Streamlit and all 2,414 alert explanations
+  passed with raw capture access blocked by the test harness. See the XML execution
+  records and [EXP0017_RESULTS.md](EXP0017_RESULTS.md).
+- **VALIDATED supersession:** EXP-0017 is now the headline benchmark. EXP-0004 is
+  superseded by EXP-0017, retained for historical comparison. Original historical
+  results and protected EXP-0005 through EXP-0013 / Layer A files are unchanged.
+- **IMPLEMENTED limitation:** pressure is ARFF-row-aligned, NOT live packet-byte
+  decoding. Register map/scale is undocumented; bounds are empirical; one testbed
+  and a simulated data-diode view. Pure/dominant DoS still has zero flags; mixed
+  containing cohorts are not evidence of detecting their named attack.
+- Full measured cohorts, raw/source identities, and local saved-artifact links:
+  [EXP0017_RESULTS.md](EXP0017_RESULTS.md), [exp0017_results.json](exp0017_results.json).
+  No commit, staging, or push performed.

@@ -1,5 +1,14 @@
 # 05 — Feature Engineering Specification
 
+**VALIDATED current baseline: EXP-0017.** EXP-0004 is superseded by EXP-0017,
+retained for historical comparison. The IF feature set is unchanged. A permanent
+PressureBoundsRule now joins the protocol rules outside the IF: flag a window's
+finite canonical 0x03 pressure minimum below 0.482759 or maximum above 38.7471.
+These are observed TRAIN-normal extrema, not physical process limits.
+**Pressure is ARFF-row-aligned to TXT responses, NOT live packet-byte decoding;
+the register map/scale remains undocumented.** This additional data requirement is
+mandatory for the current offline evaluation. See [EXP0017_RESULTS.md](EXP0017_RESULTS.md).
+
 Scope tiers match `00_PROJECT_CHARTER.md` / `02_REQUIREMENTS_SPEC.md`:
 **Tier 1** implement (MVP), **Tier 2** stretch (only if Tier 1 validated early),
 **Tier 3** document only — **do not implement in the MVP**.

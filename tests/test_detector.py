@@ -1,33 +1,29 @@
-"""T-01 / T-02 (full pipeline) + EXP-0004 exact-reproduction regression tests.
+"""T-01 / T-02 (full pipeline) + EXP-0017 exact-reproduction regression tests.
 
-These tests run the real detector once per session on the verified 274,628-row TXT
-(sha256 ce2d69e3…93e3), yielding 46,736 windows. The exact constants below were
-rebaselined from EXP-0004; EXP-0001/0002 constants are retracted.
-
-The detector is deterministic for a fixed seed. Exact assertions intentionally flag
-library drift for deliberate review. Reference environment for EXP-0004: Python 3.12.10,
-numpy 2.5.3, scikit-learn 1.9.0, scipy 1.18.1.
+These tests read the single guarded EXP-0017 saved evaluation. They never rescore
+TEST. Exact regression criteria were fixed before the evaluation from the approved
+EXP-0016 prediction. Source and artifact checksums detect drift without reruns.
 """
 import numpy as np
 import pytest
 
 pytestmark = pytest.mark.slow
 
-# --- exact full-precision outputs of EXP-0004 -------------------------------
+# --- exact full-precision outputs of EXP-0017 -------------------------------
 THRESHOLD = 0.6745465823488428
 COMBINED = dict(
-    precision=0.9540229885057471,
-    recall=0.1645374449339207,
-    f1=0.2806687957918467,
-    fpr=0.00748907842729353,
+    precision=2374 / 2414,
+    recall=2374 / 4540,
+    f1=4748 / 6954,
+    fpr=40 / 4807,
 )
-CONFUSION = dict(tn=4771, fp=36, fn=3793, tp=747)            # rule ∨ IF, TEST
-IF_ONLY_NORMAL_FPR = 0.00748907842729353                     # rule adds 0 → same as combined
+CONFUSION = dict(tn=4767, fp=40, fn=2166, tp=2374)            # rule ∨ IF, TEST
+IF_ONLY_NORMAL_FPR = 0.00748907842729353                     # IF unchanged; pressure adds four Normal flags
 PER_CATEGORY_COMBINED = {
-    "Normal": 36 / 4807,
-    "NMRI":   109 / 1131,
-    "CMRI":   232 / 1812,
-    "MSCI":   2 / 324,
+    "Normal": 40 / 4807,
+    "NMRI":   866 / 1131,
+    "CMRI":   1089 / 1812,
+    "MSCI":   15 / 324,
     "MPCI":   8 / 741,
     "MFCI":   1.0,
     "DoS":    0.0,
@@ -66,12 +62,13 @@ def test_t01_normal_traffic_not_mass_flagged(detector_result):
 
     So this test asserts the aggregate FPR over ALL 4,807 held-out normal TEST
     windows, at the exact recorded operating point:
-      - rule layer: exactly 0 (membership test, no score involved)
-      - IF / combined: ~0.75%, below the 1% validation-normal target on this TEST block.
+      - protocol layer: 0; full rule layer: 4/4807 (pressure bounds)
+      - IF: ~0.75%; combined: ~0.83%, below the 1% validation-normal target on this TEST block.
     """
     R = detector_result
     normal = R.cat_test == 0
-    assert R.rule_pred[normal].mean() == 0.0
+    assert R.protocol_pred[normal].mean() == 0.0
+    assert R.rule_pred[normal].mean() == 4 / 4807
     assert R.if_pred[normal].mean() == IF_ONLY_NORMAL_FPR
     assert R.comb_pred[normal].mean() == COMBINED["fpr"]
     assert R.comb_pred[normal].mean() <= 0.05          # operating-target ceiling
@@ -97,12 +94,12 @@ def test_t02_rule_layer_catches_all_protocol_attacks(detector_result, category):
         assert any(r.startswith("invalid_function_code=") for r in hit.reasons), hit.reasons
 
 
-def test_t02_rule_layer_silent_on_normal(detector_result):
-    """T-02 corollary: the rule fires on 0 of the 4,807 Normal TEST windows —
-    it adds no false positives to the combined detector."""
+def test_t02_protocol_silent_pressure_adds_four_normal_flags(detector_result):
+    """Protocol rule stays silent; pressure contributes four Normal flags."""
     R = detector_result
     normal = R.cat_test == 0
-    assert int(R.rule_pred[normal].sum()) == 0
+    assert int(R.protocol_pred[normal].sum()) == 0
+    assert int(R.rule_pred[normal].sum()) == 4
     assert int(normal.sum()) == 4_807
 
 
@@ -113,14 +110,15 @@ def test_t02_reasons_are_hex_function_codes(detector_result):
     for h in fired:
         for r in h.reasons:
             kind, _, val = r.partition("=")
-            assert kind in {"invalid_function_code", "novel_address"}
+            assert kind in {"invalid_function_code", "novel_address",
+                            "pressure_below_train_normal_min", "pressure_above_train_normal_max"}
             if kind == "invalid_function_code":
                 assert all(tok.startswith("0x") for tok in val.split(","))
 
 
-# ---------------------------------------------------------------- EXP-0004 exact reproduction
+# ---------------------------------------------------------------- EXP-0017 exact reproduction
 
-def test_combined_detector_reproduces_exp0004_exactly(detector_result):
+def test_combined_detector_reproduces_exp0017_exactly(detector_result):
     """Regression baseline. See module docstring for what a failure here means."""
     m = detector_result.metrics(detector_result.comb_pred)
     assert m["p"] == COMBINED["precision"]
@@ -129,23 +127,22 @@ def test_combined_detector_reproduces_exp0004_exactly(detector_result):
     assert m["fpr"] == COMBINED["fpr"]
 
 
-def test_combined_confusion_matrix_matches_exp0004_exactly(detector_result):
+def test_combined_confusion_matrix_matches_exp0017_exactly(detector_result):
     m = detector_result.metrics(detector_result.comb_pred)
     assert (m["tn"], m["fp"], m["fn"], m["tp"]) == (
         CONFUSION["tn"], CONFUSION["fp"], CONFUSION["fn"], CONFUSION["tp"])
 
 
-def test_per_category_flag_rates_match_exp0004_exactly(detector_result):
+def test_per_category_flag_rates_match_exp0017_exactly(detector_result):
     R = detector_result
     for name, expected in PER_CATEGORY_COMBINED.items():
         assert R.category_flag_rate(name) == expected, name
 
 
-def test_detector_is_deterministic(detector_result):
-    """Fixed seed → a fresh run reproduces the session run bit-for-bit. This is
-    what lets the reproduction tests above use `==` instead of tolerance."""
-    from iforest_detector import run_detector
-    fresh = run_detector()
-    for name in ("base_pred", "rule_pred", "if_pred", "comb_pred"):
+def test_saved_detector_roundtrip_preserves_arrays(detector_result):
+    """Artifact replay identity, not a second model execution."""
+    from exp0017_operational import load_result
+    fresh = load_result()
+    for name in ("base_pred", "rule_pred", "protocol_pred", "pressure_pred", "if_pred", "comb_pred", "if_scores"):
         assert np.array_equal(getattr(fresh, name), getattr(detector_result, name)), name
     assert fresh.threshold == detector_result.threshold

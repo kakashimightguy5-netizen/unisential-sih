@@ -1,0 +1,282 @@
+{
+  "schema_version": 1,
+  "summary": {
+    "status": "VALIDATED",
+    "experiment": "EXP-0017",
+    "checks": {
+      "threshold": true,
+      "pressure_bounds": true,
+      "historical_confusion": true,
+      "operational_confusion": true,
+      "elementwise_composition": true,
+      "pressure_explanations": true,
+      "exp0016_cohort_identity": true
+    },
+    "metrics": {
+      "p": 0.9834299917149959,
+      "r": 0.5229074889867842,
+      "f1": 0.6827725050330745,
+      "fpr": 0.008321198252548368,
+      "tn": 4767,
+      "fp": 40,
+      "fn": 2166,
+      "tp": 2374
+    },
+    "historical_metrics": {
+      "p": 0.9540229885057471,
+      "r": 0.1645374449339207,
+      "f1": 0.2806687957918467,
+      "fpr": 0.00748907842729353,
+      "tn": 4771,
+      "fp": 36,
+      "fn": 3793,
+      "tp": 747
+    },
+    "per_category": [
+      {
+        "category": "Normal",
+        "cohort": "dominant",
+        "n": 4807,
+        "flagged": 40,
+        "rate": 0.008321198252548368,
+        "protocol_flags": 0,
+        "if_flags": 36,
+        "pressure_flags": 4
+      },
+      {
+        "category": "NMRI",
+        "cohort": "dominant",
+        "n": 1131,
+        "flagged": 866,
+        "rate": 0.7656940760389036,
+        "protocol_flags": 93,
+        "if_flags": 85,
+        "pressure_flags": 853
+      },
+      {
+        "category": "NMRI",
+        "cohort": "pure",
+        "n": 715,
+        "flagged": 565,
+        "rate": 0.7902097902097902,
+        "protocol_flags": 0,
+        "if_flags": 8,
+        "pressure_flags": 565
+      },
+      {
+        "category": "NMRI",
+        "cohort": "containing",
+        "n": 1131,
+        "flagged": 866,
+        "rate": 0.7656940760389036,
+        "protocol_flags": 93,
+        "if_flags": 85,
+        "pressure_flags": 853
+      },
+      {
+        "category": "CMRI",
+        "cohort": "dominant",
+        "n": 1812,
+        "flagged": 1089,
+        "rate": 0.6009933774834437,
+        "protocol_flags": 201,
+        "if_flags": 137,
+        "pressure_flags": 968
+      },
+      {
+        "category": "CMRI",
+        "cohort": "pure",
+        "n": 1198,
+        "flagged": 654,
+        "rate": 0.5459098497495827,
+        "protocol_flags": 0,
+        "if_flags": 28,
+        "pressure_flags": 643
+      },
+      {
+        "category": "CMRI",
+        "cohort": "containing",
+        "n": 1826,
+        "flagged": 1099,
+        "rate": 0.6018619934282585,
+        "protocol_flags": 201,
+        "if_flags": 137,
+        "pressure_flags": 978
+      },
+      {
+        "category": "MSCI",
+        "cohort": "dominant",
+        "n": 324,
+        "flagged": 15,
+        "rate": 0.046296296296296294,
+        "protocol_flags": 0,
+        "if_flags": 2,
+        "pressure_flags": 13
+      },
+      {
+        "category": "MSCI",
+        "cohort": "pure",
+        "n": 322,
+        "flagged": 15,
+        "rate": 0.046583850931677016,
+        "protocol_flags": 0,
+        "if_flags": 2,
+        "pressure_flags": 13
+      },
+      {
+        "category": "MSCI",
+        "cohort": "containing",
+        "n": 462,
+        "flagged": 81,
+        "rate": 0.17532467532467533,
+        "protocol_flags": 0,
+        "if_flags": 2,
+        "pressure_flags": 79
+      },
+      {
+        "category": "MPCI",
+        "cohort": "dominant",
+        "n": 741,
+        "flagged": 8,
+        "rate": 0.010796221322537112,
+        "protocol_flags": 1,
+        "if_flags": 7,
+        "pressure_flags": 0
+      },
+      {
+        "category": "MPCI",
+        "cohort": "pure",
+        "n": 739,
+        "flagged": 7,
+        "rate": 0.009472259810554804,
+        "protocol_flags": 0,
+        "if_flags": 7,
+        "pressure_flags": 0
+      },
+      {
+        "category": "MPCI",
+        "cohort": "containing",
+        "n": 1280,
+        "flagged": 345,
+        "rate": 0.26953125,
+        "protocol_flags": 2,
+        "if_flags": 18,
+        "pressure_flags": 330
+      },
+      {
+        "category": "MFCI",
+        "cohort": "dominant",
+        "n": 227,
+        "flagged": 227,
+        "rate": 1.0,
+        "protocol_flags": 227,
+        "if_flags": 156,
+        "pressure_flags": 0
+      },
+      {
+        "category": "MFCI",
+        "cohort": "pure",
+        "n": 227,
+        "flagged": 227,
+        "rate": 1.0,
+        "protocol_flags": 227,
+        "if_flags": 156,
+        "pressure_flags": 0
+      },
+      {
+        "category": "MFCI",
+        "cohort": "containing",
+        "n": 446,
+        "flagged": 446,
+        "rate": 1.0,
+        "protocol_flags": 446,
+        "if_flags": 289,
+        "pressure_flags": 141
+      },
+      {
+        "category": "DoS",
+        "cohort": "dominant",
+        "n": 136,
+        "flagged": 0,
+        "rate": 0.0,
+        "protocol_flags": 0,
+        "if_flags": 0,
+        "pressure_flags": 0
+      },
+      {
+        "category": "DoS",
+        "cohort": "pure",
+        "n": 136,
+        "flagged": 0,
+        "rate": 0.0,
+        "protocol_flags": 0,
+        "if_flags": 0,
+        "pressure_flags": 0
+      },
+      {
+        "category": "DoS",
+        "cohort": "containing",
+        "n": 193,
+        "flagged": 36,
+        "rate": 0.18652849740932642,
+        "protocol_flags": 0,
+        "if_flags": 0,
+        "pressure_flags": 36
+      },
+      {
+        "category": "Recon",
+        "cohort": "dominant",
+        "n": 169,
+        "flagged": 169,
+        "rate": 1.0,
+        "protocol_flags": 169,
+        "if_flags": 109,
+        "pressure_flags": 0
+      },
+      {
+        "category": "Recon",
+        "cohort": "pure",
+        "n": 169,
+        "flagged": 169,
+        "rate": 1.0,
+        "protocol_flags": 169,
+        "if_flags": 109,
+        "pressure_flags": 0
+      },
+      {
+        "category": "Recon",
+        "cohort": "containing",
+        "n": 245,
+        "flagged": 245,
+        "rate": 1.0,
+        "protocol_flags": 245,
+        "if_flags": 151,
+        "pressure_flags": 36
+      }
+    ],
+    "limitation": "Pressure uses ARFF 'pressure measurement' row-aligned to TXT canonical 0x03 responses, NOT live packet-byte decoding. Register map/scale is undocumented; bounds are empirical TRAIN-normal extrema. Offline simulated data-diode view; one testbed."
+  },
+  "identity": {
+    "raw_txt_sha256": "ce2d69e3ada867b498a1db4560d609c35d23667f4f5cf2dea57ddd63fe7d93e3",
+    "raw_arff_sha256": "970a7bcd3949d09ac7baff11603538b142f214ee47ed70baf9efb3344f4af459",
+    "raw_row_count": 274628,
+    "source_sha256": {
+      "ml/iforest_detector.py": "62870cb69ea7a61a2ab193699f93a83a473483bf7cabebefcc4217a9de227a69",
+      "ml/exp0017_operational.py": "cf9d5673d53b3597a5f99883f3a5c4f9ea55e760bcb6cee905cadf0a56668e3a",
+      "ml/rules.py": "ea1261f87557a0fa873ac95ede4276d7f7f8dfeaeee2e497f5dc4c4717a4a024",
+      "ml/features_windowed.py": "5d6b0b140e717e2ddf57d81df101b9d60ea47e29d153315a7b878e1818c583c8",
+      "ml/features_txt.py": "9248581f24903b8cd60454afffd84f4b381c5ca291cc034b4e41fb0ab7bbfeb1",
+      "ml/exp0016_pressure_bounds_rule.py": "3467694f6cd66d7607a676d0b25134c2a0860aab9d4b06222848278df2fdc852",
+      "ml/exp0009_payload.py": "3a65b2823008320cb07e4960431736d73ea4258c70edfb8fa2aeff7c3c58c625",
+      "ml/exp0008_cadence_features.py": "edece5ae83630bba0fe058428deb5d71d09058aa7070035a43c12cf106d441e7",
+      "ml/splits/verified_egress_5s_exp0008_pretest_v1.json": "2a67f44acdbf63dfc298da5119aacbbd44a24488646656d28b8f2abd9c209b78",
+      "data/experiments/exp0016_pressure_bounds_rule.json": "e7b0963f7d8757fb2a39f077d2b86df9f9803aad1dd9abff3a24a6e313a21727"
+    },
+    "python": "3.12.10",
+    "packages": {
+      "numpy": "2.5.3",
+      "scipy": "1.18.1",
+      "scikit-learn": "1.9.0"
+    }
+  }
+}
