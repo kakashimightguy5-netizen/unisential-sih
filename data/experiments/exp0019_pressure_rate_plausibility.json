@@ -1,0 +1,296 @@
+{
+  "status": "VALIDATED \u2014 RATE RULE BUILT AND SCORED; run_detector NOT modified",
+  "experiment": "EXP-0019",
+  "hypothesis": "A forged CMRI jump can exceed the physically plausible rate of pressure change (|\u0394p|/\u0394t) given the real elapsed time since the last 0x03 reading, even when the value is inside the EXP-0016 bounds.",
+  "identity_gates": {
+    "exp0017_artifact_loaded_and_verified": true,
+    "comb_equals_protocol_or_pressure_or_if": true,
+    "whole_test_confusion_matches_exp0017": true,
+    "exp0017_confusion": [
+      4767,
+      40,
+      2166,
+      2374
+    ],
+    "run_detector_modified": false
+  },
+  "manifest": {
+    "split_id": "verified-egress-5s-exp0008-pretest-v1",
+    "membership_sha256": "0e912e147d088aaed05e95bda04c6a46c72ed4dd16aafb6966c9e2aab26859e6"
+  },
+  "timing": {
+    "txt_timestamps_monotonic": true,
+    "egress_0x03_samples": 68848,
+    "train_normal_step_rate_pairs": 20803,
+    "note": "consecutive 0x03 \u0394t median ~3.39 s; ~7% of steps are 3-4x cadence gaps (EXP-0007/0008). \u0394t divides |\u0394p| so gap jumps are more plausible."
+  },
+  "pressure_source": "ARFF 'pressure measurement' (data col 13), row-index aligned to the TXT and verified; canonical 0x03 read responses; keeps (timestamp, pressure)",
+  "method": {
+    "feature": "rate_i = |p_i - p_{i-1}| / (t_i - t_{i-1}) over consecutive egress 0x03 responses; \u0394t from real TXT timestamps",
+    "per_window": "rate_w = max step rate over pairs whose later sample is in w; undefined (not flaggable) if w has no such pair",
+    "cutoff_reasoning": "register map/scale undocumented, so no engineering dP/dt limit exists; TRAIN-normal already contains the process's fastest legitimate valve/pump transitions. Bound = TRAIN-normal 99.9th percentile of rate (drops the ~20 most extreme normal steps / 13 sub-cadence pairs; robust and still 'as fast as the process was credibly seen to move'). k\u00b7\u03c3 rejected (EXP-0018: statistic too heavy-tailed for a Gaussian scale).",
+    "train_normal_rate_percentiles": {
+      "p50": 0.003483455022626217,
+      "p90": 0.1686685760912342,
+      "p99": 1.1380301746264647,
+      "p99_9": 2.1217240704612688,
+      "p99_99": 3.5976899140866125,
+      "max": 4.219697857320336
+    },
+    "cutoff_primary_p99_9": 2.1217240704612688,
+    "cutoff_strict_train_normal_max": 4.219697857320336
+  },
+  "evaluation_cohort": "CMRI-labelled TEST windows with EXP-0017 comb_pred == 0 and a defined rate_w; 'new detection' = rate rule fires AND comb_pred == 0",
+  "decision_rule": {
+    "strong": "new pure-CMRI recall >= 25% AND new pure-Normal FP <= 0.30% AND combined precision >= 97.0%",
+    "acceptable": "recall >= 10% AND same bars",
+    "new_pure_cmri_recall": 0.2665441176470588,
+    "new_pure_normal_fp": 45,
+    "new_pure_normal_fp_rate": 0.009361348034116913,
+    "combined_precision": 0.9694516010305484,
+    "verdict": "WEAK / HYPOTHESIS NOT SUPPORTED",
+    "train_normal_max_bound_variant": {
+      "new_pure_cmri_recall": 0.21507352941176472,
+      "new_pure_normal_fp": 21,
+      "new_pure_normal_fp_rate": 0.004368629082587893,
+      "combined_precision": 0.9770817417876242,
+      "verdict": "WEAK / HYPOTHESIS NOT SUPPORTED"
+    }
+  },
+  "signal_test": {
+    "test": "Mann-Whitney U, two-sided; missed pure-CMRI vs pure-Normal rate_w",
+    "u_statistic": 1614883.0,
+    "p_value": 2.070979458111106e-19,
+    "alpha": 0.01,
+    "missed_cmri_rate_higher_than_normal": true,
+    "signal_present_in_hypothesised_direction": true,
+    "rate_distribution": {
+      "missed_pure_cmri": {
+        "n": 544,
+        "median": 0.013890006522860592,
+        "iqr": [
+          0.0022604346132845503,
+          2.9324698244931158
+        ],
+        "min": 0.0,
+        "max": 30.74042123815568
+      },
+      "pure_normal_test": {
+        "n": 4807,
+        "median": 0.006727467560045293,
+        "iqr": [
+          0.003406563826448061,
+          0.010264214008717696
+        ],
+        "min": 0.0,
+        "max": 1.1913768540182776e+37
+      },
+      "train_normal_step_rates": {
+        "n": 20803,
+        "median": 0.003483455022626217,
+        "iqr": [
+          0.003131131264971751,
+          0.009517870317135356
+        ],
+        "min": 0.0,
+        "max": 4.219697857320336
+      }
+    }
+  },
+  "per_cohort_new_detection": [
+    {
+      "cohort": "pure",
+      "cutoff_variant": "p99.9",
+      "cmri_windows": 1198,
+      "exp0017_missed": 544,
+      "missed_with_defined_rate": 544,
+      "missed_rate_undefined": 0,
+      "new_detections": 145,
+      "new_recall": 0.2665441176470588,
+      "new_recall_pct": 26.654
+    },
+    {
+      "cohort": "pure",
+      "cutoff_variant": "train_normal_max",
+      "cmri_windows": 1198,
+      "exp0017_missed": 544,
+      "missed_with_defined_rate": 544,
+      "missed_rate_undefined": 0,
+      "new_detections": 117,
+      "new_recall": 0.21507352941176472,
+      "new_recall_pct": 21.507
+    },
+    {
+      "cohort": "dominant",
+      "cutoff_variant": "p99.9",
+      "cmri_windows": 1812,
+      "exp0017_missed": 723,
+      "missed_with_defined_rate": 723,
+      "missed_rate_undefined": 0,
+      "new_detections": 187,
+      "new_recall": 0.25864453665283543,
+      "new_recall_pct": 25.864
+    },
+    {
+      "cohort": "dominant",
+      "cutoff_variant": "train_normal_max",
+      "cmri_windows": 1812,
+      "exp0017_missed": 723,
+      "missed_with_defined_rate": 723,
+      "missed_rate_undefined": 0,
+      "new_detections": 151,
+      "new_recall": 0.20885200553250347,
+      "new_recall_pct": 20.885
+    },
+    {
+      "cohort": "containing",
+      "cutoff_variant": "p99.9",
+      "cmri_windows": 1826,
+      "exp0017_missed": 727,
+      "missed_with_defined_rate": 727,
+      "missed_rate_undefined": 0,
+      "new_detections": 189,
+      "new_recall": 0.25997248968363135,
+      "new_recall_pct": 25.997
+    },
+    {
+      "cohort": "containing",
+      "cutoff_variant": "train_normal_max",
+      "cmri_windows": 1826,
+      "exp0017_missed": 727,
+      "missed_with_defined_rate": 727,
+      "missed_rate_undefined": 0,
+      "new_detections": 153,
+      "new_recall": 0.21045392022008252,
+      "new_recall_pct": 21.045
+    }
+  ],
+  "pure_normal_test_false_positives": {
+    "n_windows": 4807,
+    "rate_rule_fp": 45,
+    "rate_rule_fpr_pct": 0.9361,
+    "exp0017_combined_fp": 40,
+    "combined_or_rate_fp": 83,
+    "boundary_artifact_diagnostic": {
+      "rate_rule_fp_total": 45,
+      "fp_where_max_rate_pair_steps_from_flagged_or_attack_predecessor": 35,
+      "residual_fp_after_excluding_those": 10,
+      "residual_fpr_pct": 0.208,
+      "note": "diagnostic only; the pre-registered rule is NOT changed or rescored. A follow-up would need a fresh pre-registration."
+    }
+  },
+  "rate_rule_standalone": {
+    "whole_attack_class": {
+      "tp": 1131,
+      "fn": 3409,
+      "fp": 45,
+      "tn": 4762,
+      "precision": 0.9617346938775511,
+      "recall": 0.24911894273127752,
+      "f1": 0.39573128061581525,
+      "fpr": 0.009361348034116913,
+      "recall_pct": 24.912,
+      "precision_pct": 96.173,
+      "f1_pct": 39.573,
+      "fpr_pct": 0.9361
+    },
+    "NMRI_pure": {
+      "tp": 144,
+      "fn": 571,
+      "fp": 45,
+      "tn": 4762,
+      "precision": 0.7619047619047619,
+      "recall": 0.2013986013986014,
+      "f1": 0.3185840707964602,
+      "fpr": 0.009361348034116913,
+      "recall_pct": 20.14,
+      "precision_pct": 76.19,
+      "f1_pct": 31.858,
+      "fpr_pct": 0.9361
+    },
+    "MFCI_pure": {
+      "tp": 1,
+      "fn": 226,
+      "fp": 45,
+      "tn": 4762,
+      "precision": 0.021739130434782608,
+      "recall": 0.004405286343612335,
+      "f1": 0.007326007326007327,
+      "fpr": 0.009361348034116913,
+      "recall_pct": 0.441,
+      "precision_pct": 2.174,
+      "f1_pct": 0.733,
+      "fpr_pct": 0.9361
+    },
+    "Recon_pure": {
+      "tp": 0,
+      "fn": 169,
+      "fp": 45,
+      "tn": 4762,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "fpr": 0.009361348034116913,
+      "recall_pct": 0.0,
+      "precision_pct": 0.0,
+      "f1_pct": 0.0,
+      "fpr_pct": 0.9361
+    }
+  },
+  "no_regression": {
+    "NMRI_pure": {
+      "n": 715,
+      "exp0017_combined_flagged": 565,
+      "combined_or_rate_flagged": 594,
+      "delta": 29
+    },
+    "MFCI_pure": {
+      "n": 227,
+      "exp0017_combined_flagged": 227,
+      "combined_or_rate_flagged": 227,
+      "delta": 0
+    },
+    "Recon_pure": {
+      "n": 169,
+      "exp0017_combined_flagged": 169,
+      "combined_or_rate_flagged": 169,
+      "delta": 0
+    }
+  },
+  "whole_test_block_binary_confusion": {
+    "cohort": "all 9,347 TEST windows; positive = is_attack",
+    "exp0017_comb": {
+      "tn": 4767,
+      "fp": 40,
+      "fn": 2166,
+      "tp": 2374
+    },
+    "combined_or_rate": {
+      "tn": 4724,
+      "fp": 83,
+      "fn": 1906,
+      "tp": 2634
+    },
+    "delta_tn_fp_fn_tp": [
+      -43,
+      43,
+      -260,
+      260
+    ],
+    "combined_or_rate_precision": 0.9694516010305484,
+    "note": "run_detector() NOT modified. Wiring this rule in would change EXP-0017's frozen TEST confusion by this delta \u2014 a separate decision."
+  },
+  "software": {
+    "python": "3.12.10",
+    "numpy": "2.5.3",
+    "scipy": "1.18.1",
+    "scikit_learn": "1.9.0"
+  },
+  "limitations": [
+    "Pressure is the ARFF-aligned value; a PCAP-replay deployment would decode it from 0x03 response bytes and that register map/scale is undocumented.",
+    "The plausibility cutoff is an empirical TRAIN-normal percentile, not a physical dP/dt limit \u2014 TRAIN-normal may not contain every legitimate fast transient the process can make.",
+    "1-2 pressure samples per 5 s window: rate_w is one step rate, and a window's later sample may pair with the previous window's last sample.",
+    "Judged only on CMRI windows EXP-0017 already misses; incidental effects on other categories are reported, not tuned for.",
+    "One testbed; egress-only."
+  ]
+}

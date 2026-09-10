@@ -989,3 +989,77 @@ only: `ml/exp0018_pressure_residual_smoothness.py`,
 `tests/test_exp0018_pressure_residual_smoothness.py`,
 `data/experiments/exp0018_pressure_residual_smoothness.json`, `docs/EXP0018_RESULTS.md`.
 Full suite 147 → 156 passed. No commit or push performed by this record.
+
+# 2026-09-10 — EXP-0019 physical rate-of-change plausibility diagnostic — PLANNED
+
+- **Decision:** follow EXP-0018's negative result with a distinct test — whether a
+  forged CMRI jump exceeds the physically plausible RATE of pressure change given
+  the real elapsed time since the last `0x03` reading. Build a standalone rate rule,
+  measure it, and — like EXP-0016 / EXP-0018 — do NOT wire it into `run_detector()`.
+  Measurement only; new files only.
+- **Distinct from EXP-0018:** EXP-0018 tested residual energy vs a fixed AR(1)
+  variance and ignored Δt; its failure was that a fixed scale cannot tell a large
+  legitimate pressure move from a large forged one. EXP-0019 divides by the true
+  inter-sample time and calibrates against the empirical TRAIN-normal rate
+  distribution, so a jump spread over a gap is correctly treated as more plausible.
+- **Options considered:**
+  (a) fixed round percentile with no justification — rejected;
+  (b) engineering `dP/dt` limit from the register map — impossible, map/scale
+  undocumented;
+  (c) **chosen** — empirical TRAIN-normal 99.9th percentile of `|Δp|/Δt` as the
+  plausibility bound (the fastest the real process was credibly seen to move over
+  ~14,951 normal windows), with the TRAIN-normal max and 99.99th also reported and
+  a stricter max-bound variant measured.
+- **Why chosen:** (c) is the only defensible bound without a documented scale; it is
+  robust to the ~20 most extreme normal steps and the 13 sub-cadence pairs while
+  still representing real process dynamics. A k·σ bound is rejected on EXP-0018's
+  evidence that this statistic is too heavy-tailed for a Gaussian scale.
+- **Timing data confirmed clean:** TXT timestamps strictly monotonic (0 inversions);
+  consecutive `0x03` Δt median 3.39 s, gaps characterised (~7 % at 3–4× cadence).
+  Reuses EXP-0007/0008 timing understanding rather than re-deriving it.
+- **Evaluation cohort:** CMRI TEST windows EXP-0017 already MISSES (`comb_pred == 0`);
+  credit only for genuinely new detections. Same as EXP-0018.
+- **Decision rule:** STRONG = new-missed-CMRI recall ≥ 25 % and new pure-Normal FP
+  ≤ 0.30 % and combined precision ≥ 97.0 %; ACCEPTABLE = ≥ 10 % / same bars; else
+  HYPOTHESIS NOT SUPPORTED. Bars re-justified against the 544-window cohort and the
+  EXP-0017 headline, not blindly copied. Plus a threshold-independent Mann–Whitney U
+  test (missed-CMRI rate vs Normal rate, α = 0.01, direction must be missed-CMRI
+  higher). A null or wrong-direction result is reported as the idea not earning its
+  place — a second honest negative result is still useful.
+- **Constraints:** egress-only; checksummed EXP-0008 manifest for split boundaries;
+  EXP-0017 saved output reproduced (all source sha256 + checksum + VALIDATED) before
+  scoring; `run_detector` not called (attempt consumed); no change to protected
+  EXP-0005..EXP-0018, Layer A, DoS/MSCI/MPCI files, `app.py`, or any EXP-0018 file.
+  Full diff and real results shown before any commit; no push.
+- **Impact:** method and exact criteria in `EXPERIMENT_LOG.md` (EXP-0019). If the
+  verdict is STRONG/ACCEPTABLE, wiring it into `run_detector()` is a separate human
+  decision (the EXP-0016 → EXP-0017 pattern).
+
+## 2026-09-10 — EXP-0019 completed — HYPOTHESIS NOT SUPPORTED (pre-registered rule), but a near-miss
+
+The pre-registered evaluation ran once. Identity gates passed (EXP-0017 reproduced,
+no drift; `run_detector` not called). Result:
+
+- **Signal confirmed, in the hypothesised direction** (unlike EXP-0018): missed
+  pure-CMRI `|Δp|/Δt` per window is genuinely higher than Normal (median 0.0139 vs
+  0.0067; Mann–Whitney p = 2.07e-19). ~26.65 % of the 544 previously-missed
+  pure-CMRI windows are newly detected at the TRAIN-normal 99.9th-percentile cutoff.
+- **But the pre-registered rule fails two bars:** pure-Normal FP 0.936 % (bar
+  ≤ 0.30 %) and combined precision 96.945 % (floor 97.0 %). → **WEAK / HYPOTHESIS
+  NOT SUPPORTED.**
+- **The FP failure is mostly an artifact:** 35 of 45 pure-Normal FPs are the rule
+  crediting a Normal window for pressure returning to normal after a preceding
+  flagged/attack window. Residual FP excluding those: 10 / 4,807 = 0.208 % (would
+  clear the bar).
+
+**Decision:** EXP-0019 as specified is a recorded negative result — do NOT wire
+anything into `run_detector()`, do NOT tweak-and-rescore against the same TEST.
+Because the signal is real and the dominant FP mechanism is specific, authorise a
+follow-up **EXP-0020** with a fresh pre-registration and a refined per-window rate
+statistic (score a jump only against an in-bounds / unflagged predecessor, or only
+the entry transition into an episode). No change to `run_detector`, `app.py`, or
+any protected / EXP-0018 file. New files only:
+`ml/exp0019_pressure_rate_plausibility.py`,
+`tests/test_exp0019_pressure_rate_plausibility.py`,
+`data/experiments/exp0019_pressure_rate_plausibility.json`, `docs/EXP0019_RESULTS.md`.
+Full suite 156 → 164 passed. No commit or push performed by this record.
