@@ -3120,3 +3120,198 @@ near-miss, not a flat negative.
   [exp0019_pressure_rate_plausibility.json](../data/experiments/exp0019_pressure_rate_plausibility.json),
   summary [EXP0019_RESULTS.md](EXP0019_RESULTS.md). `run_detector`, `app.py` and all
   protected / EXP-0018 files unchanged.
+
+# EXP-0020 — PLANNED — refined rate-of-change rule with an in-bounds-predecessor gate (2026-09-10)
+
+Pre-registration written before any EXP-0020 scoring. Direct follow-up to EXP-0019,
+recommended in EXP-0019's own logs. Diagnostic-then-build, measurement only, same
+discipline as EXP-0016 / EXP-0018 / EXP-0019. `run_detector`, `app.py`, DoS / MSCI /
+MPCI files, Layer A, and protected EXP-0005..EXP-0019 (including every EXP-0018 and
+EXP-0019 file) are NOT touched. New files only
+(`ml/exp0020_pressure_rate_gated.py`, its test,
+`data/experiments/exp0020_pressure_rate_gated.json`, `docs/EXP0020_RESULTS.md`).
+
+## What EXP-0019 established, and what EXP-0020 changes
+
+EXP-0019 tested `rate_w = |Δp|/Δt` (max step rate into a 5 s window) against a
+TRAIN-normal 99.9th-percentile bound. The signal was real and in the hypothesised
+direction (missed pure-CMRI median `rate_w` 0.0139 vs Normal 0.0067; Mann–Whitney
+p = 2.07e-19) and recall passed (26.65 % of the 544 missed pure-CMRI), but the rule
+failed the false-positive bar (0.936 %) and precision floor (96.945 %). **35 of the
+45 pure-Normal false positives** were a window inheriting a large rate from a pair
+that steps DOWN out of a preceding anomalous window — the rule crediting a Normal
+window for pressure *returning to normal* after an anomaly. Residual FP excluding
+that mechanism: 10 / 4,807 = 0.208 %.
+
+EXP-0020 keeps the feature and the calibration approach and adds ONE change: a
+**predecessor-eligibility gate** so a jump is only scored when its earlier sample
+is a plausible baseline.
+
+## Exact predecessor-eligibility rule (stated before scoring)
+
+Reuse the EXP-0016 frozen TRAIN-normal pressure bounds
+`[BOUND_LOW, BOUND_HIGH] = [0.482759, 38.7471]`, taken from the checksum-verified
+EXP-0017 artifact (`load_result().pressure_bounds`) — not re-derived.
+
+A consecutive sample pair `(i-1, i)` in the global egress `0x03` sequence is
+**eligible** for rate scoring iff:
+
+1. `Δt = t_i - t_{i-1} > 0` (always true here — monotonic timestamps), AND
+2. `BOUND_LOW <= p_{i-1} <= BOUND_HIGH` — the **earlier** sample's pressure is
+   within the frozen EXP-0016 bounds.
+
+Only the earlier sample is constrained. The later sample `p_i` is deliberately
+NOT constrained: the whole hypothesis is that a forgery can land *inside* the
+bounds yet move there too fast. A pair whose earlier sample is out of bounds is
+dropped (not scored); if that was a window's only pair, its `rate_w` is undefined
+(not flaggable), exactly as in EXP-0019.
+
+This is self-contained (a frozen value test, no dependence on EXP-0017's per-window
+output). An alternative "earlier window `comb_pred == 0`" gate and an
+"episode-entry transitions only" restriction were considered and rejected: the
+first couples a standalone rule to the operational detector's verdict; the second
+needs an "episode" definition that would require labels or the same flag coupling.
+
+## Method (otherwise identical to EXP-0019)
+
+1. **Time series.** `align_egress_pressure_timeseries()` — same as EXP-0019
+   (reused, imported from `exp0019_pressure_rate_gated` is NOT allowed since
+   EXP-0019 files are frozen; EXP-0020 re-implements the same verified alignment
+   loop, or imports the pure function from `exp0019_pressure_rate_plausibility`
+   read-only without modifying it — the module will `from
+   exp0019_pressure_rate_plausibility import align_egress_pressure_timeseries,
+   bucket_of, Blocks, confusion, classify_verdict` and add only the gate).
+2. **Blocks / cohort / identity gate.** Identical to EXP-0019: manifest
+   `verified_egress_5s_exp0008_pretest_v1.json`; TRAIN-normal from `build_windows`;
+   EXP-0017 reproduced via `load_result` (all source sha256 + envelope checksum +
+   manifest + VALIDATED), `comb_pred == protocol_pred | pressure_pred | if_pred`
+   element-wise, whole-TEST `(4767, 40, 2166, 2374)`; `run_detector` NOT called.
+3. **Rate feature.** `rate_i = |p_i - p_{i-1}| / Δt` over **eligible** pairs only.
+   `rate_w` = max eligible step rate over pairs whose later sample lands in window
+   `w`; undefined if no eligible pair.
+4. **Plausibility bound — re-calibrated on the gated feature.** TRAIN-normal
+   `rate` over eligible pairs whose BOTH endpoints are in TRAIN-normal buckets.
+   Primary cutoff = **99.9th percentile**; strict variant = TRAIN-normal max.
+   Report p50/p90/p99/p99.9/p99.99/max. `k·σ` rejected (EXP-0018 heavy tail).
+5. **Per-window verdict.** Fire iff `rate_w > cutoff`.
+
+## Evaluation cohort
+
+Identical to EXP-0019: **CMRI-labelled TEST windows with EXP-0017 `comb_pred == 0`**
+and a defined gated `rate_w`. "New detection" = rate rule fires AND `comb_pred == 0`.
+Primary `pure`; `dominant` and `containing` also reported. Report how many
+previously-missed pure-CMRI windows LOSE a defined `rate_w` under the gate (i.e. the
+gate's cost in coverage).
+
+## Fixed decision rule (unchanged from EXP-0019 — same cohort, same question)
+
+`new_recall` = new detections / previously-missed pure-CMRI windows with a defined
+gated rate. `new_normal_fp_rate` = gated-rate-rule flags on pure-Normal TEST /
+pure-Normal TEST. `combined_precision` = precision of (`comb_pred` OR gated rate
+rule) over all 9,347 TEST windows.
+
+- **STRONG** — `new_recall ≥ 0.25` AND `new_normal_fp_rate ≤ 0.0030` AND
+  `combined_precision ≥ 0.970`.
+- **ACCEPTABLE** — `new_recall ≥ 0.10` AND same two bars.
+- **WEAK / HYPOTHESIS NOT SUPPORTED** — otherwise.
+
+Threshold-independent: **Mann–Whitney U**, gated `rate_w` for previously-missed
+pure-CMRI vs pure-Normal TEST (two-sided, U + p, α = 0.01); "present" only if
+`p < 0.01` AND missed-CMRI median > Normal median.
+
+Also report, to confirm the gate did its job: the EXP-0019
+boundary-artifact diagnostic re-run on the gated rule (count of pure-Normal FPs
+whose max-rate pair steps from an EXP-0017-flagged / attack predecessor window —
+expected to drop toward 0), and the EXP-0019 → EXP-0020 change in new detections and
+in pure-Normal FP.
+
+## Honest-disclosure note (multiple TEST scorings)
+
+EXP-0018, EXP-0019 and now EXP-0020 have each scored the frozen TEST set once
+against a pressure-derived hypothesis about the CMRI EXP-0017 misses. Each is a
+distinct pre-registered method with its decision rule fixed in advance, but the
+iterative refinement across experiments is a garden-of-forking-paths risk. A
+genuinely held-out confirmation of any positive EXP-0020 result would require data
+not used here. This is stated now, before scoring.
+
+## Outputs and tests
+
+`data/experiments/exp0020_pressure_rate_gated.json` (atomic, JSON only): the
+eligibility rule and bounds used, TRAIN-normal gated-rate percentiles and cutoff(s),
+identity gates, per-cohort confusions (gated-rate-alone / EXP-0017-combined /
+combined+gated-rate), the distributional test, the boundary-artifact re-check, the
+EXP-0019 deltas, the whole-block delta, the verdict, limitations.
+New `tests/test_exp0020_pressure_rate_gated.py`: fast synthetic units (the
+eligibility gate, gated rate feature, per-window max, cutoff, decision-rule
+arithmetic, measurement-only source check) + one `@pytest.mark.slow` saved-result
+replay (no raw read; skips if absent). Full suite before: **164 passed**. After:
+report exact counts.
+
+## EXP-0020 execution outcome — TESTED — pre-registered rule NOT SUPPORTED; gate validated the EXP-0019 diagnosis; a strict-cutoff variant reaches ACCEPTABLE (2026-09-10)
+
+The pre-registered method ran once against the frozen EXP-0017 saved output.
+
+- **IDENTITY GATES (passed).** EXP-0017 reproduced via `load_result` (all source
+  sha256 + envelope checksum + manifest + VALIDATED). `comb_pred == protocol_pred |
+  pressure_pred | if_pred` element-wise; whole-TEST `(4767, 40, 2166, 2374)`.
+  EXP-0016 bounds `[0.482759, 38.7471]` read from the artifact. `run_detector` not
+  called.
+- **THE GATE IS A NO-OP ON TRAIN-NORMAL.** The EXP-0016 bounds ARE the TRAIN-normal
+  pressure min/max, so every TRAIN-normal step pair already has an in-bounds
+  predecessor: 20,803 eligible pairs (identical to EXP-0019), cutoff unchanged
+  (p99.9 = `2.1217`, max = `4.2197`). The gate only changes TEST scoring.
+- **THE GATE DID WHAT IT WAS DESIGNED TO DO.** EXP-0019 → EXP-0020:
+  pure-Normal FP **45 → 18**; boundary-artifact FP (max-rate pair steps from a
+  flagged/attack predecessor window) **35 → 8**; combined precision
+  **96.945 % → 97.773 %** (now clears the 97.0 % floor).
+- **BUT THE RECALL COST IS HEAVY.** New detections on missed pure-CMRI
+  **145 → 64**; and 84 previously-missed pure-CMRI windows lose every eligible pair
+  under the gate (their pressure steps come FROM out-of-bounds values), so the
+  cohort denominator drops **544 → 460**. New pure-CMRI recall
+  **26.65 % → 13.91 %** at the primary p99.9 cutoff.
+- **SIGNAL TEST — still PRESENT, hypothesised direction, but much weaker.**
+  Mann–Whitney U on gated `rate_w`, missed pure-CMRI vs pure-Normal:
+  `U = 1,215,680`, `p = 1.84e-4` (was 2.07e-19 ungated). Median gated `rate_w`:
+  missed pure-CMRI **0.0089**, Normal 0.0067, TRAIN-normal 0.0035. Removing the
+  boundary jumps removed most of the signal strength too.
+- **PRE-REGISTERED PRIMARY (p99.9) VERDICT — WEAK / HYPOTHESIS NOT SUPPORTED.**
+  new recall 13.91 % (clears the 10 % ACCEPTABLE recall threshold, not the 25 %
+  STRONG one); new pure-Normal FP **0.3745 %** (18 / 4,807) — still over the
+  0.30 % bar, by ~4 windows; combined precision 97.773 % (clears the floor).
+  Fails on the FP bar.
+- **SECONDARY — strict TRAIN-normal-max cutoff → ACCEPTABLE.** new recall
+  **12.17 %** (56 / 460), new pure-Normal FP **0.0832 %** (4 / 4,807), combined
+  precision **98.239 %**. `classify_verdict` → **ACCEPTABLE**. Whole-block delta at
+  this cutoff is not separately tabled here; at the primary cutoff it is
+  `(TN −17, FP +17, FN −129, TP +129)`.
+- **CONTEXT.** Standalone the gated rule (p99.9) catches NMRI pure 46 / 715 = 6.4 %
+  and whole attack class 12.9 % at 97.0 % precision; MFCI / Recon untouched.
+- **VERDICT (binding, pre-registered primary): WEAK / HYPOTHESIS NOT SUPPORTED.**
+  The physical-rate hypothesis has a real but small effect on this data. After
+  removing the false-positive-inflating boundary jumps (which EXP-0019's headline
+  recall was partly riding on), only ~12–14 % of the CMRI EXP-0017 misses is
+  recoverable, and the pre-registered cutoff still slightly over-fires on Normal.
+  A strict cutoff of the same gated rule does clear all bars at ACCEPTABLE, so a
+  defensible small detector exists — recovering ~56 pure-CMRI windows (lifting
+  pure-CMRI combined recall ~54.6 % → ~59 %) for ~4 Normal false positives.
+- **RECOMMENDATION (user judgement call).** Either (a) EXP-0021 pre-registers the
+  gated rule with the **TRAIN-normal-max cutoff as primary** (justified: EXP-0020
+  showed p99.9 over-fires) and, if it holds, weigh wiring it in for a modest CMRI
+  gain; or (b) **close the pressure-rate line** — the effect is real but ~5 pp
+  absolute pure-CMRI recall for added rule complexity and a small FP surface, and
+  EXP-0018/0019/0020 have now each scored TEST once against a pressure hypothesis
+  (garden-of-forking-paths risk). Nothing is wired into `run_detector()` either way.
+- **TESTED.** Full suite **170 passed, 0 skipped, 0 failed** (was 164; +6 EXP-0020
+  tests — 5 fast synthetic units + 1 slow saved-result replay). No raw data read in
+  pytest. Saved result:
+  [exp0020_pressure_rate_gated.json](../data/experiments/exp0020_pressure_rate_gated.json),
+  summary [EXP0020_RESULTS.md](EXP0020_RESULTS.md). `run_detector`, `app.py` and all
+  protected / EXP-0018 / EXP-0019 files unchanged.
+- **LINE CLOSED (2026-09-10).** No EXP-0021. The pressure-rate line (EXP-0018 →
+  EXP-0020) is closed per DECISION_LOG.md: across three experiments on the same
+  544-window frozen missed-CMRI cohort the measured effect shrank from an
+  artifact-inflated 26.65 % to a genuine ~12–14 % as diagnostics improved
+  (p: 2e-19 → 1.8e-4), and the surviving ACCEPTABLE variant rests on only 4
+  false-positive windows — too thin to trust, and a fourth iteration would risk the
+  EXP-0009 → EXP-0011 validation-overfitting pattern. CMRI combined recall stays at
+  60.1 % (EXP-0017). Next detection work: MSCI / MPCI (different cohort).
