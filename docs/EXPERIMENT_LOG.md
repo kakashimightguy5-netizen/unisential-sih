@@ -2756,3 +2756,189 @@ before editing it; show full final diff and actual output before any commit.
 - Full measured cohorts, raw/source identities, and local saved-artifact links:
   [EXP0017_RESULTS.md](EXP0017_RESULTS.md), [exp0017_results.json](exp0017_results.json).
   No commit, staging, or push performed.
+
+# EXP-0018 — PLANNED — residual-smoothness test for the CMRI forgeries EXP-0017 misses (2026-09-10)
+
+Pre-registration written before any EXP-0018 scoring. Diagnostic-then-build, same
+discipline as EXP-0014/0015/0016: build a new detector, measure it standalone and
+OR-ed into a reproduced EXP-0017 combined detector, and DO NOT modify
+`ml/iforest_detector.run_detector`. New files only
+(`ml/exp0018_pressure_residual_smoothness.py`, its test). No change to `app.py`,
+DoS files, MSCI/MPCI files, Layer A, or protected EXP-0005..EXP-0013.
+
+## Hypothesis (external research — to be tested here, NOT assumed)
+
+A signal forged to mimic a real sensor is often *less* noisy than the genuine
+process, because real physical fluctuation is hard to fake. If so, a segment of
+smooth CMRI response-value injection that stays inside the EXP-0016 pressure bounds
+should still show **suppressed one-step prediction residuals** relative to
+TRAIN-normal. Two-sided: abnormally LOW residual energy (over-smooth forgery) and
+abnormally HIGH residual energy (noisy forgery / instability) are tested as
+SEPARATE hypotheses, each calibrated against TRAIN-normal's own residual-energy
+distribution — not one symmetric threshold assumed without checking the shape.
+
+## Structural constraint found at pre-registration (measurement, not outcome)
+
+Egress `0x03` read-response pressure cadence is ~1–2 samples per 5 s window
+(TRAIN-normal: 14,951 windows, 21,384 finite pressure samples; median 1, max 2 per
+window). A within-window variance / autocorrelation test is therefore impossible.
+CMRI attack episodes are long contiguous runs (median ~16 windows; 425 of the 544
+previously-missed pure-CMRI windows lie in runs of ≥6). The predictor and the
+residual-energy statistic are therefore defined over the **global chronological
+sequence of individual `0x03` responses**, with a causal rolling window that spans
+multiple 5 s windows. User approved this adaptation on 2026-09-10.
+
+## Exact method (fixed before running)
+
+1. **Pressure sequence.** `exp0016_pressure_bounds_rule.align_egress_pressure`
+   (row-index-aligned ARFF `pressure measurement`, verified TXT/ARFF sha256,
+   canonical 0x03 read responses only). Global sample order = ascending 5 s bucket,
+   then within-bucket append (file) order. Each sample keeps its bucket id.
+2. **Blocks.** From the checksummed manifest
+   `ml/splits/verified_egress_5s_exp0008_pretest_v1.json` exactly as EXP-0017:
+   TRAIN / VALIDATION = manifest bucket ids; TEST = buckets after
+   `final_pretest_bucket_id`, dropping the first `2 * GUARD_WINDOWS` eligible
+   buckets. TRAIN-normal = TRAIN buckets whose `build_windows` window has
+   `is_attack == 0`.
+3. **Predictor — AR(1), fit on TRAIN-normal samples only.**
+   `mu` = mean of TRAIN-normal values; `phi` = lag-1 Yule-Walker coefficient
+   `Σ(x[t-1]-mu)(x[t]-mu) / Σ(x[t-1]-mu)²` over globally-consecutive sample pairs
+   whose BOTH members are TRAIN-normal. Prediction `x̂[t] = mu + phi·(x[t-1]-mu)`;
+   residual `r[t] = x[t] - x̂[t]` for every global sample with a predecessor.
+   `sigma` = population std of TRAIN-normal `r[t]`. Standardised `z[t] = r[t]/sigma`.
+   The naive persistence residual (`phi := 1`) is computed and reported for context
+   only; the frozen detector uses fitted `phi`.
+4. **Rolling residual energy per 5 s window.** `K = 15` samples (≈ the median
+   11-window / ~55 s span; smallest causal window giving n ≥ 10 for a stable
+   variance estimate while staying inside the median CMRI episode). For window with
+   bucket `b`, let `j` = global index of the last sample in `b`;
+   `E_b = mean(z[j-K+1 .. j]²)` (mean squared standardised residual). Windows with
+   fewer than `K` preceding samples get `E_b = None` and cannot be flagged (same
+   fail-safe as `PressureBoundsRule` with no 0x03 pressure). The rolling window is
+   strictly causal (backward-looking); a TEST window's context may include
+   VALIDATION/guard samples — that is context, not a label, and is disclosed.
+5. **Two-sided calibration.** Calibration set = TRAIN-normal windows whose entire
+   `K`-sample causal window lies within TRAIN-normal buckets. On that set:
+   `low_thr = quantile(E, 0.005)`, `high_thr = quantile(E, 0.995)` (nominal 1%
+   two-sided, matching the IF's 1% VALIDATION-normal FPR target). Report the
+   calibration median, both quantiles and the skew so the asymmetry is visible
+   rather than assumed. Detector fires iff `E_b < low_thr` (reason
+   `residual_energy_low`) OR `E_b > high_thr` (reason `residual_energy_high`).
+   low-only and high-only variants are also reported.
+6. **Identity gate before any scoring.** Load the checksummed EXP-0017 artifact via
+   `exp0017_operational.load_result` (re-verifies every tracked source sha256, the
+   envelope checksum, manifest identity and the VALIDATED status). Confirm
+   `comb_pred == protocol_pred | pressure_pred | if_pred` element-wise and whole-TEST
+   confusion `(4767, 40, 2166, 2374)`. `run_detector` is NOT called (its attempt is
+   consumed by design). Abort if any gate fails.
+
+## Evaluation cohort (explicit)
+
+The experiment's success is judged ONLY on **CMRI-labelled TEST windows the
+EXP-0017 combined detector does NOT already flag** (`comb_pred == 0`). Windows
+EXP-0017 already catches earn this experiment no credit. "New detection" =
+flagged by the residual-smoothness detector AND `comb_pred == 0`. Primary cohort:
+`pure` (`categories ⊆ {0, CMRI}`); `dominant` and `containing` also reported.
+
+## Fixed decision rule
+
+Let `new_recall` = new-detections / previously-missed pure-CMRI windows (that have a
+defined `E_b`); `new_normal_fp_rate` = residual detector's flags on pure-Normal TEST
+windows / pure-Normal TEST windows; `combined_precision` = precision of
+(EXP-0017 comb_pred OR residual detector) over all 9,347 TEST windows.
+
+- **STRONG** — `new_recall ≥ 0.25` AND `new_normal_fp_rate ≤ 0.0030` AND
+  `combined_precision ≥ 0.970`.
+- **ACCEPTABLE** — `new_recall ≥ 0.10` AND `new_normal_fp_rate ≤ 0.0030` AND
+  `combined_precision ≥ 0.970`.
+- **WEAK / HYPOTHESIS NOT SUPPORTED** — otherwise.
+
+Independent of any threshold, also report the **Mann–Whitney U** test of
+`E_b` for previously-missed pure-CMRI vs pure-Normal TEST windows (two-sided, with
+U and p), and the median/IQR of `E_b` for missed-pure-CMRI, pure-Normal TEST and
+the TRAIN-normal calibration set. Signal is called "present" only if
+p < 0.01 AND missed-CMRI energy is lower (one-sided direction of the hypothesis).
+A significant result in the WRONG direction, or a non-significant one, is reported
+as the hypothesis failing on this dataset.
+
+## No-regression checks (reported)
+
+NMRI / MFCI / Recon `pure` recall for EXP-0017 combined vs (combined OR residual):
+an OR can only add flags, so the honest checks are (a) `new_normal_fp_rate` bar
+above and (b) whole-TEST-block confusion delta with `combined_precision ≥ 0.970`.
+Both are gated. Also report the residual detector's standalone
+recall/precision/F1/FPR on NMRI/MFCI/Recon `pure` and on the whole attack class,
+for context.
+
+## Outputs
+
+`data/experiments/exp0018_pressure_residual_smoothness.json` (atomic write, JSON
+only, no pickle/weights/raw bytes): method constants, `phi`, `sigma`,
+`low_thr`/`high_thr` and calibration shape, the identity-gate results, per-cohort
+confusions (residual-alone / EXP-0017-combined / combined+residual), the
+distributional test, the whole-block confusion delta, the decision-rule verdict,
+and limitations. A Markdown summary is printed. `run_detector` unchanged; wiring is
+a separate decision if the verdict warrants it (EXP-0016 → EXP-0017 pattern).
+
+## Tests
+
+New `tests/test_exp0018_pressure_residual_smoothness.py`: fast synthetic units for
+the AR(1) fit, the rolling-energy statistic, the two-sided calibration and the
+decision-rule arithmetic (no raw data); one `@pytest.mark.slow` test that loads the
+saved `exp0018_*.json` and asserts structure + recorded identity gates + the
+decision rule (skips if the artifact is absent; never reads raw data, so it runs
+under the EXP-0017 `open()` guard without a conftest change). Full suite before:
+**147 passed**. After: report exact counts.
+
+## EXP-0018 execution outcome — TESTED — HYPOTHESIS NOT SUPPORTED (2026-09-10)
+
+The pre-registered method ran once against the frozen EXP-0017 saved output. The
+smoothness hypothesis does **not** hold for this dataset's CMRI, and the
+pre-registered decision rule returns **WEAK / HYPOTHESIS NOT SUPPORTED**.
+
+- **IDENTITY GATES (passed).** `exp0017_operational.load_result` verified every
+  tracked source sha256, the envelope checksum, the manifest identity and the
+  VALIDATED status. `comb_pred == protocol_pred | pressure_pred | if_pred`
+  element-wise; whole-TEST confusion `(4767, 40, 2166, 2374)`. `run_detector` was
+  not called. No drift.
+- **MODEL.** AR(1) on TRAIN-normal 0x03 pressure: `mu = 8.2792`, `phi = 0.99031`,
+  residual `sigma = 0.8546` (14,951 TRAIN-normal windows; 21,384 TRAIN-normal
+  pressure samples; 68,848 global 0x03 samples). `K = 15`. TRAIN-normal rolling
+  energy is extremely right-skewed: median `0.0077`, 0.5% quantile `0.0002`,
+  99.5% quantile `24.8143` (n = 9,995 calibration windows).
+- **SIGNAL TEST — NOT SUPPORTED, and significant in the WRONG direction.**
+  Mann–Whitney U on rolling energy, previously-missed pure-CMRI vs pure-Normal
+  TEST: `U = 1,905,977`, `p = 9.35e-69`. Median energy: missed pure-CMRI
+  **9.749**, pure-Normal TEST 0.0081, TRAIN-normal 0.0077. The missed CMRI
+  windows that carry a pressure signal are **noisier** than normal, not smoother.
+  `missed_cmri_energy_lower_than_normal = False`.
+- **NEW DETECTIONS on the 544 previously-missed pure-CMRI windows** (defined
+  energy): two-sided rule 257 (47.24%); **low-energy / over-smooth variant only
+  14 (2.57%)** — the hypothesised mechanism is essentially absent; high-energy
+  variant 243 (44.67%). dominant / containing cohorts: 43.98% / 44.02% two-sided,
+  ~1.9% low-only.
+- **UNUSABLE OPERATING POINT.** Two-sided rule flags **570 / 4,807 = 11.86%** of
+  pure-Normal TEST windows (bar ≤ 0.30%; ~40× over). Combined precision
+  (comb OR residual) falls to **82.99%** (bar ≥ 97.0%). Whole-block delta
+  (TN, FP, FN, TP) = `(-563, +563, -568, +568)`.
+- **WHY IT FAILS (diagnostic, no method change).** Not a sampling-gap artifact:
+  high-energy Normal windows have median max bucket-gap 1. Genuine normal egress
+  pressure has legitimate large step changes; with `sigma = 0.85` any real move is
+  a large standardised residual, so ~11% of Normal windows carry a high-energy
+  rolling segment. The AR(1)-residual-energy statistic does not separate normal
+  from attack on this data and does not transfer TRAIN→TEST at a usable quantile.
+- **NO REGRESSION (measurement only).** `run_detector` unchanged; NMRI / MFCI /
+  Recon `pure` cohorts unaffected in the EXP-0017 detector. An OR with this rule
+  would only add flags, but at the cost above — it is not wired in and, on this
+  verdict, should not be.
+- **TESTED.** Full suite **156 passed, 0 skipped, 0 failed** (was 147; +9 EXP-0018
+  tests — 8 fast synthetic units + 1 slow saved-result replay). No raw data read
+  in pytest. Saved result:
+  [exp0018_pressure_residual_smoothness.json](../data/experiments/exp0018_pressure_residual_smoothness.json),
+  summary [EXP0018_RESULTS.md](EXP0018_RESULTS.md).
+- **CONCLUSION.** The external-research idea ("forgeries are unnaturally smooth")
+  is a reasonable prior but is **not supported** for CMRI in this testbed: the
+  detectable pressure deviation in the missed cases is excess residual energy, not
+  suppressed residual energy, and no calibration of this statistic clears the
+  false-positive bar. EXP-0018 is closed as a negative result. `run_detector`,
+  `app.py` and all protected files are unchanged.

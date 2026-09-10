@@ -1,0 +1,319 @@
+{
+  "status": "VALIDATED \u2014 DETECTOR BUILT AND SCORED; run_detector NOT modified",
+  "experiment": "EXP-0018",
+  "hypothesis": "Smooth CMRI response forgeries inside the EXP-0016 pressure bounds are still detectable as suppressed one-step AR(1) prediction residual energy (over-smooth) \u2014 two-sided against TRAIN-normal, also flagging excess energy.",
+  "identity_gates": {
+    "exp0017_artifact_loaded_and_verified": true,
+    "comb_equals_protocol_or_pressure_or_if": true,
+    "whole_test_confusion_matches_exp0017": true,
+    "exp0017_confusion": [
+      4767,
+      40,
+      2166,
+      2374
+    ],
+    "run_detector_modified": false
+  },
+  "manifest": {
+    "split_id": "verified-egress-5s-exp0008-pretest-v1",
+    "membership_sha256": "0e912e147d088aaed05e95bda04c6a46c72ed4dd16aafb6966c9e2aab26859e6"
+  },
+  "pressure_source": "ARFF 'pressure measurement' (data col 13), row-index aligned to the TXT and verified; canonical 0x03 read responses; reuses exp0016.align_egress_pressure",
+  "method": {
+    "predictor": "AR(1) lag-1 Yule-Walker on TRAIN-normal 0x03 pressure only",
+    "mu": 8.27919195936214,
+    "phi": 0.9903056369796117,
+    "sigma_residual": 0.8545950810834719,
+    "phi_persistence_context": 1.0,
+    "sigma_persistence_context": 0.8575151869240519,
+    "rolling_window_samples_K": 15,
+    "rolling_energy": "mean squared standardised residual over the K samples ending at the last 0x03 response of the 5 s window (causal)",
+    "train_normal_pressure_samples": 21384,
+    "global_pressure_samples": 68848
+  },
+  "calibration": {
+    "set": "TRAIN-normal windows whose whole K-sample window is TRAIN-normal",
+    "n_windows": 9995,
+    "low_quantile": 0.005,
+    "high_quantile": 0.995,
+    "low_thr": 0.00023412236855793343,
+    "high_thr": 24.81427150575776,
+    "median": 0.007694958248940098,
+    "q01": 0.0002687923928464725,
+    "q99": 18.300685706517633,
+    "skew_note": "energy is a mean of squares -> right-skewed; low and high thresholds are separate empirical quantiles, not a symmetric band"
+  },
+  "evaluation_cohort": "CMRI-labelled TEST windows with EXP-0017 comb_pred == 0 and a defined rolling energy; 'new detection' = residual detector fires AND comb_pred == 0",
+  "decision_rule": {
+    "strong": "new pure-CMRI recall >= 25% AND new pure-Normal FP <= 0.30% AND combined precision >= 97.0%",
+    "acceptable": "recall >= 10% AND same bars",
+    "new_pure_cmri_recall": 0.4724264705882353,
+    "new_pure_cmri_recall_persistence_context": 0.5386029411764706,
+    "new_pure_normal_fp": 570,
+    "new_pure_normal_fp_rate": 0.11857707509881422,
+    "combined_precision": 0.8299012693935119,
+    "verdict": "WEAK / HYPOTHESIS NOT SUPPORTED"
+  },
+  "signal_test": {
+    "test": "Mann-Whitney U, two-sided; missed pure-CMRI vs pure-Normal rolling energy",
+    "u_statistic": 1905977.0,
+    "p_value": 9.351260360821515e-69,
+    "alpha": 0.01,
+    "missed_cmri_energy_lower_than_normal": false,
+    "signal_present_in_hypothesised_direction": false,
+    "energy_distribution": {
+      "missed_pure_cmri": {
+        "n": 544,
+        "median": 9.749047957639695,
+        "iqr": [
+          0.0910197950391877,
+          122.83665885543817
+        ],
+        "min": 0.00013883076598332242,
+        "max": 1.1868332874095726e+76
+      },
+      "pure_normal_test": {
+        "n": 4807,
+        "median": 0.008057108851787762,
+        "iqr": [
+          0.005378088287388701,
+          0.9175636255600498
+        ],
+        "min": 0.00010759039886446892,
+        "max": 1.6091471714788924e+76
+      },
+      "train_normal_calibration": {
+        "n": 9995,
+        "median": 0.007694958248940098,
+        "iqr": [
+          0.00277196082838623,
+          0.01262465884265188
+        ],
+        "min": 9.71034839280212e-05,
+        "max": 6.843066582806451e+75
+      }
+    }
+  },
+  "per_cohort_new_detection": [
+    {
+      "cohort": "pure",
+      "variant": "both",
+      "cmri_windows": 1198,
+      "exp0017_missed": 544,
+      "missed_with_defined_energy": 544,
+      "missed_energy_undefined": 0,
+      "new_detections": 257,
+      "new_recall": 0.4724264705882353,
+      "new_recall_pct": 47.243
+    },
+    {
+      "cohort": "pure",
+      "variant": "low",
+      "cmri_windows": 1198,
+      "exp0017_missed": 544,
+      "missed_with_defined_energy": 544,
+      "missed_energy_undefined": 0,
+      "new_detections": 14,
+      "new_recall": 0.025735294117647058,
+      "new_recall_pct": 2.574
+    },
+    {
+      "cohort": "pure",
+      "variant": "high",
+      "cmri_windows": 1198,
+      "exp0017_missed": 544,
+      "missed_with_defined_energy": 544,
+      "missed_energy_undefined": 0,
+      "new_detections": 243,
+      "new_recall": 0.44669117647058826,
+      "new_recall_pct": 44.669
+    },
+    {
+      "cohort": "dominant",
+      "variant": "both",
+      "cmri_windows": 1812,
+      "exp0017_missed": 723,
+      "missed_with_defined_energy": 723,
+      "missed_energy_undefined": 0,
+      "new_detections": 318,
+      "new_recall": 0.43983402489626555,
+      "new_recall_pct": 43.983
+    },
+    {
+      "cohort": "dominant",
+      "variant": "low",
+      "cmri_windows": 1812,
+      "exp0017_missed": 723,
+      "missed_with_defined_energy": 723,
+      "missed_energy_undefined": 0,
+      "new_detections": 14,
+      "new_recall": 0.019363762102351315,
+      "new_recall_pct": 1.936
+    },
+    {
+      "cohort": "dominant",
+      "variant": "high",
+      "cmri_windows": 1812,
+      "exp0017_missed": 723,
+      "missed_with_defined_energy": 723,
+      "missed_energy_undefined": 0,
+      "new_detections": 304,
+      "new_recall": 0.42047026279391425,
+      "new_recall_pct": 42.047
+    },
+    {
+      "cohort": "containing",
+      "variant": "both",
+      "cmri_windows": 1826,
+      "exp0017_missed": 727,
+      "missed_with_defined_energy": 727,
+      "missed_energy_undefined": 0,
+      "new_detections": 320,
+      "new_recall": 0.4401650618982118,
+      "new_recall_pct": 44.017
+    },
+    {
+      "cohort": "containing",
+      "variant": "low",
+      "cmri_windows": 1826,
+      "exp0017_missed": 727,
+      "missed_with_defined_energy": 727,
+      "missed_energy_undefined": 0,
+      "new_detections": 14,
+      "new_recall": 0.01925722145804677,
+      "new_recall_pct": 1.926
+    },
+    {
+      "cohort": "containing",
+      "variant": "high",
+      "cmri_windows": 1826,
+      "exp0017_missed": 727,
+      "missed_with_defined_energy": 727,
+      "missed_energy_undefined": 0,
+      "new_detections": 306,
+      "new_recall": 0.42090784044016505,
+      "new_recall_pct": 42.091
+    }
+  ],
+  "pure_normal_test_false_positives": {
+    "n_windows": 4807,
+    "residual_detector_fp": 570,
+    "residual_detector_fpr_pct": 11.8577,
+    "exp0017_combined_fp": 40,
+    "combined_or_residual_fp": 603
+  },
+  "residual_detector_standalone": {
+    "whole_attack_class": {
+      "tp": 1946,
+      "fn": 2594,
+      "fp": 570,
+      "tn": 4237,
+      "precision": 0.7734499205087441,
+      "recall": 0.4286343612334802,
+      "f1": 0.5515873015873016,
+      "fpr": 0.11857707509881422,
+      "recall_pct": 42.863,
+      "precision_pct": 77.345,
+      "f1_pct": 55.159,
+      "fpr_pct": 11.8577
+    },
+    "NMRI_pure": {
+      "tp": 291,
+      "fn": 424,
+      "fp": 570,
+      "tn": 4237,
+      "precision": 0.33797909407665505,
+      "recall": 0.406993006993007,
+      "f1": 0.3692893401015228,
+      "fpr": 0.11857707509881422,
+      "recall_pct": 40.699,
+      "precision_pct": 33.798,
+      "f1_pct": 36.929,
+      "fpr_pct": 11.8577
+    },
+    "MFCI_pure": {
+      "tp": 38,
+      "fn": 189,
+      "fp": 570,
+      "tn": 4237,
+      "precision": 0.0625,
+      "recall": 0.16740088105726872,
+      "f1": 0.09101796407185629,
+      "fpr": 0.11857707509881422,
+      "recall_pct": 16.74,
+      "precision_pct": 6.25,
+      "f1_pct": 9.102,
+      "fpr_pct": 11.8577
+    },
+    "Recon_pure": {
+      "tp": 10,
+      "fn": 159,
+      "fp": 570,
+      "tn": 4237,
+      "precision": 0.017241379310344827,
+      "recall": 0.05917159763313609,
+      "f1": 0.026702269692923893,
+      "fpr": 0.11857707509881422,
+      "recall_pct": 5.917,
+      "precision_pct": 1.724,
+      "f1_pct": 2.67,
+      "fpr_pct": 11.8577
+    }
+  },
+  "no_regression": {
+    "NMRI_pure": {
+      "n": 715,
+      "exp0017_combined_flagged": 565,
+      "combined_or_residual_flagged": 623,
+      "delta": 58
+    },
+    "MFCI_pure": {
+      "n": 227,
+      "exp0017_combined_flagged": 227,
+      "combined_or_residual_flagged": 227,
+      "delta": 0
+    },
+    "Recon_pure": {
+      "n": 169,
+      "exp0017_combined_flagged": 169,
+      "combined_or_residual_flagged": 169,
+      "delta": 0
+    }
+  },
+  "whole_test_block_binary_confusion": {
+    "cohort": "all 9,347 TEST windows; positive = is_attack",
+    "exp0017_comb": {
+      "tn": 4767,
+      "fp": 40,
+      "fn": 2166,
+      "tp": 2374
+    },
+    "combined_or_residual": {
+      "tn": 4204,
+      "fp": 603,
+      "fn": 1598,
+      "tp": 2942
+    },
+    "delta_tn_fp_fn_tp": [
+      -563,
+      563,
+      -568,
+      568
+    ],
+    "combined_or_residual_precision": 0.8299012693935119,
+    "note": "run_detector() NOT modified. Wiring this rule in would change EXP-0017's frozen TEST confusion by this delta \u2014 a separate decision."
+  },
+  "software": {
+    "python": "3.12.10",
+    "numpy": "2.5.3",
+    "scipy": "1.18.1",
+    "scikit_learn": "1.9.0"
+  },
+  "limitations": [
+    "Pressure is the ARFF-aligned value; a PCAP-replay deployment would decode it from 0x03 response bytes and that register map/scale is undocumented.",
+    "AR(1) coefficient, sigma and energy thresholds are empirical TRAIN-normal statistics, not a physical process model.",
+    "1-2 pressure samples per 5 s window: the rolling window spans ~11 windows, so a window's verdict reflects ~55 s of surrounding telemetry, not itself alone. A TEST window's causal context may include VALIDATION/guard samples.",
+    "Judged only on CMRI windows EXP-0017 already misses; incidental effects on other categories are reported, not tuned for.",
+    "One testbed; egress-only."
+  ]
+}

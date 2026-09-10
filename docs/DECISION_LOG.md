@@ -930,3 +930,62 @@ live packet bytes. No protected experiment or Layer A files were modified.
 The saved evaluation and consumed-attempt ledger remain local, currently ignored
 under `data/`; include them explicitly when a future commit/package is approved.
 No commit or push is authorized or performed by this decision record.
+
+# 2026-09-10 — EXP-0018 residual-smoothness diagnostic for missed CMRI — PLANNED
+
+- **Decision:** test the external-research hypothesis that smooth CMRI response
+  forgeries which stay inside the EXP-0016 pressure bounds are still detectable as
+  *unnaturally quiet* one-step prediction residuals. Build a standalone
+  residual-energy detector, measure it, and — as with EXP-0016 before EXP-0017 —
+  DO NOT wire it into `run_detector()`. Measurement only; new files only.
+- **Options considered:**
+  (a) within-window residual variance/autocorrelation — **rejected**: egress 0x03
+  pressure cadence is 1–2 samples per 5 s window, no intra-window series exists;
+  (b) per-window single standardised residual at exact window granularity — weaker,
+  deferred;
+  (c) **chosen** — AR(1) residuals over the global 0x03 sequence, per-window verdict
+  from a causal K=15-sample rolling residual-energy statistic, two-sided calibration
+  against the TRAIN-normal energy distribution.
+- **Why chosen:** (c) is the only form of the hypothesis the data cadence supports,
+  keeps the model simple/explainable (one AR coefficient, one σ, two empirical
+  quantiles), and CMRI episodes are long enough (median ~16 windows) that a
+  ~55 s rolling window sits inside them.
+- **Evaluation cohort, stated up front:** success is judged ONLY on CMRI TEST
+  windows that EXP-0017's combined detector currently MISSES (`comb_pred == 0`).
+  Already-caught CMRI windows earn no credit; only genuinely new detections count.
+- **Decision rule:** STRONG = new-missed-CMRI recall ≥ 25% and new pure-Normal FP
+  rate ≤ 0.30% and combined precision ≥ 97.0%; ACCEPTABLE = ≥ 10% / same bars;
+  else HYPOTHESIS NOT SUPPORTED. Plus a threshold-independent Mann–Whitney U test
+  (missed-CMRI vs Normal residual energy, α = 0.01, direction must match the
+  hypothesis) — a null or wrong-direction result is reported as the idea not
+  earning its place, exactly like every other experiment.
+- **Constraints:** egress-only; checksummed EXP-0008 pretest manifest for all split
+  boundaries; EXP-0017 saved output reproduced (all source sha256 + checksum +
+  VALIDATED gate) before scoring; `run_detector` not called (attempt consumed);
+  no change to protected EXP-0005..EXP-0013, Layer A, DoS/MSCI/MPCI files, or
+  `app.py`. Full diff and real results shown before any commit; no push.
+- **Impact:** method and exact criteria in `EXPERIMENT_LOG.md` (EXP-0018). If the
+  verdict is STRONG/ACCEPTABLE, wiring it into `run_detector()` is a separate
+  human decision (the EXP-0016 → EXP-0017 pattern).
+
+## 2026-09-10 — EXP-0018 completed — HYPOTHESIS NOT SUPPORTED — negative result
+
+The pre-registered evaluation ran once. Identity gates passed (EXP-0017 saved
+output reproduced with no drift; `run_detector` not called). The residual-smoothness
+hypothesis does not hold for CMRI in this testbed:
+
+- Threshold-independent signal test is significant **in the opposite direction** —
+  previously-missed pure-CMRI windows have *higher* AR(1) rolling residual energy
+  than Normal (median 9.75 vs 0.008; Mann–Whitney p = 9.35e-69). The "over-smooth"
+  (low-energy) variant catches only 14 / 544 = 2.57% of missed pure-CMRI.
+- The two-sided rule at the pre-registered calibration flags 11.86% of pure-Normal
+  TEST windows (bar ≤ 0.30%) and drops combined precision to 82.99% (bar ≥ 97.0%).
+- Pre-registered decision rule → **WEAK / HYPOTHESIS NOT SUPPORTED**.
+
+**Decision:** do NOT build on this signal; do NOT wire anything into
+`run_detector()`. EXP-0018 is retained as a recorded negative result. No change to
+`run_detector`, `app.py`, or any protected experiment / Layer A file. New files
+only: `ml/exp0018_pressure_residual_smoothness.py`,
+`tests/test_exp0018_pressure_residual_smoothness.py`,
+`data/experiments/exp0018_pressure_residual_smoothness.json`, `docs/EXP0018_RESULTS.md`.
+Full suite 147 → 156 passed. No commit or push performed by this record.
