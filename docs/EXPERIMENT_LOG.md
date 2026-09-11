@@ -3315,3 +3315,102 @@ The pre-registered method ran once against the frozen EXP-0017 saved output.
   false-positive windows — too thin to trust, and a fourth iteration would risk the
   EXP-0009 → EXP-0011 validation-overfitting pattern. CMRI combined recall stays at
   60.1 % (EXP-0017). Next detection work: MSCI / MPCI (different cohort).
+
+## PRE-REGISTRATION — EXP-0023 (recorded 2026-09-11, before the EXP-0023 script/run)
+
+**Status: PLANNED — INVESTIGATIVE / DESCRIPTIVE ONLY; NO DETECTOR, RULE OR MODEL.**
+
+1. **Question.** Characterize the 14 previously undecoded register-data bytes in the
+   canonical 23-byte Modbus `0x03` egress read response. The 18-byte register-data
+   region is `frame[3:21]`; the four-byte candidate at register-data offsets 14–17
+   will be checked against ARFF `pressure measurement` as an offset/alignment sanity
+   check, leaving offsets 0–13 under investigation. If the frame shape or the ARFF
+   match fails, stop rather than infer a layout.
+2. **Data / boundary.** Authoritative TXT/ARFF hashes must match. Egress only means
+   `destination == 1`. TRAIN and VALIDATION membership come only from corrected
+   manifest `verified-egress-5s-exp0008-pretest-v1`; TEST is not needed or read for
+   this descriptive investigation. `source` is an unobservable F-02 rig artifact and
+   is not parsed, bound, filtered on, reported, or used in any feature/decision logic.
+3. **TRAIN-normal byte audit.** For every undecoded offset, report observed domain,
+   count, range and entropy. Also test all nine aligned Modbus 16-bit register
+   groupings and limited evidence-led alternatives (duplicate/discrete status bytes,
+   bit frequencies, integer/raw-measurement association, and float candidates). A
+   byte is called constant only if it is constant across every canonical response in
+   pure-Normal TRAIN windows; `reserved/padding/unused` remains an empirical
+   candidate, not a documented semantic claim.
+4. **Known-field association.** Compare candidates with decoded pressure and time;
+   function code is fixed by the canonical cohort, so its correlation is undefined
+   rather than zero. Report Pearson/Spearman association and deterministic/near-
+   deterministic relationships where applicable. Do not name pump, solenoid, valve,
+   actuator state, or any other process meaning without documentation or a clean
+   event-level coincidence test; unknown means unknown.
+5. **Attack comparison.** For every non-constant, non-random candidate, aggregate
+   descriptive features per existing 5-second eligible window. In fixed priority
+   order, compare pure MSCI and MPCI windows first, then NMRI, CMRI, MFCI, DoS and
+   Recon where the candidate is observable. Report both full pure-Normal and
+   nearest-index matched pure-Normal Cohen's d using the EXP-0014/0015 population-SD
+   convention and negligible/small/medium/large grades. This is descriptive signal
+   measurement only; no acceptance bar, threshold, detector recall or TEST score.
+6. **Outcome labels.** Assign each of the 14 bytes exactly one conservative class:
+   (a) confirmed constant in TRAIN-normal / no observed variation (meaning still
+   undocumented); (b) varies but appears noise/uninterpretable; (c) plausible pattern
+   with unconfirmed meaning; or (d) real MSCI/MPCI Cohen's-d separation and genuine
+   feature candidate. Only (d) is promising. No threshold is selected, no TEST score
+   is produced and no operational file is touched.
+7. **Tests / outputs.** New EXP-0023 script, tests, saved JSON and result summary only,
+   plus completion entries in these two logs. Synthetic tests must prove byte slices,
+   big-endian register grouping and pressure-float sanity. Full suite before any
+   commit; full diff and all real findings shown first. No commit or push without an
+   explicit go-ahead.
+
+## EXP-0023 execution outcome — TESTED — no promising candidate; MSCI/MPCI unobservable in this field (2026-09-11)
+
+- Identity gates passed: EXP-0017 reproduced from its checksummed artifact
+  (`comb == protocol | pressure | IF`, whole-TEST `(4767, 40, 2166, 2374)`); TEST not
+  read or scored.
+- **Pressure-offset sanity check passed**: the big-endian float32 at `frame[17:21]`,
+  decoded independently from raw bytes, matches the ARFF `pressure measurement`
+  column on all 48,060 egress `0x03` canonical Normal-category rows (0 mismatches,
+  1e-4 relative tolerance for ARFF's ~6-sig-fig text precision). Attack-category rows
+  were excluded by design (pressure is attacker-falsified there — the known
+  phenomenon, not an offset bug). Frame layout confirmed:
+  `addr(1) func(1) byte_count=18 register-data(18) crc(2)`; the 14 undecoded bytes are
+  `frame[3:17]` = exactly 7 big-endian 16-bit registers.
+- **Per-byte audit (TRAIN-normal, n=21,384):** 8 of 14 bytes hard-constant. Byte 5
+  varies but is noise-like (entropy 7.52/8 bits). Bytes 1/3/7/13 vary as small
+  discrete sets (2-4 values), consistent with packed status/flag bits; bytes 1 and 3
+  are numerically identical in every one of the 21,384 samples checked. **Byte 4
+  correlates with decoded pressure at Pearson r=0.995** — the audit's one clear
+  structural finding, consistent with a raw analog/ADC channel reading the same
+  sensor before scaling.
+- **Documentation check (thesis Appendix A, Figure A.1):** the RTU's documented READS
+  register map begins with exactly 7 registers (Digital Outputs, Digital Inputs,
+  Analog Input 0-4) followed by a 2-register float "Scaled Gas Pressure" — the same
+  7-register + float shape observed on the wire. Named as a structural match, not
+  confirmed: there is no ARFF ground-truth column for those registers the way there
+  is for pressure.
+- **Attack comparison (Cohen's d, population-SD, TRAIN+VAL, MSCI/MPCI priority):**
+  **0 pure MSCI, MPCI, MFCI, DoS or Recon windows contain any egress `0x03` traffic at
+  all** — the motivating MSCI/MPCI question is unanswerable from this field under the
+  pure-window definition used throughout this project, not merely "no signal". CMRI
+  (6,890 windows) and NMRI (4,018 windows) do have `0x03` traffic; every non-constant
+  byte, register-pair and float candidate was compared there and **none reaches even
+  a small effect (`|d| < 0.2` everywhere, including the pressure-correlated register)**.
+- **Conclusion: no byte or byte-group qualifies as a genuine feature candidate
+  (category d) under this experiment's bar.** 8 bytes classed (a) confirmed constant,
+  1 byte (b) noise, 5 bytes (c) plausible-but-unconfirmed pattern (4 bit-flag-like,
+  1 the pressure-correlated analog byte). This reinforces EXP-0022: MSCI/MPCI barely
+  touch `0x03` read-response traffic, so features built from this frame type have a
+  structural ceiling independent of which bytes are decoded.
+- **TESTED.** Full suite **198 → 215 passed** (17 new: 16 fast synthetic units + 1
+  slow saved-result replay). No raw data read in pytest outside the guarded scan
+  script itself (run once outside pytest to produce the saved JSON).
+- `run_detector`, `app.py`, DoS files, Layer A, the closed EXP-0018/0019/0020 CMRI
+  files and all protected EXP-0005..EXP-0022 files are unchanged. `source` is never
+  parsed, bound, filtered on, or used anywhere in `ml/exp0023_0x03_register_bytes_diag.py`
+  (asserted by a static-analysis unit test). New files only:
+  `ml/exp0023_0x03_register_bytes_diag.py`, `tests/test_exp0023_0x03_register_bytes_diag.py`,
+  `data/experiments/exp0023_register_bytes.json`, `docs/EXP0023_RESULTS.md`.
+- Saved result:
+  [exp0023_register_bytes.json](../data/experiments/exp0023_register_bytes.json),
+  summary [EXP0023_RESULTS.md](EXP0023_RESULTS.md).

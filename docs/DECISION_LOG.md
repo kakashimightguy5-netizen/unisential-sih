@@ -1161,3 +1161,52 @@ Full suite 164 → 170 passed. No commit or push performed by this record.
   MPCI 1.08 % dominant recall), and a different cohort entirely, so untouched by the
   forking-paths risk above. EXP-0014 was the diagnostic; the next experiment builds
   on that. Task framing pending.
+
+## 2026-09-11 — EXP-0023 pre-registered: investigate 14 undecoded `0x03` bytes
+
+**Status: PLANNED — investigative/descriptive only.** Characterize register-data
+offsets 0–13 in canonical 23-byte `0x03` egress responses; use the candidate
+big-endian float at offsets 14–17 and ARFF `pressure measurement` only to verify the
+layout/alignment. Constant and candidate field structure are learned from pure-Normal
+TRAIN windows in the corrected EXP-0008 manifest. Non-constant, non-random candidates
+are compared with nearest-index matched pure-Normal windows using the EXP-0014/0015
+Cohen's-d convention, with MSCI and MPCI first, followed by every other category for
+which the candidate is observable. No detector, rule, model, threshold or TEST score
+is authorized. `destination == 1`
+is the only direction filter; the F-02 `source` artifact must not be parsed, bound,
+filtered on, reported, or used in feature/decision logic. Process semantics remain
+unknown unless primary documentation or a clean attack-event coincidence supports
+them. Full results and diff must be shown before any commit; no push without explicit
+approval.
+
+## 2026-09-11 — EXP-0023 completed — no promising byte; MSCI/MPCI unobservable in this field
+
+Identity gates passed (EXP-0017 reproduced; TEST never read). Pressure-offset sanity
+check passed on all 48,060 Normal-category egress `0x03` rows (0 mismatches),
+confirming the frame layout: 14 undecoded bytes = `frame[3:17]`, exactly 7 big-endian
+16-bit registers, followed by the known pressure float at `frame[17:21]`.
+
+- 8/14 bytes hard-constant in TRAIN-normal. Byte 5 is noise-like. Bytes 1/3/7/13 vary
+  as small discrete sets consistent with packed status bits (bytes 1 and 3 identical
+  in all 21,384 samples checked). Byte 4 correlates with decoded pressure at
+  Pearson r=0.995 — the strongest finding, consistent with a raw analog channel on
+  the same sensor, **not confirmed** as any specific process quantity.
+- Thesis Appendix A's documented READS register map (7 registers: Digital
+  Outputs/Inputs, Analog Input 0-4, then a 2-register float "Scaled Gas Pressure")
+  structurally matches what's on the wire — named explicitly as an unconfirmed
+  structural coincidence, since (unlike pressure) there is no ARFF column to
+  independently verify it against.
+- **0 pure MSCI/MPCI/MFCI/DoS/Recon windows contain any `0x03` traffic at all** — the
+  motivating question can't be answered from this field, not merely answered
+  negatively. CMRI/NMRI do have `0x03` traffic; every candidate byte/register/float
+  compared there shows `|d| < 0.2` (negligible) everywhere, including the
+  pressure-correlated byte.
+- **Decision: no feature candidate identified. No detector, rule or model built or
+  proposed from this field.** This reinforces EXP-0022's conclusion (`0x03` traffic
+  structurally under-represents MSCI/MPCI) rather than opening a new lead.
+- Full suite 198 → 215 passed. New files only:
+  `ml/exp0023_0x03_register_bytes_diag.py`,
+  `tests/test_exp0023_0x03_register_bytes_diag.py`,
+  `data/experiments/exp0023_register_bytes.json`, `docs/EXP0023_RESULTS.md`.
+  `source` never parsed/used (asserted by a static-analysis test). No commit or push
+  performed by this record.
