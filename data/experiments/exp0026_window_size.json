@@ -1,0 +1,749 @@
+{
+  "status": "TESTED",
+  "experiment": "EXP-0026",
+  "scope": "egress only (destination == 1); MSCI/MPCI vs Normal; TRAIN+VALIDATION only",
+  "does_not_modify": [
+    "ml/features_windowed.py",
+    "ml/iforest_detector.run_detector",
+    "the 5s production pipeline"
+  ],
+  "manifest": {
+    "split_id": "verified-egress-5s-exp0008-pretest-v1",
+    "membership_sha256": "0e912e147d088aaed05e95bda04c6a46c72ed4dd16aafb6966c9e2aab26859e6"
+  },
+  "window_sizes_seconds": [
+    5.0,
+    15.0,
+    30.0,
+    60.0
+  ],
+  "feature_scope_note": "EXP-0021's five pressure features only, computed natively per window (not EXP-0014's 16 protocol/rate/entropy features -- those are structurally invariant to window size, per EXP-0014's own finding that MSCI/MPCI writes are byte-identical to Normal writes).",
+  "five_second_baseline_consistency_check": {
+    "tolerance": 0.01,
+    "all_within_tolerance": true,
+    "checks": [
+      {
+        "category": "MSCI",
+        "feature": "p_std",
+        "exp0021_reference_d": 0.144,
+        "exp0026_5s_d": 0.14445821842536938,
+        "abs_diff": 0.00045821842536938884,
+        "within_tolerance": true
+      },
+      {
+        "category": "MSCI",
+        "feature": "p_range",
+        "exp0021_reference_d": 0.144,
+        "exp0026_5s_d": 0.14445821842536938,
+        "abs_diff": 0.00045821842536938884,
+        "within_tolerance": true
+      },
+      {
+        "category": "MSCI",
+        "feature": "p_max_abs_step",
+        "exp0021_reference_d": 0.144,
+        "exp0026_5s_d": 0.14445821842536938,
+        "abs_diff": 0.00045821842536938884,
+        "within_tolerance": true
+      },
+      {
+        "category": "MSCI",
+        "feature": "p_trend_abs",
+        "exp0021_reference_d": 0.144,
+        "exp0026_5s_d": 0.14400312642823154,
+        "abs_diff": 3.126428231553513e-06,
+        "within_tolerance": true
+      },
+      {
+        "category": "MSCI",
+        "feature": "p_mean_shift",
+        "exp0021_reference_d": 0.245,
+        "exp0026_5s_d": 0.24487025376174307,
+        "abs_diff": 0.0001297462382569281,
+        "within_tolerance": true
+      },
+      {
+        "category": "MPCI",
+        "feature": "p_std",
+        "exp0021_reference_d": 0.242,
+        "exp0026_5s_d": 0.24248828214956322,
+        "abs_diff": 0.0004882821495632295,
+        "within_tolerance": true
+      },
+      {
+        "category": "MPCI",
+        "feature": "p_range",
+        "exp0021_reference_d": 0.242,
+        "exp0026_5s_d": 0.24248828214956322,
+        "abs_diff": 0.0004882821495632295,
+        "within_tolerance": true
+      },
+      {
+        "category": "MPCI",
+        "feature": "p_max_abs_step",
+        "exp0021_reference_d": 0.242,
+        "exp0026_5s_d": 0.24248828214956322,
+        "abs_diff": 0.0004882821495632295,
+        "within_tolerance": true
+      },
+      {
+        "category": "MPCI",
+        "feature": "p_trend_abs",
+        "exp0021_reference_d": 0.242,
+        "exp0026_5s_d": 0.24225618424741227,
+        "abs_diff": 0.00025618424741227774,
+        "within_tolerance": true
+      },
+      {
+        "category": "MPCI",
+        "feature": "p_mean_shift",
+        "exp0021_reference_d": 0.263,
+        "exp0026_5s_d": 0.26333255065520683,
+        "abs_diff": 0.00033255065520682026,
+        "within_tolerance": true
+      }
+    ]
+  },
+  "by_window_size": {
+    "5.0": {
+      "window_seconds": 5.0,
+      "n5_base_buckets_per_window": 1,
+      "n_native_windows_train": 28040,
+      "n_native_windows_validation": 9345,
+      "n_native_windows_discarded_boundary_or_empty": 3379,
+      "n_pure_normal_windows_with_features": 8843,
+      "per_category": {
+        "MSCI": {
+          "cohort_note": "primary comparison ('containing') matches EXP-0021's window-level cohort: any window with >=1 frame of this category, regardless of co-occurring categories. 'pure' (EXP-0014's cohort: no OTHER attack category co-occurring) is reported alongside as secondary context.",
+          "n_containing_windows_with_features": 1012,
+          "n_containing_windows_total": 2312,
+          "n_pure_windows_total": 1376,
+          "features": [
+            {
+              "feature": "p_std",
+              "n_attack_containing": 1012,
+              "n_normal": 8843,
+              "attack_mean": 2.2511777002214045e+35,
+              "normal_mean": 0.12265249395001696,
+              "cohens_d": 0.14445821842536938,
+              "effect": "negligible",
+              "clears_gate": false,
+              "n_attack_pure": 606,
+              "cohens_d_pure_cohort": 0.6433855932482937,
+              "effect_pure_cohort": "medium"
+            },
+            {
+              "feature": "p_range",
+              "n_attack_containing": 1012,
+              "n_normal": 8843,
+              "attack_mean": 4.502355400442809e+35,
+              "normal_mean": 0.2453049879000339,
+              "cohens_d": 0.14445821842536938,
+              "effect": "negligible",
+              "clears_gate": false,
+              "n_attack_pure": 606,
+              "cohens_d_pure_cohort": 0.6433855932482937,
+              "effect_pure_cohort": "medium"
+            },
+            {
+              "feature": "p_max_abs_step",
+              "n_attack_containing": 1012,
+              "n_normal": 8843,
+              "attack_mean": 4.502355400442809e+35,
+              "normal_mean": 0.2453049879000339,
+              "cohens_d": 0.14445821842536938,
+              "effect": "negligible",
+              "clears_gate": false,
+              "n_attack_pure": 606,
+              "cohens_d_pure_cohort": 0.6433855932482937,
+              "effect_pure_cohort": "medium"
+            },
+            {
+              "feature": "p_trend_abs",
+              "n_attack_containing": 1012,
+              "n_normal": 8843,
+              "attack_mean": 1.3396636210223569e+35,
+              "normal_mean": 0.07121842014370885,
+              "cohens_d": 0.14400312642823154,
+              "effect": "negligible",
+              "clears_gate": false,
+              "n_attack_pure": 606,
+              "cohens_d_pure_cohort": 0.6405267150261018,
+              "effect_pure_cohort": "medium"
+            },
+            {
+              "feature": "p_mean_shift",
+              "n_attack_containing": 1012,
+              "n_normal": 8843,
+              "attack_mean": 1.9010517024140746e+36,
+              "normal_mean": 3.0784740514301397e+34,
+              "cohens_d": 0.24487025376174307,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 606,
+              "cohens_d_pure_cohort": -0.010991936704601005,
+              "effect_pure_cohort": "negligible"
+            }
+          ]
+        },
+        "MPCI": {
+          "cohort_note": "primary comparison ('containing') matches EXP-0021's window-level cohort: any window with >=1 frame of this category, regardless of co-occurring categories. 'pure' (EXP-0014's cohort: no OTHER attack category co-occurring) is reported alongside as secondary context.",
+          "n_containing_windows_with_features": 2593,
+          "n_containing_windows_total": 5866,
+          "n_pure_windows_total": 3266,
+          "features": [
+            {
+              "feature": "p_std",
+              "n_attack_containing": 2593,
+              "n_normal": 8843,
+              "attack_mean": 1.6712887330224588e+36,
+              "normal_mean": 0.12265249395001696,
+              "cohens_d": 0.24248828214956322,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 1435,
+              "cohens_d_pure_cohort": 0.03522919083681717,
+              "effect_pure_cohort": "negligible"
+            },
+            {
+              "feature": "p_range",
+              "n_attack_containing": 2593,
+              "n_normal": 8843,
+              "attack_mean": 3.3425774660449175e+36,
+              "normal_mean": 0.2453049879000339,
+              "cohens_d": 0.24248828214956322,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 1435,
+              "cohens_d_pure_cohort": 0.03522919083681717,
+              "effect_pure_cohort": "negligible"
+            },
+            {
+              "feature": "p_max_abs_step",
+              "n_attack_containing": 2593,
+              "n_normal": 8843,
+              "attack_mean": 3.3425774660449175e+36,
+              "normal_mean": 0.2453049879000339,
+              "cohens_d": 0.24248828214956322,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 1435,
+              "cohens_d_pure_cohort": 0.03522919083681717,
+              "effect_pure_cohort": "negligible"
+            },
+            {
+              "feature": "p_trend_abs",
+              "n_attack_containing": 2593,
+              "n_normal": 8843,
+              "attack_mean": 9.822519430422402e+35,
+              "normal_mean": 0.07121842014370885,
+              "cohens_d": 0.24225618424741227,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 1435,
+              "cohens_d_pure_cohort": 0.034783712403696584,
+              "effect_pure_cohort": "negligible"
+            },
+            {
+              "feature": "p_mean_shift",
+              "n_attack_containing": 2593,
+              "n_normal": 8843,
+              "attack_mean": 2.9094932671137914e+36,
+              "normal_mean": 3.0784740514301397e+34,
+              "cohens_d": 0.26333255065520683,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 1435,
+              "cohens_d_pure_cohort": 0.0019537337687785305,
+              "effect_pure_cohort": "negligible"
+            }
+          ]
+        }
+      }
+    },
+    "15.0": {
+      "window_seconds": 15.0,
+      "n5_base_buckets_per_window": 3,
+      "n_native_windows_train": 8778,
+      "n_native_windows_validation": 2928,
+      "n_native_windows_discarded_boundary_or_empty": 3819,
+      "n_pure_normal_windows_with_features": 6089,
+      "per_category": {
+        "MSCI": {
+          "cohort_note": "primary comparison ('containing') matches EXP-0021's window-level cohort: any window with >=1 frame of this category, regardless of co-occurring categories. 'pure' (EXP-0014's cohort: no OTHER attack category co-occurring) is reported alongside as secondary context.",
+          "n_containing_windows_with_features": 858,
+          "n_containing_windows_total": 858,
+          "n_pure_windows_total": 460,
+          "features": [
+            {
+              "feature": "p_std",
+              "n_attack_containing": 858,
+              "n_normal": 6089,
+              "attack_mean": 1.3571274662131304e+36,
+              "normal_mean": 0.18564496667630245,
+              "cohens_d": 0.30878789586493766,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 460,
+              "cohens_d_pure_cohort": 0.9912939354888527,
+              "effect_pure_cohort": "large"
+            },
+            {
+              "feature": "p_range",
+              "n_attack_containing": 858,
+              "n_normal": 6089,
+              "attack_mean": 3.2043223340692936e+36,
+              "normal_mean": 0.4834365979635408,
+              "cohens_d": 0.309153249737187,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 460,
+              "cohens_d_pure_cohort": 0.9940627137741747,
+              "effect_pure_cohort": "large"
+            },
+            {
+              "feature": "p_max_abs_step",
+              "n_attack_containing": 858,
+              "n_normal": 6089,
+              "attack_mean": 3.2043223340692936e+36,
+              "normal_mean": 0.3899277456068321,
+              "cohens_d": 0.309153249737187,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 460,
+              "cohens_d_pure_cohort": 0.7423407326549121,
+              "effect_pure_cohort": "medium"
+            },
+            {
+              "feature": "p_trend_abs",
+              "n_attack_containing": 858,
+              "n_normal": 6089,
+              "attack_mean": 1.885937570790261e+35,
+              "normal_mean": 0.024722237722220243,
+              "cohens_d": 0.2755086569415709,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 460,
+              "cohens_d_pure_cohort": 1.076623333623829,
+              "effect_pure_cohort": "large"
+            },
+            {
+              "feature": "p_mean_shift",
+              "n_attack_containing": 858,
+              "n_normal": 6089,
+              "attack_mean": 1.3616379239731158e+36,
+              "normal_mean": 8.38116570235227e+34,
+              "cohens_d": 0.3270168974229988,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 460,
+              "cohens_d_pure_cohort": -0.03929239492715774,
+              "effect_pure_cohort": "negligible"
+            }
+          ]
+        },
+        "MPCI": {
+          "cohort_note": "primary comparison ('containing') matches EXP-0021's window-level cohort: any window with >=1 frame of this category, regardless of co-occurring categories. 'pure' (EXP-0014's cohort: no OTHER attack category co-occurring) is reported alongside as secondary context.",
+          "n_containing_windows_with_features": 2152,
+          "n_containing_windows_total": 2152,
+          "n_pure_windows_total": 1132,
+          "features": [
+            {
+              "feature": "p_std",
+              "n_attack_containing": 2152,
+              "n_normal": 6089,
+              "attack_mean": 2.6510895668655762e+36,
+              "normal_mean": 0.18564496667630245,
+              "cohens_d": 0.31708292935350413,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 1132,
+              "cohens_d_pure_cohort": 0.035053161234702056,
+              "effect_pure_cohort": "negligible"
+            },
+            {
+              "feature": "p_range",
+              "n_attack_containing": 2152,
+              "n_normal": 6089,
+              "attack_mean": 6.368302243764781e+36,
+              "normal_mean": 0.4834365979635408,
+              "cohens_d": 0.3170402739401246,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 1132,
+              "cohens_d_pure_cohort": 0.03222423772050312,
+              "effect_pure_cohort": "negligible"
+            },
+            {
+              "feature": "p_max_abs_step",
+              "n_attack_containing": 2152,
+              "n_normal": 6089,
+              "attack_mean": 6.368302243761863e+36,
+              "normal_mean": 0.3899277456068321,
+              "cohens_d": 0.3170402739399805,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 1132,
+              "cohens_d_pure_cohort": 0.011459232109330898,
+              "effect_pure_cohort": "negligible"
+            },
+            {
+              "feature": "p_trend_abs",
+              "n_attack_containing": 2152,
+              "n_normal": 6089,
+              "attack_mean": 2.875849661821708e+35,
+              "normal_mean": 0.024722237722220243,
+              "cohens_d": 0.2732375638104912,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 1132,
+              "cohens_d_pure_cohort": 0.06134192167845417,
+              "effect_pure_cohort": "negligible"
+            },
+            {
+              "feature": "p_mean_shift",
+              "n_attack_containing": 2152,
+              "n_normal": 6089,
+              "attack_mean": 2.586754954295584e+36,
+              "normal_mean": 8.38116570235227e+34,
+              "cohens_d": 0.3908234839481424,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 1132,
+              "cohens_d_pure_cohort": 0.0005474455515153606,
+              "effect_pure_cohort": "negligible"
+            }
+          ]
+        }
+      }
+    },
+    "30.0": {
+      "window_seconds": 30.0,
+      "n5_base_buckets_per_window": 6,
+      "n_native_windows_train": 4325,
+      "n_native_windows_validation": 1446,
+      "n_native_windows_discarded_boundary_or_empty": 2022,
+      "n_pure_normal_windows_with_features": 2693,
+      "per_category": {
+        "MSCI": {
+          "cohort_note": "primary comparison ('containing') matches EXP-0021's window-level cohort: any window with >=1 frame of this category, regardless of co-occurring categories. 'pure' (EXP-0014's cohort: no OTHER attack category co-occurring) is reported alongside as secondary context.",
+          "n_containing_windows_with_features": 499,
+          "n_containing_windows_total": 499,
+          "n_pure_windows_total": 234,
+          "features": [
+            {
+              "feature": "p_std",
+              "n_attack_containing": 499,
+              "n_normal": 2693,
+              "attack_mean": 1.9517303870469374e+36,
+              "normal_mean": 0.25037653207544225,
+              "cohens_d": 0.3818090437002538,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 234,
+              "cohens_d_pure_cohort": 1.2415521153687374,
+              "effect_pure_cohort": "large"
+            },
+            {
+              "feature": "p_range",
+              "n_attack_containing": 499,
+              "n_normal": 2693,
+              "attack_mean": 6.143902777316175e+36,
+              "normal_mean": 0.7376941593018939,
+              "cohens_d": 0.38203993614887255,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 234,
+              "cohens_d_pure_cohort": 1.26115768072181,
+              "effect_pure_cohort": "large"
+            },
+            {
+              "feature": "p_max_abs_step",
+              "n_attack_containing": 499,
+              "n_normal": 2693,
+              "attack_mean": 6.14390277730359e+36,
+              "normal_mean": 0.5200255187523208,
+              "cohens_d": 0.3820399361480964,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 234,
+              "cohens_d_pure_cohort": 0.9025880016723654,
+              "effect_pure_cohort": "large"
+            },
+            {
+              "feature": "p_trend_abs",
+              "n_attack_containing": 499,
+              "n_normal": 2693,
+              "attack_mean": 5.808704560674116e+34,
+              "normal_mean": 0.014749606498330212,
+              "cohens_d": 0.3170337641439078,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 234,
+              "cohens_d_pure_cohort": 1.2861172717436227,
+              "effect_pure_cohort": "large"
+            },
+            {
+              "feature": "p_mean_shift",
+              "n_attack_containing": 499,
+              "n_normal": 2693,
+              "attack_mean": 1.27349742683423e+36,
+              "normal_mean": 1.71277217438815e+35,
+              "cohens_d": 0.34020162361143375,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 234,
+              "cohens_d_pure_cohort": 0.029598821363236917,
+              "effect_pure_cohort": "negligible"
+            }
+          ]
+        },
+        "MPCI": {
+          "cohort_note": "primary comparison ('containing') matches EXP-0021's window-level cohort: any window with >=1 frame of this category, regardless of co-occurring categories. 'pure' (EXP-0014's cohort: no OTHER attack category co-occurring) is reported alongside as secondary context.",
+          "n_containing_windows_with_features": 1235,
+          "n_containing_windows_total": 1235,
+          "n_pure_windows_total": 586,
+          "features": [
+            {
+              "feature": "p_std",
+              "n_attack_containing": 1235,
+              "n_normal": 2693,
+              "attack_mean": 3.5610178590890006e+36,
+              "normal_mean": 0.25037653207544225,
+              "cohens_d": 0.38388471835335625,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 586,
+              "cohens_d_pure_cohort": 0.05066185507726025,
+              "effect_pure_cohort": "negligible"
+            },
+            {
+              "feature": "p_range",
+              "n_attack_containing": 1235,
+              "n_normal": 2693,
+              "attack_mean": 1.122382951222081e+37,
+              "normal_mean": 0.7376941593018939,
+              "cohens_d": 0.3829544401791482,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 586,
+              "cohens_d_pure_cohort": 0.04248123644230008,
+              "effect_pure_cohort": "negligible"
+            },
+            {
+              "feature": "p_max_abs_step",
+              "n_attack_containing": 1235,
+              "n_normal": 2693,
+              "attack_mean": 1.1223829512215723e+37,
+              "normal_mean": 0.5200255187523208,
+              "cohens_d": 0.3829544401789726,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 586,
+              "cohens_d_pure_cohort": 0.012420224874309539,
+              "effect_pure_cohort": "negligible"
+            },
+            {
+              "feature": "p_trend_abs",
+              "n_attack_containing": 1235,
+              "n_normal": 2693,
+              "attack_mean": 1.2597602046026602e+35,
+              "normal_mean": 0.014749606498330212,
+              "cohens_d": 0.3309805445543698,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 586,
+              "cohens_d_pure_cohort": 0.08560482305834535,
+              "effect_pure_cohort": "negligible"
+            },
+            {
+              "feature": "p_mean_shift",
+              "n_attack_containing": 1235,
+              "n_normal": 2693,
+              "attack_mean": 1.971775592426697e+36,
+              "normal_mean": 1.71277217438815e+35,
+              "cohens_d": 0.3971371823622585,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 586,
+              "cohens_d_pure_cohort": 0.0010711263386797858,
+              "effect_pure_cohort": "negligible"
+            }
+          ]
+        }
+      }
+    },
+    "60.0": {
+      "window_seconds": 60.0,
+      "n5_base_buckets_per_window": 12,
+      "n_native_windows_train": 2091,
+      "n_native_windows_validation": 700,
+      "n_native_windows_discarded_boundary_or_empty": 1137,
+      "n_pure_normal_windows_with_features": 1028,
+      "per_category": {
+        "MSCI": {
+          "cohort_note": "primary comparison ('containing') matches EXP-0021's window-level cohort: any window with >=1 frame of this category, regardless of co-occurring categories. 'pure' (EXP-0014's cohort: no OTHER attack category co-occurring) is reported alongside as secondary context.",
+          "n_containing_windows_with_features": 310,
+          "n_containing_windows_total": 310,
+          "n_pure_windows_total": 117,
+          "features": [
+            {
+              "feature": "p_std",
+              "n_attack_containing": 310,
+              "n_normal": 1028,
+              "attack_mean": 2.987389940898572e+36,
+              "normal_mean": 0.35008427635538186,
+              "cohens_d": 0.4475872945676265,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 117,
+              "cohens_d_pure_cohort": 1.426265511142584,
+              "effect_pure_cohort": "large"
+            },
+            {
+              "feature": "p_range",
+              "n_attack_containing": 310,
+              "n_normal": 1028,
+              "attack_mean": 1.2574262585740322e+37,
+              "normal_mean": 1.1103924941634242,
+              "cohens_d": 0.4503154822245215,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 117,
+              "cohens_d_pure_cohort": 1.4329778358203242,
+              "effect_pure_cohort": "large"
+            },
+            {
+              "feature": "p_max_abs_step",
+              "n_attack_containing": 310,
+              "n_normal": 1028,
+              "attack_mean": 1.2574262585740322e+37,
+              "normal_mean": 0.6919374542801557,
+              "cohens_d": 0.4503154822245215,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 117,
+              "cohens_d_pure_cohort": 0.9631724721014973,
+              "effect_pure_cohort": "large"
+            },
+            {
+              "feature": "p_trend_abs",
+              "n_attack_containing": 310,
+              "n_normal": 1028,
+              "attack_mean": 3.4475829313209785e+34,
+              "normal_mean": 0.010632296204066272,
+              "cohens_d": 0.3896997937615212,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 117,
+              "cohens_d_pure_cohort": 1.4082142090413043,
+              "effect_pure_cohort": "large"
+            },
+            {
+              "feature": "p_mean_shift",
+              "n_attack_containing": 310,
+              "n_normal": 1028,
+              "attack_mean": 1.235637003192992e+36,
+              "normal_mean": 3.1732017172906893e+35,
+              "cohens_d": 0.29561210867447135,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 117,
+              "cohens_d_pure_cohort": 0.017199409173392053,
+              "effect_pure_cohort": "negligible"
+            }
+          ]
+        },
+        "MPCI": {
+          "cohort_note": "primary comparison ('containing') matches EXP-0021's window-level cohort: any window with >=1 frame of this category, regardless of co-occurring categories. 'pure' (EXP-0014's cohort: no OTHER attack category co-occurring) is reported alongside as secondary context.",
+          "n_containing_windows_with_features": 770,
+          "n_containing_windows_total": 770,
+          "n_pure_windows_total": 299,
+          "features": [
+            {
+              "feature": "p_std",
+              "n_attack_containing": 770,
+              "n_normal": 1028,
+              "attack_mean": 4.385664117841569e+36,
+              "normal_mean": 0.35008427635538186,
+              "cohens_d": 0.4208244805659321,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 299,
+              "cohens_d_pure_cohort": -0.0009036534007247595,
+              "effect_pure_cohort": "negligible"
+            },
+            {
+              "feature": "p_range",
+              "n_attack_containing": 770,
+              "n_normal": 1028,
+              "attack_mean": 1.835965808005619e+37,
+              "normal_mean": 1.1103924941634242,
+              "cohens_d": 0.42343980203769976,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 299,
+              "cohens_d_pure_cohort": 0.02509545196074707,
+              "effect_pure_cohort": "negligible"
+            },
+            {
+              "feature": "p_max_abs_step",
+              "n_attack_containing": 770,
+              "n_normal": 1028,
+              "attack_mean": 1.835965808005619e+37,
+              "normal_mean": 0.6919374542801557,
+              "cohens_d": 0.42343980203769976,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 299,
+              "cohens_d_pure_cohort": 0.011455585397516382,
+              "effect_pure_cohort": "negligible"
+            },
+            {
+              "feature": "p_trend_abs",
+              "n_attack_containing": 770,
+              "n_normal": 1028,
+              "attack_mean": 4.76853393820568e+34,
+              "normal_mean": 0.010632296204066272,
+              "cohens_d": 0.34452831985327437,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 299,
+              "cohens_d_pure_cohort": 0.0038073267531926257,
+              "effect_pure_cohort": "negligible"
+            },
+            {
+              "feature": "p_mean_shift",
+              "n_attack_containing": 770,
+              "n_normal": 1028,
+              "attack_mean": 1.5960480901572167e+36,
+              "normal_mean": 3.1732017172906893e+35,
+              "cohens_d": 0.3267591578394919,
+              "effect": "small",
+              "clears_gate": false,
+              "n_attack_pure": 299,
+              "cohens_d_pure_cohort": -0.06209345058415808,
+              "effect_pure_cohort": "negligible"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "decision_gate": {
+    "rule": "|Cohen's d| >= 0.5 AND n_containing_attack_windows >= 30, at some (window size > 5s, category, feature)",
+    "passing_triples": [],
+    "passed": false,
+    "consequence": "STOP \u2014 no detector built; descriptive findings only"
+  },
+  "software": {
+    "python": "3.12.10",
+    "numpy": "2.5.3"
+  },
+  "limitations": [
+    "Pressure is the ARFF-aligned value, not a live 0x03 byte decode.",
+    "Native windows are fixed-grid, not aligned to attack-episode boundaries the way EXP-0021's episode aggregation was -- a native window can start/end mid-episode, which this experiment does not correct for.",
+    "The 5s baseline consistency check compares against EXP-0021's saved numbers to 0.01 absolute tolerance; small discrepancies could arise from independent re-derivation even if both are correct.",
+    "One testbed; egress-only; TRAIN+VALIDATION only until (and unless) the pre-registered gate passes."
+  ]
+}

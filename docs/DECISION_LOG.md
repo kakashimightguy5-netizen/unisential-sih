@@ -1363,3 +1363,56 @@ synthetic injections only.
   modification (user-approved): `data/experiments/exp0017_detector.json`. DoS
   Type 1 invalidated files, MSCI/MPCI closed files, Layer A, CMRI closed files
   unchanged. No commit or push performed by this record.
+
+## 2026-09-12 — PRE-REGISTRATION — EXP-0026 (native window-size exploration for MSCI/MPCI)
+
+New, separate pipeline variant only — does not touch `ml/features_windowed.py`
+or `run_detector()`. Tests whether redefining the observation unit natively
+longer (5s baseline, 15s, 30s, 60s) reveals separation that the current
+window-then-aggregate approach dilutes, independent of ACK-001/002's
+already-closed per-write/per-burst attribution problem.
+
+- Feature scope: EXP-0021's 5 pressure features only (`p_std`, `p_range`,
+  `p_max_abs_step`, `p_trend_abs`, `p_mean_shift`), computed natively per
+  window — not EXP-0014's 16 protocol/rate/entropy features, since those are
+  structurally invariant to window size (MSCI/MPCI writes are byte-identical
+  to Normal writes, already established).
+- Split-boundary rule: a native window is discarded entirely (never truncated)
+  unless every one of its constituent 5-second buckets belongs to the same
+  manifest block — this also correctly discards windows crossing the
+  manifest's existing internal TRAIN/VALIDATION gaps.
+- Decision bar: `|d| >= 0.5` (EXP-0021's own gate) AND >= 30 pure-attack
+  native windows for that (size, category, feature) — both required to
+  proceed to building a detector. Cohen's d formula reused directly from
+  `exp0021_msci_mpci.cohens_d` to enable an exact 5s-baseline reproduction
+  check against EXP-0021's saved numbers before trusting new sizes.
+- New files: `ml/exp0026_window_size.py`, `tests/test_exp0026_window_size.py`,
+  `data/experiments/exp0026_window_size.json`, `docs/EXP0026_RESULTS.md`.
+  `run_detector`, the 5s production pipeline, DoS Type 1 invalidated files,
+  CMRI closed files, Layer A, `app.py` untouched. Full diff and results
+  required before any commit; separate go-ahead before push.
+
+## 2026-09-12 — EXP-0026 completed — gate not passed; a real bug caught by its own consistency check
+
+The pre-registered 5s-baseline reproduction check caught a genuine
+implementation bug on the first run (wrong cohort — `_pure` instead of
+EXP-0021's `_containing`); fixed and reproduced EXP-0021's saved numbers
+exactly before trusting any new window size.
+
+- Primary cohort (matches EXP-0021): effect grows monotonically with window
+  size (MPCI p_std 0.242→0.317→0.384→0.421 at 5/15/30/60s) but plateaus below
+  the pre-registered `|d| >= 0.5` bar at every size tested.
+- **Decision: no detector built at any native window size** — gate not
+  passed, per pre-registration. Comparable to, not better than, EXP-0021's
+  episode-level 0.446 (also sub-bar); fixed-grid windows don't recover what
+  true episode-alignment provided.
+- Disclosed secondary (non-gate) finding: the "pure" cohort shows a much
+  larger, sharply growing MSCI effect (0.643→1.426) with shrinking n
+  (606→117) while MPCI's pure-cohort effect stays negligible — genuinely
+  surprising, explicitly NOT treated as gate-passing since it was never the
+  pre-registered metric; would need its own pre-registration to pursue.
+- Full suite 275 → 293 passed. New files only: `ml/exp0026_window_size.py`,
+  `tests/test_exp0026_window_size.py`, `data/experiments/exp0026_window_size.json`,
+  `docs/EXP0026_RESULTS.md`. `ml/features_windowed.py`, `run_detector`, DoS
+  Type 1 invalidated files, CMRI closed files, Layer A, `app.py` unchanged.
+  No commit or push performed by this record.
