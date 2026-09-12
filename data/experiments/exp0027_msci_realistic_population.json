@@ -1,0 +1,155 @@
+{
+  "status": "TESTED",
+  "experiment": "EXP-0027",
+  "scope": "egress only (destination == 1); MSCI vs Normal; 60s native windows; TRAIN+VALIDATION only",
+  "manifest": {
+    "split_id": "verified-egress-5s-exp0008-pretest-v1",
+    "membership_sha256": "0e912e147d088aaed05e95bda04c6a46c72ed4dd16aafb6966c9e2aab26859e6"
+  },
+  "window_seconds": 60.0,
+  "feature": "p_std",
+  "n_native_windows_train": 2091,
+  "n_native_windows_validation": 700,
+  "n_native_windows_discarded_boundary_or_empty": 1137,
+  "identity_check_vs_exp0026_pure_cohort": {
+    "exp0026_reference_d": 1.426,
+    "reproduced_d": 1.426265511142584,
+    "abs_diff": 0.0002655111425839962,
+    "within_tolerance": true
+  },
+  "populations": {
+    "pure_msci_vs_pure_normal": {
+      "n_msci": 117,
+      "n_normal": 1028,
+      "cohens_d": 1.426265511142584,
+      "effect": "large",
+      "median_msci": 1.2112964629971659,
+      "median_normal": 0.015635407995109162
+    },
+    "all_containing_msci_vs_pure_normal": {
+      "n_msci": 310,
+      "n_normal": 1028,
+      "cohens_d": 0.4475872945676265,
+      "effect": "small",
+      "median_msci": 2.8739231356705845,
+      "median_normal": 0.015635407995109162,
+      "n_huge_gt_1e6": 36
+    },
+    "mixed_only_msci_vs_pure_normal": {
+      "n_msci": 193,
+      "n_normal": 1028,
+      "cohens_d": 0.6966069732407764,
+      "effect": "medium",
+      "median_msci": 5.4318094767804155
+    }
+  },
+  "mixed_cohort_breakdown_by_co_occurring_category": [
+    {
+      "co_occurring_categories": "CMRI",
+      "n_windows": 83,
+      "n_with_features": 83,
+      "p_std_mean": 5.403136613784222e+36,
+      "p_std_median": 7.837428052731146,
+      "n_huge_gt_1e6": 15
+    },
+    {
+      "co_occurring_categories": "CMRI+MPCI",
+      "n_windows": 16,
+      "n_with_features": 16,
+      "p_std_mean": 2.0873684611492376e+37,
+      "p_std_median": 20.6464047946186,
+      "n_huge_gt_1e6": 6
+    },
+    {
+      "co_occurring_categories": "DoS",
+      "n_windows": 3,
+      "n_with_features": 3,
+      "p_std_mean": 0.538446154639077,
+      "p_std_median": 0.5050106150452705,
+      "n_huge_gt_1e6": 0
+    },
+    {
+      "co_occurring_categories": "MPCI",
+      "n_windows": 26,
+      "n_with_features": 26,
+      "p_std_mean": 1.691460710679071,
+      "p_std_median": 0.31806643191146816,
+      "n_huge_gt_1e6": 0
+    },
+    {
+      "co_occurring_categories": "NMRI",
+      "n_windows": 42,
+      "n_with_features": 42,
+      "p_std_mean": 6.795404307249418e+32,
+      "p_std_median": 3.660927812534524,
+      "n_huge_gt_1e6": 6
+    },
+    {
+      "co_occurring_categories": "NMRI+CMRI",
+      "n_windows": 6,
+      "n_with_features": 6,
+      "p_std_mean": 1.1806283952553702e+37,
+      "p_std_median": 5.138391313939844e+24,
+      "n_huge_gt_1e6": 3
+    },
+    {
+      "co_occurring_categories": "NMRI+CMRI+DoS",
+      "n_windows": 1,
+      "n_with_features": 1,
+      "p_std_mean": 3676.451437383473,
+      "p_std_median": 3676.451437383473,
+      "n_huge_gt_1e6": 0
+    },
+    {
+      "co_occurring_categories": "NMRI+CMRI+MPCI",
+      "n_windows": 6,
+      "n_with_features": 6,
+      "p_std_mean": 1.2130890756196068e+37,
+      "p_std_median": 9.587025220300263e+35,
+      "n_huge_gt_1e6": 5
+    },
+    {
+      "co_occurring_categories": "NMRI+MPCI",
+      "n_windows": 10,
+      "n_with_features": 10,
+      "p_std_mean": 2.3900941176470584e+16,
+      "p_std_median": 6.226730767927403,
+      "n_huge_gt_1e6": 1
+    }
+  ],
+  "cmri_mechanism_check_informational": {
+    "note": "Informational only -- does not change the pre-registered gate result above. Checks whether CMRI's own forged-pressure co-occurrence (real attack data, same phenomenon as the EXP-0026 p_mean_shift erratum) explains the mixed-cohort collapse, or whether pooling heterogeneous sub-populations for Cohen's d is the more fundamental mechanism.",
+    "mixed_with_cmri_co_occurrence": {
+      "n": 112,
+      "cohens_d_vs_pure_normal": 1.193424470033292,
+      "median": 10.654210568193111
+    },
+    "mixed_without_cmri_co_occurrence": {
+      "n": 81,
+      "cohens_d_vs_pure_normal": 0.41601281001106477,
+      "median": 1.672363428164614
+    },
+    "all_containing_excluding_any_cmri_co_occurrence": {
+      "n": 198,
+      "cohens_d_vs_pure_normal": 0.17828901407151068,
+      "median": 1.2637514232688867
+    }
+  },
+  "decision_gate": {
+    "rule": "|Cohen's d| >= 0.5 AND n >= 30, on the ALL-MSCI-containing-windows-vs-pure-Normal comparison (realistic population)",
+    "cohens_d_all_containing": 0.4475872945676265,
+    "n_all_containing": 310,
+    "passed": false,
+    "consequence": "STOP -- report as a selection-effect artifact of the pure-cohort filtering, not a deployable signal; still a valuable, well-verified negative result"
+  },
+  "software": {
+    "python": "3.12.10",
+    "numpy": "2.5.3"
+  },
+  "limitations": [
+    "Pressure is the ARFF-aligned value, not a live 0x03 byte decode.",
+    "60s window size only, reusing EXP-0026's construction unchanged -- other window sizes are out of scope for this follow-up.",
+    "The co-occurring-category breakdown groups mixed windows by the exact SET of other categories present, so some groups may be very small; counts are reported per group rather than hidden.",
+    "One testbed; egress-only; TRAIN+VALIDATION only until (and unless) the pre-registered gate passes."
+  ]
+}

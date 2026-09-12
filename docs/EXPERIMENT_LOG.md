@@ -3906,3 +3906,162 @@ current fixed 5s window dilutes?
 - Saved result:
   [exp0026_window_size.json](../data/experiments/exp0026_window_size.json),
   summary [EXP0026_RESULTS.md](EXP0026_RESULTS.md).
+
+## ERRATUM — EXP-0026's `p_mean_shift` feature is contaminated by neighbouring-window CMRI injections (found 2026-09-12 while diagnosing the MSCI "pure cohort" finding)
+
+**Known limitation of `p_mean_shift` as defined in `ml/exp0026_window_size.py`
+— do not reuse it uncritically.** While diagnosing whether the MSCI pure-cohort
+60s `p_std` effect (d=1.426) was a small-n artifact (user-requested diagnostic,
+not a new experiment), a small number of `p_mean_shift` values were found to
+be astronomically large (~3.36e38, close to float32's max representable value)
+for both the MSCI and Normal cohorts at 60s. Root cause: `p_mean_shift` looks
+at the pressure of the immediately PRECEDING native window regardless of that
+window's category — and a small number of neighbouring windows are
+CMRI-labelled (categorized_result 2) with a genuinely huge forged pressure
+value, consistent with CMRI's own definition as naive out-of-bounds response
+injection (the same phenomenon `PressureBoundsRule`/EXP-0016 was built to
+catch). This is real attack-injected data, not a parsing bug (`_parse_optional_float`
+correctly excludes non-finite values, but a huge *finite* forged value passes
+through as valid, exactly as any legitimate consumer of "pressure value" must
+handle).
+- **Scope of the contamination:** `p_std`, `p_range`, `p_max_abs_step`, and
+  `p_trend_abs` are computed ONLY from a window's own pressure samples and are
+  NOT affected — the MSCI pure-cohort finding above is unaffected by this.
+  `p_mean_shift` is the only one of the five features that reads a
+  neighbouring window's data, and is therefore the only one at risk.
+- **Effect on EXP-0026's reported conclusions: none.** `p_mean_shift`'s
+  Cohen's d was already reported as small/negligible at every window size in
+  EXP-0026 and never drove the decision gate (which failed on `p_std`/`p_range`
+  in the primary "containing" cohort, and passed only informally in the
+  disclosed-as-exploratory "pure" cohort via `p_std`/`p_range`/`p_trend_abs`,
+  not `p_mean_shift`). No conclusion in EXP-0026's results doc rests on
+  `p_mean_shift`'s numeric value.
+- **Action:** none required to EXP-0026 itself (its conclusions stand); this
+  entry exists so a future experiment does not reuse `p_mean_shift` (as
+  currently defined, unbounded neighbour lookup) as a trusted feature without
+  first either winsorizing/clipping pressure values or restricting the
+  "preceding window" lookup to same-category (or pure-Normal) neighbours only.
+  `ml/exp0026_window_size.py` itself is NOT modified by this erratum (the
+  script and its saved JSON remain the frozen record of what was actually
+  run); this is a documentation-only flag.
+
+## PRE-REGISTRATION — EXP-0027 (recorded 2026-09-12, before any EXP-0027 script/run)
+
+**Tests whether EXP-0026's MSCI 60s `p_std` pure-cohort effect (d=1.426,
+verified not small-n noise: bootstrap 95% CI (1.12, 1.75), broad not
+outlier-driven, spread across 74 distinct episodes) survives against the
+REALISTIC evaluation population — every MSCI-containing 60s window (pure +
+mixed with a co-occurring attack category), not just the pure-and-isolated
+subset.** The pure cohort is not what a deployed detector would see: it
+cannot know in advance which windows are "pure," so a detector built only on
+the pure-cohort's stronger separation could be measuring a selection effect
+(MSCI windows that happen not to co-occur with another attack may be
+systematically different from MSCI windows in general) rather than a
+deployable signal.
+
+1. **Decision rule for "the effect survives" (fixed before running):** the
+   SAME bar as EXP-0021/0026, `|Cohen's d| >= 0.5`, applied to the ALL-
+   MSCI-containing-windows-vs-pure-Normal comparison, AND `n >= 30`
+   containing windows (same floor as EXP-0026). No new/different bar is
+   proposed — the realistic population is a harder test of the SAME
+   hypothesis, not a different one, so changing the bar to make it easier
+   would defeat the point of running this check. If this passes, proceed to
+   step 4 (build/measure a standalone detector, VALIDATION-first). If it does
+   not pass, STOP and report the pure-cohort finding as a documented,
+   honestly-caveated selection-effect artifact — not a deployable signal,
+   still a valuable negative result given the rigor already spent ruling out
+   small-n noise.
+2. **Reused, not modified:** `ml/exp0026_window_size.py`'s `scan_egress`,
+   `build_native_windows`, `native_window_features`, `_containing`, `_pure`,
+   `_pure_normal`, and `exp0021_msci_mpci.cohens_d`/`grade_effect` — all
+   imported read-only. Native window construction (60s only — the size the
+   pure-cohort finding was measured at; other sizes are out of scope for this
+   follow-up) and the split-boundary discard rule are UNCHANGED from EXP-0026.
+3. **Reported, TRAIN+VALIDATION only:**
+   - (a) pure MSCI vs pure Normal, `p_std` — reproduce EXP-0026's d=1.426 as a
+     sanity/identity check before anything else is trusted.
+   - (b) ALL MSCI-containing windows (pure + mixed) vs pure Normal, `p_std` —
+     the real test.
+   - (c) if (b) differs meaningfully from (a): break down the "mixed" windows
+     by which OTHER category co-occurs (CMRI/MPCI/NMRI/MFCI/DoS/Recon), with
+     per-co-occurring-category `p_std` mean/median and count, to understand
+     WHY the population changed the effect (e.g., does a co-occurring CMRI
+     injection's own huge forged pressure — see the EXP-0026 `p_mean_shift`
+     erratum, same underlying phenomenon — inflate or deflate the mixed
+     cohort's `p_std`?).
+4. **If the bar is cleared:** build a standalone `p_std`-threshold detector at
+   60s native windows (new file). TRAIN-only threshold fitting, VALIDATION-
+   first measurement of recall/precision/FPR against MSCI-containing 60s
+   windows. TEST is NOT read or scored without a separate, explicit
+   go-ahead — same discipline as every prior experiment.
+5. **Erratum cross-reference:** EXP-0026's `p_mean_shift` contamination
+   (neighbouring-window CMRI injections producing ~3.36e38 values) is
+   documented in EXPERIMENT_LOG.md/DECISION_LOG.md as of this same session,
+   prior to this pre-registration. EXP-0027 does not use `p_mean_shift` at
+   all (scope is `p_std` only, per the diagnostic that motivated this
+   follow-up), so it is not at risk of the same contamination, but the
+   co-occurring-category breakdown in step 3(c) will make it visible if a
+   similar effect appears in `p_std` itself (it should not, since `p_std` only
+   reads a window's OWN samples — pure-MSCI and pure-Normal windows by
+   definition exclude CMRI frames; only the "mixed" cohort in step 3(b)/(c)
+   could, in principle, include a window that ALSO contains a CMRI frame
+   whose forged pressure inflates that window's OWN `p_std` — this is
+   exactly the mechanism step 3(c) is designed to surface, not a bug to avoid
+   but the actual object of study for the "mixed" population).
+6. **Scope discipline.** New files only: `ml/exp0027_msci_realistic_population.py`,
+   `tests/test_exp0027_msci_realistic_population.py`,
+   `data/experiments/exp0027_msci_realistic_population.json`,
+   `docs/EXP0027_RESULTS.md`. `ml/features_windowed.py`, `run_detector()`, the
+   5s production pipeline, `ml/exp0026_window_size.py` (reused read-only, not
+   modified), DoS Type 1's invalidated files, CMRI's closed files, Layer A,
+   and `app.py` are not touched. `source` is never parsed, bound, filtered
+   on, or used.
+7. **Tests:** synthetic units for the co-occurring-category breakdown logic;
+   full suite must pass, exact before/after count reported.
+8. **Before any commit:** full diff and all real findings shown; wait for
+   explicit go-ahead. No push without separate explicit go-ahead. No
+   force-push ever. TEST-blindness discipline: VALIDATION only until
+   explicitly approved to score TEST once, frozen.
+
+## EXP-0027 execution outcome — TESTED — gate NOT PASSED; pure-cohort effect confirmed as a selection artifact, not a deployable signal (2026-09-12)
+
+- **Identity check passed:** reproduced EXP-0026's pure-cohort d exactly
+  (1.4263 vs reference 1.426, within tolerance) before trusting anything new.
+- **The three populations:** pure MSCI vs pure Normal d=+1.426 (n=117, large);
+  ALL MSCI-containing (pure+mixed) vs pure Normal d=+0.448 (n=310, small);
+  mixed-only vs pure Normal d=+0.697 (n=193, medium).
+- **Gate: NOT PASSED.** `|d| >= 0.5` required on the realistic (all-
+  containing) population; got 0.448. Per the pre-registration: STOP, no
+  detector built.
+- **Explained, not just observed, why pooling drops below both sub-
+  populations:** pure (1.426) and mixed (0.697) each show a real effect, but
+  "MSCI-containing" is a heterogeneous mixture of different distributions
+  depending on co-occurrence — pooling inflates the combined group's variance
+  more than it moves the mean, which is exactly what Cohen's d penalizes.
+- **Step 2c breakdown by co-occurring category, with an honest data-quality
+  caveat:** 36/310 (12%) of containing windows have `p_std` > 1e6, all in
+  groups co-occurring with CMRI (naive out-of-bounds response injection —
+  real attack data, not a bug, consistent with the `p_mean_shift` erratum
+  below). **Informational cross-check (does not change the gate) shows CMRI
+  co-occurrence is NOT the reason the gate fails** — excluding every
+  CMRI-co-occurring window entirely drops d further, to 0.178, confirming
+  population-heterogeneity pooling is the dominant mechanism, not CMRI
+  contamination.
+- **Honest interpretation: the pure-cohort effect is a real, verified,
+  non-small-n-noise effect that is nonetheless a selection artifact — not a
+  deployable signal**, because a real detector cannot select for "pure"
+  windows in advance. This closes the MSCI-60s-`p_std` standalone-detector
+  lead. Does not reopen ACK-001/002 or invalidate EXP-0026's primary
+  (containing-cohort, all sizes) findings.
+- **TESTED.** Full suite **293 → 303 passed** (10 new: 9 fast synthetic units
+  + 1 slow saved-result replay). `ml/features_windowed.py`, `run_detector`,
+  the 5s production pipeline, `ml/exp0026_window_size.py` (reused read-only),
+  DoS Type 1's invalidated files, CMRI's closed files, Layer A, `app.py`
+  unchanged. `source` never parsed/used (asserted by a static-analysis test).
+- New files only: `ml/exp0027_msci_realistic_population.py`,
+  `tests/test_exp0027_msci_realistic_population.py`,
+  `data/experiments/exp0027_msci_realistic_population.json`,
+  `docs/EXP0027_RESULTS.md`.
+- Saved result:
+  [exp0027_msci_realistic_population.json](../data/experiments/exp0027_msci_realistic_population.json),
+  summary [EXP0027_RESULTS.md](EXP0027_RESULTS.md).
