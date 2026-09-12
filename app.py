@@ -15,25 +15,38 @@ if str(ML_DIR) not in sys.path:
 
 from explain import explain_alert
 from features_windowed import CATEGORY_NAMES
-from exp0017_operational import load_payload, load_result
+from exp0025_dos_rate_rule import load_detector_result
+from exp0017_operational import load_payload as load_exp0017_payload
 
 CAVEAT = (
-    "EXP-0017: protocol rules OR PressureBoundsRule OR Isolation Forest. "
-    "Pressure uses ARFF 'pressure measurement' row-aligned to TXT 0x03 responses, "
-    "NOT live packet-byte decoding. Register map/scale remains undocumented. "
-    "Bounds are empirical TRAIN-normal extrema. This is an offline simulated "
-    "data-diode view of one testbed; recall remains category-dependent."
+    "EXP-0025: protocol rules OR PressureBoundsRule OR RateFloodRule OR Isolation "
+    "Forest. Pressure uses ARFF 'pressure measurement' row-aligned to TXT 0x03 "
+    "responses, NOT live packet-byte decoding. Register map/scale remains "
+    "undocumented. Bounds are empirical TRAIN-normal extrema. This is an offline "
+    "simulated data-diode view of one testbed; recall remains category-dependent."
+)
+
+DOS_SCOPE_NOTE = (
+    "RateFloodRule targets Type 2 (egress-channel/diode-termination) flood DoS "
+    "only — an insider or compromised device flooding the OUTBOUND channel "
+    "itself. It has ZERO measured effect on this dataset's real captured DoS "
+    "windows: Type 1 (external inbound-flood) DoS lives entirely in the inbound "
+    "command direction and never crosses the diode, so it remains structurally "
+    "invisible on the egress side and stays at 0% recall. This dataset contains "
+    "no real captured Type 2 example; RateFloodRule's 100%-at-≥5x / 0-FP result "
+    "is against synthetic flood injections only (EXP-0010/EXP-0025). Do not read "
+    "this as \"DoS solved.\""
 )
 
 
-@st.cache_resource(show_spinner="Loading saved EXP-0017 evaluation…")
+@st.cache_resource(show_spinner="Loading saved EXP-0025 evaluation…")
 def load_detector():
-    return load_result()
+    return load_detector_result()
 
 
 @st.cache_data
 def count_dataset_rows() -> int:
-    return load_payload()["identity"]["raw_row_count"]
+    return load_exp0017_payload()["identity"]["raw_row_count"]
 
 
 def utc_timestamp(epoch: float) -> str:
@@ -63,16 +76,21 @@ def metric_row(result, name: str, predictions: np.ndarray) -> dict:
     }
 
 
-st.set_page_config(page_title="SIH26145 — EXP-0017 Detector", layout="wide")
-st.title("SIH26145 — EXP-0017 Egress Anomaly Detector")
+st.set_page_config(page_title="SIH26145 — EXP-0025 Detector", layout="wide")
+st.title("SIH26145 — EXP-0025 Egress Anomaly Detector")
 st.caption("Single-page demo • 5-second windows • frozen TRAIN-normal baseline")
 st.info(CAVEAT)
-st.caption("EXP-0004 superseded by EXP-0017, retained for historical comparison.")
+st.caption(
+    "EXP-0004 superseded by EXP-0017 (pressure rule); EXP-0017 in turn superseded "
+    "by EXP-0025 (rate rule, additive — EXP-0025's TEST numbers are numerically "
+    "identical to EXP-0017's, see below). Both retained for historical comparison."
+)
+st.caption(DOS_SCOPE_NOTE)
 
 try:
     result = load_detector()
 except (OSError, ValueError, KeyError) as exc:
-    st.error(f"Approved EXP-0017 output unavailable or invalid: {exc}")
+    st.error(f"Approved EXP-0025 output unavailable or invalid: {exc}")
     st.stop()
 combined = result.metrics(result.comb_pred)
 
@@ -167,13 +185,15 @@ st.caption(
 st.header("4. Naive baseline vs. combined detector")
 comparison = pd.DataFrame([
     metric_row(result, "Stage 0 naive baseline", result.base_pred),
-    metric_row(result, "Protocol OR pressure OR IF", result.comb_pred),
+    metric_row(result, "Protocol OR pressure OR rate OR IF", result.comb_pred),
 ])
 formatted = comparison.copy()
 for column in ("Precision", "Recall", "F1", "FPR"):
     formatted[column] = formatted[column].map("{:.3%}".format)
 st.dataframe(formatted, width="stretch", hide_index=True)
 st.caption(
-    "VALIDATED EXP-0017 evaluation: metrics are calculated from saved predictions. "
-    "Dashboard loads do not score TEST."
+    "VALIDATED EXP-0025 evaluation: metrics are calculated from saved predictions. "
+    "Dashboard loads do not score TEST. RateFloodRule fires zero times on real "
+    "captured TEST data (any category), so these numbers are identical to "
+    "EXP-0017's — see the DoS scope note above."
 )

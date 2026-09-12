@@ -51,8 +51,12 @@ def saved_history_only(monkeypatch, request):
 
 @pytest.fixture(scope="session")
 def detector_result():
-    path = ROOT / "data" / "experiments" / "exp0017_detector.json"
+    """EXP-0025 operational result: protocol OR pressure OR rate OR IF. Derived
+    analytically from the frozen EXP-0017 arrays (no second TEST-scoring event);
+    numerically identical to EXP-0017 on every metric because the rate rule fires
+    zero times on real captured TEST data (see docs/EXP0025_RESULTS.md)."""
+    path = ROOT / "data" / "experiments" / "exp0025_detector.json"
     if not path.exists():
         pytest.skip("No saved detector arrays: TEST scoring forbidden in pytest")
-    from exp0017_operational import load_result
-    return load_result()
+    from exp0025_dos_rate_rule import load_detector_result
+    return load_detector_result(path)

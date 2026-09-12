@@ -1,9 +1,22 @@
 #!/usr/bin/env python3
-"""EXP-0017 operational egress detector: protocol OR pressure OR Isolation Forest.
+"""Operational egress detector: protocol OR pressure OR rate OR Isolation Forest.
 
-Supersedes EXP-0004, retained in historical logs. Pressure is ARFF-row-aligned,
-NOT live packet-byte decoding. TEST is guarded and scored once; reports replay
-saved output. Run `python ml/exp0017_operational.py` to read the saved summary.
+EXP-0017 (protocol OR pressure OR IF) superseded EXP-0004 and scored the one
+guarded TEST evaluation on 2026-09-11 (`data/experiments/exp0017_detector.json`).
+EXP-0025 (2026-09-12) adds the `rate` (Type 2 egress-flood DoS) term to this
+function permanently, for any FUTURE fresh run — but does NOT call
+`run_detector()` again itself: TEST must only ever be scored once, and that
+budget is already spent. EXP-0025's actual reported numbers are a closed-form
+derivation from the frozen EXP-0017 arrays plus the new deterministic rate term
+(a function of the already-recorded `packets_per_sec` feature); see
+`ml/exp0025_dos_rate_rule.py`. Calling `run_detector()` again will still raise
+`FileExistsError` via `exp0017_operational.begin_evaluation`, by design — this
+function's code is the correct permanent definition, not a live re-run.
+
+Pressure is ARFF-row-aligned, NOT live packet-byte decoding. The rate rule
+targets Type 2 (egress-channel flood) DoS only — Type 1 (external inbound-flood)
+DoS remains structurally invisible on the egress side (see
+`ml/features_windowed.py` module docstring) and is unaffected.
 """
 from __future__ import annotations
 
@@ -15,7 +28,7 @@ from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
 
 from features_windowed import (CATEGORY_NAMES, IF_FEATURES,
                                WINDOW_FEATURES, build_windows)
-from rules import DeterministicRuleLayer, PressureBoundsRule, RuleHit
+from rules import DeterministicRuleLayer, PressureBoundsRule, RateFloodRule, RuleHit
 
 
 TRAIN_FRAC, VAL_FRAC = 0.60, 0.20
@@ -87,6 +100,8 @@ class DetectorResult:
     pressure_bounds: tuple = ()
     split_id: str = ""
     split_sha256: str = ""
+    rate_pred: np.ndarray = field(default_factory=lambda: np.array([], dtype=int))  # EXP-0025, Type 2 DoS
+    rate_threshold: float = 0.0                                                     # TRAIN-normal packets_per_sec max
 
     def metrics(self, pred: np.ndarray) -> dict:
         return binmetrics(self.y_test, pred)
@@ -137,13 +152,17 @@ def run_detector(windows=None, target_fpr: float = TARGET_FPR,
     pressure = PressureBoundsRule().fit(
         v for w in train_normal_windows for v in by_bucket.get(w.w_index, ())
     )
+    rate = RateFloodRule().fit(w.features["packets_per_sec"] for w in train_normal_windows)
     protocol_hits = [rule.evaluate(wins[i]) for i in te]
     pressure_hits = [
         pressure.evaluate(*pressure_windows.get(wins[i].w_index, (None, None, 0))[:2])
         for i in te
     ]
-    rule_hits_te = [RuleHit(bool(a.fired or b.fired), a.reasons + b.reasons)
-                    for a, b in zip(protocol_hits, pressure_hits)]
+    rate_hits = [rate.evaluate(wins[i].features["packets_per_sec"]) for i in te]
+    rule_hits_te = [
+        RuleHit(bool(a.fired or b.fired or c.fired), a.reasons + b.reasons + c.reasons)
+        for a, b, c in zip(protocol_hits, pressure_hits, rate_hits)
+    ]
     rule_pred_te = np.array([h.fired for h in rule_hits_te], dtype=int)
 
     # ---- Stage 1 Isolation Forest (headline: IF_FEATURES, entropy included) ----
@@ -181,6 +200,8 @@ def run_detector(windows=None, target_fpr: float = TARGET_FPR,
         pressure_pred=np.array([h.fired for h in pressure_hits], dtype=int),
         pressure_bounds=(pressure.bounds.low, pressure.bounds.high),
         split_id=split.split_id, split_sha256=split.membership_sha256,
+        rate_pred=np.array([h.fired for h in rate_hits], dtype=int),
+        rate_threshold=rate.bound.max_packets_per_sec,
     )
     # Persist every scored outcome, including a failed identity gate, without rerun.
     save_result(result)

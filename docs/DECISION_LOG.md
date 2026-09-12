@@ -1305,3 +1305,61 @@ clusters.
   `data/experiments/ack002_coverage.json`, `docs/ACK0002_RESULTS.md`. `source`
   never parsed/used (asserted by a static-analysis test). No commit or push
   performed by this record.
+
+## 2026-09-12 — PRE-REGISTRATION — EXP-0025 (wire in the Type 2 DoS rate rule)
+
+Wires a THIRD rule (`RateFloodRule`, packets_per_sec > TRAIN-normal max) into the
+deterministic rule layer, additive alongside protocol and pressure rules.
+Targets Type 2 (egress-channel flood) DoS only — **explicitly does NOT address
+Type 1 (external-flood) DoS**, which stays at 0% recall and is structurally
+invisible on the egress side (diode blocks it). Must not be reported as "DoS
+solved."
+
+- Step 1: re-verify EXP-0010's 100%/0-FP finding under the CURRENT EXP-0017
+  state (not re-cite the old number) using EXP-0010's exact synthetic-injection
+  methodology, reused not reimplemented.
+- Threshold re-derived fresh from current TRAIN-normal `packets_per_sec` max
+  (expected ~0.8, verified not assumed).
+- TEST is scored only via a closed-form derivation from the already-frozen
+  EXP-0017 arrays (`rate_pred` is a deterministic function of the TRAIN-normal
+  threshold and each TEST window's already-saved `packets_per_sec` feature) — no
+  new TEST scoring event, since TEST must only ever be scored once (already
+  consumed by EXP-0017). This is disclosed explicitly, not left implicit.
+- New files: `ml/exp0025_dos_rate_rule.py`,
+  `tests/test_exp0025_dos_rate_rule.py`,
+  `data/experiments/exp0025_dos_rate_rule.json`, `docs/EXP0025_RESULTS.md`.
+  Additive-only modifications: `ml/rules.py`, `ml/iforest_detector.py`,
+  `tests/test_detector.py`, `tests/conftest.py` (if needed), `app.py`/docs.
+  DoS Type 1 invalidated files, MSCI/MPCI closed files, Layer A, CMRI closed
+  files untouched. Full diff and results required before any commit; separate
+  go-ahead before push.
+
+## 2026-09-12 — EXP-0025 completed — rate rule wired in; zero effect on real TEST data
+
+Wired `rules.RateFloodRule` (Type 2 egress-flood DoS) into `run_detector()` as a
+third additive OR term. New combined TEST confusion `(4767, 40, 2166, 2374)` is
+**numerically identical to EXP-0017's** — verified directly that `rate_pred` is
+0 for all 9,347 TEST windows, every category, DoS included. **Type 1 DoS
+remains at 0% recall, unaffected — this is not "DoS solved."** No real Type 2
+flood example exists in this dataset; the rule's 100%-at-≥5x/0-FP performance
+(re-verified fresh, correcting an imprecise EXP-0010 note about 2x) is against
+synthetic injections only.
+
+- **Identity-gate collision, resolved with explicit user approval**: editing
+  `ml/rules.py`/`ml/iforest_detector.py` (both required by the task) changed
+  hashes pinned inside `exp0017_detector.json`'s own checksum, breaking
+  `load_result()` for ACK-001/002 and EXP-0021/22/23. User chose: refresh only
+  the `identity.source_sha256` ledger entries for those two files inside the
+  existing frozen artifact (envelope checksum recomputed); the scored `result`
+  payload was not touched. Verified: `load_result()` succeeds again and the
+  full suite (all closed lines included) passes unchanged.
+- TEST was not rescored a second time — the new confusion is a checked,
+  closed-form derivation from the already-frozen EXP-0017 arrays.
+- Full suite 263 → 275 passed. New files:
+  `ml/exp0025_dos_rate_rule.py`, `tests/test_exp0025_dos_rate_rule.py`,
+  `data/experiments/exp0025_detector.json`, `docs/EXP0025_RESULTS.md`.
+  Additive-only modifications: `ml/rules.py`, `ml/iforest_detector.py`,
+  `tests/test_detector.py`, `tests/conftest.py`, `app.py`. Identity-ledger-only
+  modification (user-approved): `data/experiments/exp0017_detector.json`. DoS
+  Type 1 invalidated files, MSCI/MPCI closed files, Layer A, CMRI closed files
+  unchanged. No commit or push performed by this record.

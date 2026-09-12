@@ -3624,3 +3624,147 @@ an entire BURST of writes ends, before the next burst begins."
 - Saved result:
   [ack002_coverage.json](../data/experiments/ack002_coverage.json),
   summary [ACK0002_RESULTS.md](ACK0002_RESULTS.md).
+
+## PRE-REGISTRATION — EXP-0025 (recorded 2026-09-12, before any EXP-0025 script/run)
+
+**This wires a THIRD rule into the deterministic rule layer (protocol OR pressure
+OR rate), targeting Type 2 (egress-channel/diode-termination flood) DoS
+specifically.** EXP-0010 (2026-09-09) measured, but never wired in, a candidate
+`packets_per_sec > TRAIN-normal-max` rule against synthetic egress-flood
+injections: 100% detection at severities 2x-20x (profiles A/B), zero new false
+positives on real Normal TEST windows. Since EXP-0010 ran, EXP-0017 wired in a
+DIFFERENT rule (`PressureBoundsRule`, for NMRI) and became the current
+operational detector: protocol OR pressure OR Isolation Forest, frozen TEST
+confusion `(4767, 40, 2166, 2374)`, 52.29% recall / 98.34% precision.
+
+**Explicit scope statement (repeated in the results doc, not just here): this
+targets Type 2 DoS only. Type 1 (external-flood) DoS remains at 0% recall and is
+a SEPARATE, structurally different problem** — the flood lives entirely in the
+*inbound* command direction and a diode already blocks it from the egress view
+(`ml/features_windowed.py` docstring, EXP-0003/0013). This experiment must not be
+reported or cited as "DoS solved."
+
+1. **Re-verify EXP-0010's finding under the CURRENT detector state**, not just
+   re-cite the old number. Re-run the identical synthetic-injection methodology
+   (frame-level injection, profiles A_distinct/B_duplicate, severities
+   1x/2x/5x/10x/20x, uniform re-spacing, no RNG) from `ml/exp0010_egress_flood.py`
+   — reused directly (`synthesize_flood`, `_window_from_frames`,
+   `egress_frame_buckets`), not reimplemented — against a freshly reproduced
+   EXP-0017 state (protocol OR pressure OR IF), identity-gated against the saved
+   `exp0017_detector.json` exactly as ACK-001/EXP-0016 gate against their
+   references. Confirm the rate rule ALONE (fit fresh on current TRAIN-normal
+   `packets_per_sec`, not the stale EXP-0004-era number) reproduces ~100%
+   detection / 0 new FP before building anything permanent.
+2. **Threshold:** re-derive fresh from current TRAIN-normal `packets_per_sec` (max
+   over the manifest's TRAIN-normal windows) rather than reusing EXP-0010's cited
+   0.8 verbatim — the split/window construction has not changed since EXP-0010,
+   so this is expected to reproduce ~0.8, but stated and verified, not assumed.
+3. **Build `rules.RateFloodRule`** — new additive class in `ml/rules.py`, same
+   style as `PressureBoundsRule` (single upper-bound membership test, `fit`/
+   `evaluate`/`predict`, `RuleHit` reasons). `DeterministicRuleLayer` and
+   `PressureBoundsRule` are not modified.
+4. **Wire into `iforest_detector.run_detector()`** as a permanent third OR
+   condition: `rule_pred = protocol OR pressure OR rate`; `comb_pred = rule OR
+   IF`. `DetectorResult` gets an additive `rate_pred` field (and the rate
+   threshold recorded). Because TEST must only ever be scored once (EXP-0017
+   already consumed that one guarded evaluation, and its `if_pred`/`if_scores`/
+   `mu`/`sd`/`threshold` are frozen and must not be recomputed), the new combined
+   TEST confusion is DERIVED analytically from the existing frozen
+   `exp0017_detector.json` arrays: `rate_pred` is a closed-form function of (a)
+   the TRAIN-normal `packets_per_sec` threshold (TRAIN-only, unlimited reads) and
+   (b) each TEST window's already-recorded `packets_per_sec` feature (already
+   saved in `test_windows`, not a new read of raw TEST data). No new TEST
+   scoring event occurs; this is stated explicitly in the results, not left
+   implicit. `test_detector.py`'s regression constants are updated to the new
+   frozen confusion, with the derivation's exactness argued and checked (not
+   merely asserted) before freezing.
+5. **Report** the new overall confusion matrix and the full per-category table
+   (all 7 categories + Normal), same format as EXP-0017's report.
+6. **Honest reporting requirements:**
+   - Confirm Type 1 DoS TEST numbers are literally unaffected (0 new rate-rule
+     flags on DoS-labeled TEST windows) — investigate rather than assume if this
+     is not exactly true.
+   - Confirm no other category's flag rate changes except via the intended
+     mechanism.
+   - Confirm Normal FPR does not regress (0 new false positives expected, since
+     the threshold is the TRAIN-normal max).
+7. **Update `app.py`/dashboard and docs** to state the rate rule exists, is part
+   of the operational detector, and explicitly what it does and does not cover
+   (Type 2 flood, not Type 1).
+8. **Tests:** update/add tests; full suite must pass; exact before/after count
+   reported. Same identity-check discipline throughout (reproduce old state
+   first, confirm no drift, then compute and freeze the new state).
+9. **Scope discipline.** Do not touch DoS Type 1's invalidated files (EXP-0011/
+   0011b), MSCI/MPCI's closed files (EXP-0014/0021/0022/0023, ACK-001/002), Layer
+   A, or CMRI's closed files (EXP-0018/0019/0020). New files:
+   `ml/exp0025_dos_rate_rule.py`, `tests/test_exp0025_dos_rate_rule.py`,
+   `data/experiments/exp0025_dos_rate_rule.json`, `docs/EXP0025_RESULTS.md`.
+   Modified (additive only): `ml/rules.py` (+`RateFloodRule`),
+   `ml/iforest_detector.py` (`run_detector`/`DetectorResult`), `tests/
+   test_detector.py` (updated regression constants), `tests/conftest.py` (if the
+   frozen artifact path needs to change), `app.py`/dashboard docs.
+10. **Before any commit:** full diff and all real results shown; wait for
+    explicit go-ahead. No push without separate explicit go-ahead. No
+    force-push ever. If anything about re-deriving the threshold or re-running
+    the synthetic injection is ambiguous, EXP-0010's exact original methodology
+    is followed rather than improvising a new one.
+
+## EXP-0025 execution outcome — VALIDATED — rate rule wired in; ZERO effect on real TEST data, Type 1 DoS unaffected (2026-09-12)
+
+- **Step 1 (re-verification):** freshly re-derived TRAIN-normal
+  `packets_per_sec` threshold = 0.8 (14,951 TRAIN-normal windows; matches
+  EXP-0010's cited value exactly). Standalone rate-rule dose-response against
+  EXP-0010's exact synthetic-injection methodology (reused unmodified): 2x =
+  94.92% recall / 0 FP, 5x/10x/20x = 100% recall / 0 FP, both profiles
+  identical. **Honest correction:** EXP-0010 never actually measured the rate
+  rule standalone (only an informal "fix note"); its implied "100% at all
+  severities 2x-20x" does not hold exactly at 2x (244/4,807 windows tie the
+  threshold from integer frame-count rounding on already-low-rate windows) —
+  disclosed rather than silently re-cited.
+- **Identity-gate collision (flagged to and resolved with the user):** editing
+  `ml/rules.py`/`ml/iforest_detector.py` changed hashes pinned by
+  `exp0017_detector.json`'s own checksummed identity gate, which ACK-001/002
+  and EXP-0021/22/23 all depend on via `load_result()`. **User explicitly
+  approved** refreshing only the `identity.source_sha256` ledger entries for
+  those two files inside the existing frozen artifact (envelope checksum
+  recomputed); the scored `result` payload was not touched. Verified by
+  reloading `load_result()` successfully and confirming the full suite
+  (including ACK-001/002/EXP-0021/22/23) still passes.
+- **Step 2:** `rules.RateFloodRule` added (additive, `PressureBoundsRule`
+  pattern). **Step 3/4:** wired into `run_detector()` permanently
+  (`protocol OR pressure OR rate`, then `OR IF`); `DetectorResult` gains
+  `rate_pred`/`rate_threshold`. TEST is NOT rescored — the new combined TEST
+  confusion is derived analytically from the frozen EXP-0017 arrays plus a
+  closed-form `rate_pred` (TRAIN-normal threshold × each TEST window's
+  already-recorded `packets_per_sec`), checked against the frozen split
+  identity before use.
+- **New combined TEST confusion: `(4767, 40, 2166, 2374)` — numerically
+  IDENTICAL to EXP-0017.** Verified directly: `rate_pred.sum() == 0` across
+  every one of the 9,347 TEST windows, every category, DoS included. No real
+  captured Type 2 (egress-channel) flood example exists in this dataset, so the
+  rule (correctly built, for a threat type not present here) never fires on
+  real data.
+- **Step 6 (honest checks, all verified not assumed):** DoS (Type 1) unaffected
+  — 136 windows, 0 rate flags, 0% combined recall, identical to EXP-0017. Every
+  other category's flagged count delta is exactly 0. Normal FPR unchanged at
+  0.832% (40/4,807), zero new false positives.
+- **Explicit scope restatement:** this is Type 2 (egress-channel flood) DoS
+  only. **Type 1 (external inbound-flood) DoS remains at 0% recall**,
+  structurally invisible on egress, completely unaffected by this experiment.
+  This is NOT "DoS solved."
+- **Step 7:** `app.py` updated — loads the EXP-0025 result, title/caption/
+  `CAVEAT` updated, new `DOS_SCOPE_NOTE` states what the rule covers and does
+  not cover.
+- **TESTED/VALIDATED.** Full suite **263 → 275 passed** (12 new: 10 fast
+  synthetic units + 2 slow saved-result replays in `test_exp0025_dos_rate_rule.py`;
+  2 new tests added to `test_detector.py`). `source` never parsed/used
+  (asserted by a static-analysis test); DoS Type 1's invalidated files,
+  MSCI/MPCI's closed files, Layer A, and CMRI's closed files unchanged.
+- Files: new `ml/exp0025_dos_rate_rule.py`, `tests/test_exp0025_dos_rate_rule.py`,
+  `data/experiments/exp0025_detector.json`, `docs/EXP0025_RESULTS.md`. Modified
+  (additive): `ml/rules.py`, `ml/iforest_detector.py`, `tests/test_detector.py`,
+  `tests/conftest.py`, `app.py`. Also modified (identity ledger only, user-
+  approved): `data/experiments/exp0017_detector.json`.
+- Saved result:
+  [exp0025_detector.json](../data/experiments/exp0025_detector.json),
+  summary [EXP0025_RESULTS.md](EXP0025_RESULTS.md).

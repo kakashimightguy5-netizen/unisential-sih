@@ -117,3 +117,62 @@ class PressureBoundsRule:
 
     def predict(self, windows_min_max) -> list[int]:
         return [int(self.evaluate(lo, hi).fired) for lo, hi in windows_min_max]
+
+
+@dataclass(frozen=True)
+class RateBound:
+    max_packets_per_sec: float
+    source: str
+
+
+class RateFloodRule:
+    """Additive out-of-bounds check on a window's `packets_per_sec` rate.
+
+    Independent of DeterministicRuleLayer/PressureBoundsRule, OR-ed into the
+    operational verdict the same way. Added for EXP-0025: a Type 2 (egress-
+    channel/diode-termination) flood — an insider or compromised device flooding
+    the OUTBOUND channel itself — pushes `packets_per_sec` above every rate ever
+    observed on TRAIN-normal traffic, a membership test like the other two rules,
+    not a statistical anomaly. Threshold is frozen from TRAIN-normal only.
+
+    This targets Type 2 DoS ONLY. Type 1 (external inbound-flood) DoS lives
+    entirely in the inbound command direction and never crosses the diode, so it
+    is invisible to this (or any) egress-side feature — see
+    `ml/features_windowed.py` module docstring and EXP-0003/0013.
+    """
+
+    def __init__(self) -> None:
+        self.bound: RateBound | None = None
+        self._fitted = False
+
+    def fit(
+        self,
+        train_normal_packets_per_sec,
+        *,
+        source: str = "TRAIN-normal packets_per_sec max",
+    ) -> "RateFloodRule":
+        finite = [
+            float(v) for v in train_normal_packets_per_sec
+            if v is not None and float(v) == float(v) and abs(float(v)) != float("inf")
+        ]
+        if not finite:
+            raise ValueError("RateFloodRule.fit needs at least one finite value")
+        self.bound = RateBound(max(finite), source)
+        self._fitted = True
+        return self
+
+    def evaluate(self, packets_per_sec: float) -> RuleHit:
+        if not self._fitted or self.bound is None:
+            raise RuntimeError("fit() RateFloodRule on train-normal values first")
+        if packets_per_sec is None:
+            return RuleHit(fired=False, reasons=[])
+        reasons: list[str] = []
+        if packets_per_sec > self.bound.max_packets_per_sec:
+            reasons.append(
+                f"packets_per_sec_above_train_normal_max={packets_per_sec:.6g}"
+                f">{self.bound.max_packets_per_sec:.6g}"
+            )
+        return RuleHit(fired=bool(reasons), reasons=reasons)
+
+    def predict(self, packets_per_sec_values) -> list[int]:
+        return [int(self.evaluate(v).fired) for v in packets_per_sec_values]

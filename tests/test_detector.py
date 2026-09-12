@@ -1,8 +1,14 @@
-"""T-01 / T-02 (full pipeline) + EXP-0017 exact-reproduction regression tests.
+"""T-01 / T-02 (full pipeline) + EXP-0017/EXP-0025 exact-reproduction regression tests.
 
-These tests read the single guarded EXP-0017 saved evaluation. They never rescore
-TEST. Exact regression criteria were fixed before the evaluation from the approved
-EXP-0016 prediction. Source and artifact checksums detect drift without reruns.
+These tests read the EXP-0025 saved result: protocol OR pressure OR rate OR IF
+(EXP-0025, 2026-09-12, wires in the Type 2 egress-flood DoS rate rule additively
+alongside EXP-0017's protocol/pressure rules). They never rescore TEST — EXP-0025's
+result is derived analytically from the already-frozen EXP-0017 arrays plus one new
+deterministic rule term (see docs/EXP0025_RESULTS.md). All constants below are
+numerically IDENTICAL to EXP-0017's, because the rate rule fires zero times on real
+captured TEST data of any category, Type 1 DoS included (Type 1 remains
+structurally invisible on the egress side and is unaffected by this rule). Source
+and artifact checksums detect drift without reruns.
 """
 import numpy as np
 import pytest
@@ -111,7 +117,8 @@ def test_t02_reasons_are_hex_function_codes(detector_result):
         for r in h.reasons:
             kind, _, val = r.partition("=")
             assert kind in {"invalid_function_code", "novel_address",
-                            "pressure_below_train_normal_min", "pressure_above_train_normal_max"}
+                            "pressure_below_train_normal_min", "pressure_above_train_normal_max",
+                            "packets_per_sec_above_train_normal_max"}
             if kind == "invalid_function_code":
                 assert all(tok.startswith("0x") for tok in val.split(","))
 
@@ -141,8 +148,37 @@ def test_per_category_flag_rates_match_exp0017_exactly(detector_result):
 
 def test_saved_detector_roundtrip_preserves_arrays(detector_result):
     """Artifact replay identity, not a second model execution."""
-    from exp0017_operational import load_result
-    fresh = load_result()
-    for name in ("base_pred", "rule_pred", "protocol_pred", "pressure_pred", "if_pred", "comb_pred", "if_scores"):
+    from exp0025_dos_rate_rule import load_detector_result
+    fresh = load_detector_result()
+    for name in ("base_pred", "rule_pred", "protocol_pred", "pressure_pred", "rate_pred",
+                 "if_pred", "comb_pred", "if_scores"):
         assert np.array_equal(getattr(fresh, name), getattr(detector_result, name)), name
     assert fresh.threshold == detector_result.threshold
+
+
+# ---------------------------------------------------------------- EXP-0025: Type 2 DoS rate rule
+
+def test_rate_rule_fires_zero_times_on_real_test_data(detector_result):
+    """EXP-0025: the rate rule (Type 2 egress-flood DoS) never fires on any real
+    captured TEST window, of any category — confirmed, not assumed. It only ever
+    catches the synthetic flood injections measured in EXP-0025's verification
+    step (see docs/EXP0025_RESULTS.md), not anything present in this dataset."""
+    R = detector_result
+    assert int(R.rate_pred.sum()) == 0
+    assert R.rate_threshold > 0.0
+
+
+def test_rate_rule_leaves_every_category_unaffected(detector_result):
+    """Adding the rate rule changes nothing about EXP-0017's frozen numbers,
+    Type 1 DoS included — Type 1 remains structurally invisible on egress and
+    this experiment does not claim otherwise."""
+    R = detector_result
+    from iforest_detector import CATEGORY_NAMES
+    for name in CATEGORY_NAMES:
+        idx = np.where(R.cat_test == CATEGORY_NAMES.index(name))[0]
+        if len(idx) == 0:
+            continue
+        assert int(R.rate_pred[idx].sum()) == 0, name
+    dos_idx = np.where(R.cat_test == CATEGORY_NAMES.index("DoS"))[0]
+    assert len(dos_idx) > 0
+    assert R.comb_pred[dos_idx].mean() == 0.0  # Type 1 DoS: still 0% recall, unaffected

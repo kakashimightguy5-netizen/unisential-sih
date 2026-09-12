@@ -126,9 +126,12 @@ def test_pressure_alert_explains_observed_value_and_bound(detector_result):
 
 
 def test_dashboard_uses_saved_result_with_pressure_limitation(detector_result):
+    """Dashboard now loads the EXP-0025 result (protocol OR pressure OR rate OR
+    IF) — numerically identical to EXP-0017's on this dataset, since the rate
+    rule fires zero times on real captured TEST data. See docs/EXP0025_RESULTS.md."""
     from streamlit.testing.v1 import AppTest
     app = AppTest.from_file(str(exp.ROOT / "app.py")).run(timeout=60)
     assert not app.exception
-    assert "EXP-0017" in app.title[0].value
+    assert "EXP-0025" in app.title[0].value
     assert "NOT live packet-byte decoding" in app.info[0].value
     assert any("saved predictions" in c.value for c in app.caption)
