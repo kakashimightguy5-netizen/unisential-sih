@@ -1210,3 +1210,49 @@ confirming the frame layout: 14 undecoded bytes = `frame[3:17]`, exactly 7 big-e
   `data/experiments/exp0023_register_bytes.json`, `docs/EXP0023_RESULTS.md`.
   `source` never parsed/used (asserted by a static-analysis test). No commit or push
   performed by this record.
+
+## 2026-09-11 — ACK-001 pre-registered: ack-anchored consequence detector, feasibility/coverage check only
+
+**Status: PLANNED — feasibility/coverage check only.** No classifier, detector, rule
+or threshold is built or scored. Population: every observable `0x10` echo-response
+ack (`destination==1`, `function_code==0x10`, `frame_len_bytes==8`) in TRAIN+VAL only
+(corrected manifest); TEST untouched. `source` is not parsed, bound, filtered on, or
+used anywhere. Per-ack ground-truth label (Normal/MSCI/MPCI) is for reporting only,
+never a runtime feature. Uses the proposed design's own numbers exactly: 30s/≥5
+pre-ack baseline; post-ack horizons 10/30/60/120s with minimum scorable counts
+2/5/10/20; 10s cluster gap; censoring compares each horizon to the gap to the next ack.
+Pre-registered stopping rule: if the majority of MSCI or MPCI acks have no scorable
+post-ack pressure data within 120s, that category is flagged likely infeasible and
+reported as such, not built past. Full results and diff must be shown before any
+commit; no push without explicit approval.
+
+## 2026-09-11 — ACK-001 completed — INFEASIBLE once the design's own censoring rule is applied
+
+Identity gates passed (EXP-0017 reproduced; TEST never read). Population: 51,229
+egress `0x10` acks / 53,261 egress `0x03` pressure responses in TRAIN+VAL.
+
+- Root cause: `0x03` and `0x10` traffic share a ~3.4s median inter-arrival cadence
+  (the master's polling/control cycle), so 100% of acks are "clustered" under the
+  design's own 10s definition.
+- Raw (nominal-horizon) scorability looks fine (94.7–99.8%) and the pre-registered
+  stopping rule, read literally, does not flag MSCI/MPCI — but that raw number
+  ignores the design's own censoring/truncation rule. Applying it honestly:
+  **censoring-aware scorability is exactly 0.00% at every horizon (10/30/60/120s),
+  for Normal, MSCI, and MPCI alike**, confirmed by direct per-ack inspection (not
+  just the aggregate), not a rounding artifact.
+- **Corrected verdict: LIKELY INFEASIBLE for both MSCI and MPCI.** This is a
+  population-wide data-density problem, not category-specific — Normal collapses
+  identically. MSCI/MPCI acks are also 0% "pure" (always co-occur with another
+  category in their 5s bucket).
+- **Decision: do not build the fuller ack-anchored design (matched-reference
+  detector, trajectory templates, supervised heads).** This is the same wall
+  EXP-0023 hit for the payload bytes — the data doesn't support the question.
+  Flagged explicitly that the literal pre-registered stopping rule (raw metric)
+  would have given a false GO signal; the censoring-aware correction was necessary
+  and is fully justified by the pre-registration's own step 6 honesty mandate.
+- Full suite 215 → 237 passed. New files only:
+  `ml/ack001_ack_anchored_coverage.py`,
+  `tests/test_ack001_ack_anchored_coverage.py`,
+  `data/experiments/ack001_coverage.json`, `docs/ACK0001_RESULTS.md`. `source`
+  never parsed/used (asserted by a static-analysis test). No commit or push
+  performed by this record.

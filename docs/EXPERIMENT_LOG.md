@@ -3414,3 +3414,99 @@ The pre-registered method ran once against the frozen EXP-0017 saved output.
 - Saved result:
   [exp0023_register_bytes.json](../data/experiments/exp0023_register_bytes.json),
   summary [EXP0023_RESULTS.md](EXP0023_RESULTS.md).
+
+## PRE-REGISTRATION — ACK-001 (recorded 2026-09-11, before any ACK-001 script/run)
+
+**Status: PLANNED — FEASIBILITY / COVERAGE CHECK ONLY. No classifier, detector, rule
+or threshold is built or scored in this task.**
+
+1. **Question.** Before investing in the fuller "acknowledgement-anchored
+   consequence detector" design (anchor observation on every observable `0x10`
+   write-acknowledgement, examine subsequent pressure behaviour, matched-reference
+   detector / trajectory templates / supervised heads to follow only if justified),
+   check whether the data even supports it: do MSCI and MPCI acks have enough
+   post-ack pressure observations to be scorable at all?
+2. **Population.** Every observable `0x10` write-acknowledgement — egress
+   (`destination == 1`), `function_code == 0x10`, `frame_len_bytes == 8`
+   (`is_request == 0`, the echo-response shape per `features_txt.py`) — in the
+   TRAIN+VALIDATION population only, per the corrected manifest
+   `verified-egress-5s-exp0008-pretest-v1`. TEST is never read or referenced for
+   filtering. `source` is not parsed, bound, filtered on, reported, or used in any
+   feature/decision logic anywhere in this task.
+3. **Ground truth.** Each ack's own per-record `categorized_attack` label
+   (Normal / MSCI / MPCI) is used **for reporting only**, never as a runtime feature.
+   Acks labelled NMRI/CMRI/MFCI/DoS/Recon are counted and reported separately as
+   out of scope for this design, not silently dropped.
+4. **Measurements per ack**, using the proposed design's exact numbers (no
+   improvisation): a valid pre-ack baseline requires ≥5 `0x03` pressure-response
+   timestamps in the 30s strictly before the ack; post-ack horizons are 10/30/60/120s
+   with minimum scorable sample counts 2/5/10/20 respectively; an ack is part of a
+   cluster if another `0x10` ack (any label) falls within 10s of it (either
+   direction); the truncation/censoring rule compares each horizon against the gap to
+   the *next* ack after this one (any label) — a horizon is censored if that gap is
+   shorter than the horizon.
+5. **Report**, separately for Normal / MSCI / MPCI acks: total count; % with a valid
+   pre-ack baseline; % scorable at each horizon; % censored at each horizon and where
+   censoring typically falls; % pure (ack's 5s bucket contains only that category, or
+   only Normal for Normal acks) vs mixed (co-occurring with another attack category
+   in the same 5s bucket, per `features_windowed.Window.categories`).
+6. **Pre-registered stopping rule.** If the majority of MSCI or MPCI acks have no
+   scorable post-ack pressure data within 120s, that category's line is flagged
+   **likely infeasible** for this approach and reported as such — not proceeded past
+   regardless of how any other number looks.
+7. **Tests / outputs.** New ACK-001 script + tests + saved JSON + result summary
+   only, plus these two log entries. Synthetic tests must prove ack identification
+   (echo-response shape), clustering/censoring arithmetic, and horizon
+   scorability thresholds. Full suite before any commit; full diff and all real
+   findings shown first. No commit or push without explicit go-ahead.
+8. **Scope discipline.** `run_detector`, `iforest_detector.py`, `features_windowed.py`
+   (imported read-only for `build_windows`/`Window`, not modified), `rules.py`,
+   Layer A, `app.py`, DoS files, and CMRI's closed files are not touched. New files
+   only.
+
+## ACK-001 execution outcome — TESTED — INFEASIBLE for MSCI/MPCI (and Normal) once the design's own censoring rule is applied (2026-09-11)
+
+- Identity gates passed: EXP-0017 reproduced from its checksummed artifact
+  (`comb == protocol | pressure | IF`, whole-TEST `(4767, 40, 2166, 2374)`); TEST not
+  read or scored.
+- Population (TRAIN+VAL only): 51,229 observable egress `0x10` acks, 53,261
+  observable egress `0x03` pressure responses. By ground-truth label (reporting
+  only): Normal 38,807; MPCI 8,341; MSCI 3,274; DoS 807 (out of scope for this
+  design, reported not dropped); no NMRI/CMRI/MFCI/Recon acks observed.
+- **Cadence finding (the root cause):** median inter-arrival is ~3.4s for BOTH
+  `0x03` pressure responses and `0x10` acks — the master's polling/control cycle
+  interleaves reads and writes at essentially the same rate. 100% of acks (every
+  category) are "clustered" under the design's own 10s definition.
+- **Raw (nominal-horizon) scorability looks fine**: 94.7–99.8% scorable across all
+  three categories and all four horizons (10/30/60/120s) — and the pre-registered
+  stopping rule, read literally against this raw number, does **not** flag MSCI or
+  MPCI (unscorable-at-120s only 3.7%/4.6%).
+- **That raw number is misleading**: it ignores the design's own truncation/
+  censoring rule (a horizon must be cut to the gap-to-the-next-ack when that gap is
+  shorter). Applying it: **censoring-aware scorability is exactly 0.00% at every
+  horizon, for Normal, MSCI, and MPCI alike** — verified both in aggregate and by
+  direct per-ack inspection (all 162 acks that escape even 10s censoring — the most
+  favourable cases in the whole population — reach a maximum of 1 pressure sample
+  against a minimum requirement of 2, zero exceptions).
+- **Corrected stopping-rule verdict: LIKELY INFEASIBLE for both MSCI and MPCI**, and
+  the same collapse hits Normal too — this is a population-wide data-density
+  problem (0x03/0x10 cadence), not a per-category detection problem. MSCI and MPCI
+  acks are additionally 0% "pure" (always co-occurring with another category in
+  their 5s bucket) — a second, independent complication for the design.
+- **Conclusion: the ack-anchored consequence detector as specified is not worth
+  building.** This hits the same wall as EXP-0023 (payload bytes) — the data does
+  not support the question, not because of a subtle effect too small to see, but
+  because the required observation (several attributable post-ack pressure samples)
+  essentially never exists in this capture.
+- **TESTED.** Full suite **215 → 237 passed** (22 new: 21 fast synthetic units + 1
+  slow saved-result replay). No raw data read in pytest outside the guarded scan
+  script itself.
+- `run_detector`, `app.py`, DoS files, Layer A, the closed EXP-0018/0019/0020 CMRI
+  files and all protected EXP-0005..EXP-0023 files are unchanged. `source` is never
+  parsed, bound, filtered on, or used anywhere in `ml/ack001_ack_anchored_coverage.py`
+  (asserted by a static-analysis unit test). New files only:
+  `ml/ack001_ack_anchored_coverage.py`, `tests/test_ack001_ack_anchored_coverage.py`,
+  `data/experiments/ack001_coverage.json`, `docs/ACK0001_RESULTS.md`.
+- Saved result:
+  [ack001_coverage.json](../data/experiments/ack001_coverage.json),
+  summary [ACK0001_RESULTS.md](ACK0001_RESULTS.md).

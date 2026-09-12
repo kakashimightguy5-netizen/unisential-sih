@@ -1,0 +1,272 @@
+{
+  "by_category": {
+    "MPCI": {
+      "censor_gap_seconds_at_120s_summary": {
+        "max": 3.891127824783325,
+        "mean": 3.452497322599203,
+        "median": 3.383819818496704,
+        "min": 3.1915509700775146,
+        "n": 8317
+      },
+      "horizons": {
+        "10.0": {
+          "min_required_samples": 2,
+          "n_censored": 8317,
+          "n_scorable": 8314,
+          "n_scorable_after_censoring": 0,
+          "pct_censored": 99.71226471646085,
+          "pct_scorable": 99.67629780601847,
+          "pct_scorable_after_censoring": 0.0
+        },
+        "120.0": {
+          "min_required_samples": 20,
+          "n_censored": 8317,
+          "n_scorable": 7954,
+          "n_scorable_after_censoring": 0,
+          "pct_censored": 99.71226471646085,
+          "pct_scorable": 95.3602685529313,
+          "pct_scorable_after_censoring": 0.0
+        },
+        "30.0": {
+          "min_required_samples": 5,
+          "n_censored": 8317,
+          "n_scorable": 8252,
+          "n_scorable_after_censoring": 0,
+          "pct_censored": 99.71226471646085,
+          "pct_scorable": 98.93298165687567,
+          "pct_scorable_after_censoring": 0.0
+        },
+        "60.0": {
+          "min_required_samples": 10,
+          "n_censored": 8317,
+          "n_scorable": 8154,
+          "n_scorable_after_censoring": 0,
+          "pct_censored": 99.71226471646085,
+          "pct_scorable": 97.75806258242417,
+          "pct_scorable_after_censoring": 0.0
+        }
+      },
+      "n_acks": 8341,
+      "n_clustered_10s": 8341,
+      "n_valid_pre_ack_baseline": 8224,
+      "next_ack_gap_seconds_summary": {
+        "max": 544.2614889144897,
+        "mean": 4.218090526521127,
+        "median": 3.3838419914245605,
+        "min": 3.1915509700775146,
+        "n": 8341
+      },
+      "pct_clustered_10s": 100.0,
+      "pct_mixed": 100.0,
+      "pct_pure": 0.0,
+      "pct_valid_pre_ack_baseline": 98.59729049274668
+    },
+    "MSCI": {
+      "censor_gap_seconds_at_120s_summary": {
+        "max": 3.8666391372680664,
+        "mean": 3.459245386786296,
+        "median": 3.3904600143432617,
+        "min": 3.1962881088256836,
+        "n": 3267
+      },
+      "horizons": {
+        "10.0": {
+          "min_required_samples": 2,
+          "n_censored": 3267,
+          "n_scorable": 3267,
+          "n_scorable_after_censoring": 0,
+          "pct_censored": 99.78619425778864,
+          "pct_scorable": 99.78619425778864,
+          "pct_scorable_after_censoring": 0.0
+        },
+        "120.0": {
+          "min_required_samples": 20,
+          "n_censored": 3267,
+          "n_scorable": 3152,
+          "n_scorable_after_censoring": 0,
+          "pct_censored": 99.78619425778864,
+          "pct_scorable": 96.27367135003054,
+          "pct_scorable_after_censoring": 0.0
+        },
+        "30.0": {
+          "min_required_samples": 5,
+          "n_censored": 3267,
+          "n_scorable": 3250,
+          "n_scorable_after_censoring": 0,
+          "pct_censored": 99.78619425778864,
+          "pct_scorable": 99.26695174098961,
+          "pct_scorable_after_censoring": 0.0
+        },
+        "60.0": {
+          "min_required_samples": 10,
+          "n_censored": 3267,
+          "n_scorable": 3222,
+          "n_scorable_after_censoring": 0,
+          "pct_censored": 99.78619425778864,
+          "pct_scorable": 98.41172877214417,
+          "pct_scorable_after_censoring": 0.0
+        }
+      },
+      "n_acks": 3274,
+      "n_clustered_10s": 3274,
+      "n_valid_pre_ack_baseline": 3251,
+      "next_ack_gap_seconds_summary": {
+        "max": 355.2046558856964,
+        "mean": 3.9633672664860216,
+        "median": 3.390639543533325,
+        "min": 3.1962881088256836,
+        "n": 3274
+      },
+      "pct_clustered_10s": 100.0,
+      "pct_mixed": 100.0,
+      "pct_pure": 0.0,
+      "pct_valid_pre_ack_baseline": 99.29749541844838
+    },
+    "Normal": {
+      "censor_gap_seconds_at_120s_summary": {
+        "max": 13.34852910041809,
+        "mean": 3.451905442266777,
+        "median": 3.3818161487579346,
+        "min": 3.1916661262512207,
+        "n": 38677
+      },
+      "horizons": {
+        "10.0": {
+          "min_required_samples": 2,
+          "n_censored": 38676,
+          "n_scorable": 38669,
+          "n_scorable_after_censoring": 0,
+          "pct_censored": 99.66243203545753,
+          "pct_scorable": 99.64439405261938,
+          "pct_scorable_after_censoring": 0.0
+        },
+        "120.0": {
+          "min_required_samples": 20,
+          "n_censored": 38677,
+          "n_scorable": 36758,
+          "n_scorable_after_censoring": 0,
+          "pct_censored": 99.66500889014868,
+          "pct_scorable": 94.72002473780503,
+          "pct_scorable_after_censoring": 0.0
+        },
+        "30.0": {
+          "min_required_samples": 5,
+          "n_censored": 38677,
+          "n_scorable": 38358,
+          "n_scorable_after_censoring": 0,
+          "pct_censored": 99.66500889014868,
+          "pct_scorable": 98.84299224366738,
+          "pct_scorable_after_censoring": 0.0
+        },
+        "60.0": {
+          "min_required_samples": 10,
+          "n_censored": 38677,
+          "n_scorable": 37806,
+          "n_scorable_after_censoring": 0,
+          "pct_censored": 99.66500889014868,
+          "pct_scorable": 97.42056845414487,
+          "pct_scorable_after_censoring": 0.0
+        }
+      },
+      "n_acks": 38807,
+      "n_clustered_10s": 38807,
+      "n_valid_pre_ack_baseline": 38328,
+      "next_ack_gap_seconds_summary": {
+        "max": 640.1231648921967,
+        "mean": 4.295411675435787,
+        "median": 3.3819481134414673,
+        "min": 3.1916661262512207,
+        "n": 38806
+      },
+      "pct_clustered_10s": 100.0,
+      "pct_mixed": 26.173113098152395,
+      "pct_pure": 73.8268869018476,
+      "pct_valid_pre_ack_baseline": 98.76568660293246
+    }
+  },
+  "cadence_evidence": {
+    "ack_0x10_inter_arrival_seconds": {
+      "max": 640.1231648921967,
+      "mean": 4.2685052427175485,
+      "median": 3.3823304176330566,
+      "n_gaps": 51228,
+      "p90": 3.6732372999191285
+    },
+    "note": "supporting evidence for why raw and censoring-aware scorability diverge: median inter-arrival time for both signal types is close to the same value, so the master's polling cycle interleaves 0x03 reads and 0x10 writes at a similar cadence.",
+    "pressure_0x03_inter_arrival_seconds": {
+      "max": 348.5544888973236,
+      "mean": 4.10564901312625,
+      "median": 3.409835457801819,
+      "n_gaps": 53260,
+      "p90": 3.686611270904541
+    }
+  },
+  "design_constants": {
+    "cluster_gap_seconds": 10.0,
+    "horizon_min_samples": {
+      "10.0": 2,
+      "120.0": 20,
+      "30.0": 5,
+      "60.0": 10
+    },
+    "horizons_seconds": [
+      10.0,
+      30.0,
+      60.0,
+      120.0
+    ],
+    "pre_ack_min_samples": 5,
+    "pre_ack_window_seconds": 30.0
+  },
+  "environment": {
+    "numpy": "2.5.3",
+    "python": "3.12.10"
+  },
+  "experiment": "ACK-001",
+  "identity_gates": {
+    "exp0017_confusion": [
+      4767,
+      40,
+      2166,
+      2374
+    ],
+    "exp0017_reproduced": true,
+    "expected_confusion": [
+      4767,
+      40,
+      2166,
+      2374
+    ],
+    "split_id": "verified-egress-5s-exp0008-pretest-v1",
+    "split_sha256": "0e912e147d088aaed05e95bda04c6a46c72ed4dd16aafb6966c9e2aab26859e6"
+  },
+  "other_labels_out_of_scope": {
+    "DoS": 807
+  },
+  "scan_counts": {
+    "egress_acks_in_scope": 51229,
+    "egress_pressure_responses_in_scope": 53261,
+    "egress_rows_train_val_scope_plus_out_of_scope": 137013
+  },
+  "status": "TESTED",
+  "stopping_rule_verdict": {
+    "MPCI": {
+      "n_acks": 8341,
+      "pct_scorable_at_120s_after_censoring": 0.0,
+      "pct_scorable_at_120s_raw": 95.3602685529313,
+      "pct_unscorable_at_120s_after_censoring": 100.0,
+      "pct_unscorable_at_120s_raw": 4.639731447068698,
+      "verdict_censoring_aware": "LIKELY INFEASIBLE",
+      "verdict_literal_rule_raw_horizon": "not flagged by this rule"
+    },
+    "MSCI": {
+      "n_acks": 3274,
+      "pct_scorable_at_120s_after_censoring": 0.0,
+      "pct_scorable_at_120s_raw": 96.27367135003054,
+      "pct_unscorable_at_120s_after_censoring": 100.0,
+      "pct_unscorable_at_120s_raw": 3.72632864996946,
+      "verdict_censoring_aware": "LIKELY INFEASIBLE",
+      "verdict_literal_rule_raw_horizon": "not flagged by this rule"
+    }
+  }
+}
