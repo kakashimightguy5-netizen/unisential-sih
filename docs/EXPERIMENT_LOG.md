@@ -3510,3 +3510,117 @@ or threshold is built or scored in this task.**
 - Saved result:
   [ack001_coverage.json](../data/experiments/ack001_coverage.json),
   summary [ACK0001_RESULTS.md](ACK0001_RESULTS.md).
+
+## PRE-REGISTRATION — ACK-002 (recorded 2026-09-12, before any ACK-002 script/run)
+
+**This is a feasibility check only. No model, classifier, rule, or threshold is
+built or scored here.** This is the one remaining cheap check on the ack-anchored
+MSCI/MPCI line before it is treated as fully, definitively closed: ACK-001 found
+per-write attribution structurally impossible because write-acks and pressure-reads
+share a ~3.4s cadence, so a second write almost always lands before enough pressure
+samples accumulate after the first (censoring-aware scorability was 0.00% at every
+horizon). An independent review confirmed relaxing the censoring threshold would
+launder contaminated samples, not fix attribution. ACK-002 asks a different
+question: not "what happened after THIS write" but "does a clean window exist after
+an entire BURST of writes ends, before the next burst begins."
+
+1. **Burst-merging gap threshold — derived label-blind.** Compute the empirical
+   distribution of inter-ack gaps (consecutive egress `0x10` write-acks, sorted by
+   timestamp) across ALL acks in TRAIN+VALIDATION scope (corrected manifest
+   `verified-egress-5s-exp0008-pretest-v1`), Normal and attack alike, with NO label
+   information used in choosing the threshold. Method fixed in advance: report the
+   full gap-distribution summary (median, mean, percentiles up to p99, max) first;
+   the merging threshold is **3x the median inter-ack gap**, a fixed principled
+   multiple chosen before looking at the distribution's shape or any label-based
+   outcome — not a value search over what best separates attack from normal. If the
+   distribution shows an obvious natural knee near that value it will be reported as
+   corroborating evidence, but the 3x-median rule is the pre-committed choice either
+   way.
+2. **Burst construction.** Merge consecutive acks (any label) into a burst whenever
+   the gap to the previous ack is ≤ threshold. A burst is 1+ acks; record start ts,
+   end ts, ack count, duration (end - start; 0 for single-ack bursts).
+3. **Post-burst uncontaminated window.** For each COMPLETED burst (one with a
+   following burst, or reaching end-of-scope counts as completed too — end-of-data
+   is a real boundary, not contamination), count `0x03` pressure samples with
+   timestamp strictly after the burst's end and strictly before the next burst's
+   start (or before end-of-scope if last). Record count and window duration
+   (next_burst_start - burst_end, or scope_end - burst_end if last).
+4. **Reporting groups (labels applied only now, for reporting):** a burst is
+   "MSCI-containing" if any of its acks has ground-truth label MSCI, "MPCI-
+   containing" analogously, "Normal-only" if every ack in the burst is Normal. (A
+   burst can be both MSCI- and MPCI-containing; report all three groups
+   independently, not mutually exclusive partitions.) For each group: N bursts; %
+   with ≥1/≥2/≥3 post-burst pressure samples; median sample count; median
+   uncontaminated window duration (seconds).
+5. **Decision criterion (fixed before running).** If the large majority (>50%) of
+   MSCI-containing or MPCI-containing bursts have fewer than 2 uncontaminated
+   post-burst pressure samples, this closes the ack-anchored MSCI/MPCI line
+   definitively, same reporting standard as ACK-001's stopping rule. This is
+   expected per ACK-001's cadence finding — treated here as checking a small
+   (~5%) chance the burst-level view resolves it. If bursts unexpectedly DO show
+   real coverage (majority of MSCI/MPCI bursts with ≥2 clean samples), that is
+   reported as a genuine, surprising finding warranting a new pre-registered
+   follow-up — not built into a detector in this task regardless of outcome.
+6. **Identity gate.** EXP-0017 reproduced from its checksummed artifact before any
+   new computation, exactly as ACK-001 did; TEST is not read.
+7. **Scope discipline.** New files only:
+   `ml/ack002_burst_anchored_coverage.py`,
+   `tests/test_ack002_burst_anchored_coverage.py`,
+   `data/experiments/ack002_coverage.json`, `docs/ACK0002_RESULTS.md`. `run_detector`,
+   `iforest_detector.py`, `rules.py`, Layer A, `app.py`, DoS files, and CMRI's closed
+   files (EXP-0018/0019/0020) are not touched. `source` is never parsed, bound,
+   filtered on, or used — egress is `destination == 1` only, via the corrected
+   split manifest. A static-analysis test asserts `source` is absent from the new
+   script.
+8. **Tests.** Synthetic units for burst-merging logic: threshold computation on a
+   known synthetic gap distribution, merging behavior at exactly-threshold and
+   just-over-threshold gaps, single-ack bursts, post-burst window counting
+   (inclusive/exclusive boundaries), end-of-scope handling as a valid completed
+   burst. Full suite must pass before any commit.
+9. **Before any commit:** full diff and all real findings shown; wait for explicit
+   go-ahead. No push without separate explicit go-ahead. No force-push ever.
+
+## ACK-002 execution outcome — TESTED — literal stopping rule NOT triggered, but the coverage found is not usable (line closed) (2026-09-12)
+
+- Identity gate passed: EXP-0017 reproduced (whole-TEST `(4767, 40, 2166, 2374)`);
+  TEST not read.
+- **Label-blind threshold:** median inter-ack gap 3.382s (p99 3.775s, max 640.1s) →
+  threshold = 3× median = 10.147s, fixed before any label was examined.
+- **Burst construction:** only 167 bursts across 51,229 acks — the threshold
+  (10.15s) is barely above the tight ~3.4s cadence, so splits only occur at the
+  rare tail gaps (166 splits / 51,228 gaps ≈ 0.32%). Bursts are mega-chunks:
+  median 218 acks/burst (mean 306.8, max 1264), median duration 770.2s (mean
+  1055.4s, max 4570.9s) — not attacker-scale write clusters.
+- **Coverage by group:** MSCI-containing (n=81): 98.77% ≥2 clean samples, median
+  13 samples over a median 237.7s window. MPCI-containing (n=121): 95.04% ≥2,
+  median 12 samples over 231.8s. Normal-only (n=35): 97.14% ≥2. **The literal
+  stopping rule is NOT triggered for either MSCI or MPCI** (1.23%/4.96% below the
+  50% threshold) — read alone, this looks like a GO signal, unlike ACK-001.
+- **Why it is not a real positive:** composition check (supporting evidence, not
+  part of the pre-registered rule) shows 100% of MSCI-/MPCI-containing bursts
+  also contain Normal traffic and span multiple categories, with hundreds of acks
+  each. A post-burst pressure sample after a 300+-ack, multi-category, ~13-minute
+  burst cannot be attributed to any single write inside it. The 95–99% coverage
+  describes pressure density during the capture's rare long pauses (episode/
+  recording-segment boundaries), not a usable post-attack observation window —
+  the same territory EXP-0021/0022 already explored at the episode grain
+  (negative for MPCI there).
+- **Conclusion: this is NOT the ~5% surprising-positive case anticipated in the
+  pre-registration.** The numbers pass the literal rule but the underlying
+  question (does a clean, attributable window exist after a burst) is not
+  answered affirmatively once composition is checked. No further build effort is
+  warranted on the ack-anchored MSCI/MPCI line via burst construction.
+- **Combined with ACK-001 (0.00% per-write censoring-aware scorability) and
+  EXP-0021/0022/0023 (episode/payload checks, both negative): the ack-anchored /
+  write-response line for MSCI/MPCI is now treated as fully, definitively
+  investigated**, per this task's own closing condition.
+- **TESTED.** Full suite **237 → 263 passed** (26 new: 25 fast synthetic units + 1
+  slow saved-result replay). `source` never parsed/used (asserted by a
+  static-analysis test); `run_detector`, `app.py`, DoS files, Layer A, and the
+  closed EXP-0018/0019/0020 CMRI files unchanged.
+- New files only: `ml/ack002_burst_anchored_coverage.py`,
+  `tests/test_ack002_burst_anchored_coverage.py`,
+  `data/experiments/ack002_coverage.json`, `docs/ACK0002_RESULTS.md`.
+- Saved result:
+  [ack002_coverage.json](../data/experiments/ack002_coverage.json),
+  summary [ACK0002_RESULTS.md](ACK0002_RESULTS.md).

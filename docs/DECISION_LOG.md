@@ -1256,3 +1256,52 @@ egress `0x10` acks / 53,261 egress `0x03` pressure responses in TRAIN+VAL.
   `data/experiments/ack001_coverage.json`, `docs/ACK0001_RESULTS.md`. `source`
   never parsed/used (asserted by a static-analysis test). No commit or push
   performed by this record.
+
+## 2026-09-12 — PRE-REGISTRATION — ACK-002 (burst-level ack-anchored feasibility)
+
+Feasibility check only, no model/classifier. One remaining cheap check before
+treating the ack-anchored MSCI/MPCI line as fully closed (following ACK-001's
+0.00% censoring-aware scorability). Question: does a clean pressure-sample window
+exist after a whole BURST of writes ends, rather than after a single write.
+
+- Burst-merging gap threshold derived **label-blind**: 3x the median inter-ack gap
+  across all acks (Normal+attack, unlabeled), computed and fixed before any
+  label-based outcome is examined. Not a value search for best separation.
+- Labels (MSCI-containing / MPCI-containing / Normal-only burst) applied only at
+  reporting time.
+- Stopping rule (fixed in advance): >50% of MSCI- or MPCI-containing bursts with
+  <2 uncontaminated post-burst pressure samples closes the line definitively — same
+  standard as ACK-001. Expected to be negative (~5% chance of resolving it);
+  honest reporting either way, no detector built regardless of outcome.
+- New files only: `ml/ack002_burst_anchored_coverage.py`,
+  `tests/test_ack002_burst_anchored_coverage.py`,
+  `data/experiments/ack002_coverage.json`, `docs/ACK0002_RESULTS.md`.
+  `run_detector`, `app.py`, DoS files, Layer A, closed CMRI files untouched.
+  `source` never parsed/used. Full diff and go-ahead required before any commit;
+  separate go-ahead before push.
+
+## 2026-09-12 — ACK-002 completed — literal rule not triggered, but line closed anyway
+
+Label-blind threshold (3× median inter-ack gap = 10.147s) merged 51,229 acks into
+only 167 bursts — the tight ~3.4s cadence means splits only occur at rare tail
+gaps, so bursts are mega-chunks (median 218 acks, ~13 min each), not attacker-scale
+clusters.
+
+- Literal stopping rule NOT triggered: 98.77%/95.04% of MSCI-/MPCI-containing
+  bursts have ≥2 post-burst clean pressure samples — read alone, a GO signal.
+- **Not a real positive**: 100% of those bursts also contain Normal traffic and
+  span multiple categories with hundreds of acks — no single write inside a
+  300+-ack burst can be credited with the post-burst pressure signal. The
+  coverage reflects pressure density during the capture's rare pauses (episode
+  boundaries), the same territory EXP-0021/0022 already covered (negative for
+  MPCI), not a new usable observation unit.
+- **Decision: do not build on the burst construction either.** Combined with
+  ACK-001 (0.00% per-write scorability) and EXP-0021/0022/0023, the ack-anchored/
+  write-response line for MSCI/MPCI is now treated as fully, definitively
+  investigated — no further pre-registrations planned on this line.
+- Full suite 237 → 263 passed. New files only:
+  `ml/ack002_burst_anchored_coverage.py`,
+  `tests/test_ack002_burst_anchored_coverage.py`,
+  `data/experiments/ack002_coverage.json`, `docs/ACK0002_RESULTS.md`. `source`
+  never parsed/used (asserted by a static-analysis test). No commit or push
+  performed by this record.

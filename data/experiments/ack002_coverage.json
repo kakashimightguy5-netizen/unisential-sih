@@ -1,0 +1,137 @@
+{
+  "burst_construction": {
+    "burst_ack_count_summary": {
+      "max": 1264.0,
+      "mean": 306.76047904191614,
+      "median": 218.0,
+      "pct_single_ack_bursts": 0.0
+    },
+    "burst_duration_seconds_summary": {
+      "max": 4570.899588108063,
+      "mean": 1055.405084304467,
+      "median": 770.2122759819031
+    },
+    "n_bursts_total": 167
+  },
+  "by_group": {
+    "MPCI_containing": {
+      "mean_clean_sample_count": 13.578512396694215,
+      "mean_window_duration_seconds": 259.5758717513281,
+      "median_clean_sample_count": 12.0,
+      "median_window_duration_seconds": 231.75218200683594,
+      "n_bursts": 121,
+      "pct_with_ge1_clean_sample": 99.17355371900827,
+      "pct_with_ge2_clean_sample": 95.04132231404958,
+      "pct_with_ge3_clean_sample": 90.08264462809917
+    },
+    "MSCI_containing": {
+      "mean_clean_sample_count": 14.444444444444445,
+      "mean_window_duration_seconds": 272.3540799205686,
+      "median_clean_sample_count": 13.0,
+      "median_window_duration_seconds": 237.74273991584778,
+      "n_bursts": 81,
+      "pct_with_ge1_clean_sample": 100.0,
+      "pct_with_ge2_clean_sample": 98.76543209876543,
+      "pct_with_ge3_clean_sample": 92.5925925925926
+    },
+    "Normal_only": {
+      "mean_clean_sample_count": 11.914285714285715,
+      "mean_window_duration_seconds": 240.099661895207,
+      "median_clean_sample_count": 12.0,
+      "median_window_duration_seconds": 214.63876390457153,
+      "n_bursts": 35,
+      "pct_with_ge1_clean_sample": 100.0,
+      "pct_with_ge2_clean_sample": 97.14285714285714,
+      "pct_with_ge3_clean_sample": 91.42857142857143
+    }
+  },
+  "composition_by_group": {
+    "MPCI_containing": {
+      "max_acks_per_burst": 1264.0,
+      "mean_acks_per_burst": 390.0495867768595,
+      "median_acks_per_burst": 313.0,
+      "n_bursts": 121,
+      "pct_bursts_also_containing_normal": 99.17355371900827,
+      "pct_bursts_spanning_multiple_categories": 99.17355371900827
+    },
+    "MSCI_containing": {
+      "max_acks_per_burst": 1264.0,
+      "mean_acks_per_burst": 467.6296296296296,
+      "median_acks_per_burst": 364.0,
+      "n_bursts": 81,
+      "pct_bursts_also_containing_normal": 100.0,
+      "pct_bursts_spanning_multiple_categories": 100.0
+    },
+    "Normal_only": {
+      "max_acks_per_burst": 191.0,
+      "mean_acks_per_burst": 66.48571428571428,
+      "median_acks_per_burst": 56.0,
+      "n_bursts": 35,
+      "pct_bursts_also_containing_normal": 100.0,
+      "pct_bursts_spanning_multiple_categories": 0.0
+    }
+  },
+  "decision_criterion": {
+    "majority_threshold": 0.5,
+    "min_clean_samples_for_coverage": 2
+  },
+  "environment": {
+    "numpy": "2.5.3",
+    "python": "3.12.10"
+  },
+  "experiment": "ACK-002",
+  "gap_threshold_derivation": {
+    "derived_threshold_seconds": 10.14699125289917,
+    "inter_ack_gap_distribution_seconds_all_labels": {
+      "max": 640.1231648921967,
+      "mean": 4.2685052427175485,
+      "median": 3.3823304176330566,
+      "min": 3.1915509700775146,
+      "n_gaps": 51228,
+      "p50": 3.3823304176330566,
+      "p75": 3.5942330360412598,
+      "p90": 3.6732372999191285,
+      "p95": 3.707736015319824,
+      "p99": 3.775372326374054
+    },
+    "method": "label_blind_fixed_multiple_of_median",
+    "multiple": 3.0
+  },
+  "identity_gates": {
+    "exp0017_confusion": [
+      4767,
+      40,
+      2166,
+      2374
+    ],
+    "exp0017_reproduced": true,
+    "expected_confusion": [
+      4767,
+      40,
+      2166,
+      2374
+    ],
+    "split_id": "verified-egress-5s-exp0008-pretest-v1",
+    "split_sha256": "0e912e147d088aaed05e95bda04c6a46c72ed4dd16aafb6966c9e2aab26859e6"
+  },
+  "scan_counts": {
+    "egress_acks_in_scope": 51229,
+    "egress_pressure_responses_in_scope": 53261,
+    "egress_rows_train_val_scope_plus_out_of_scope": 137013
+  },
+  "status": "TESTED",
+  "stopping_rule_verdict": {
+    "MPCI_containing": {
+      "n_bursts": 121,
+      "pct_bursts_with_fewer_than_2_clean_samples": 4.95867768595042,
+      "pct_bursts_with_ge2_clean_samples": 95.04132231404958,
+      "verdict": "not flagged by this rule"
+    },
+    "MSCI_containing": {
+      "n_bursts": 81,
+      "pct_bursts_with_fewer_than_2_clean_samples": 1.2345679012345698,
+      "pct_bursts_with_ge2_clean_samples": 98.76543209876543,
+      "verdict": "not flagged by this rule"
+    }
+  }
+}
