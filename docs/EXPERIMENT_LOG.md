@@ -4266,3 +4266,100 @@ deployable signal.
   [exp0032_admissible_ceiling_audit.json](../data/experiments/exp0032_admissible_ceiling_audit.json),
   summary [EXP-0032_RESULTS.md](experiments/EXP-0032_RESULTS.md).
 
+## EXP-0032b execution outcome — TESTED — CORRECTED re-run; PROCEED-0030 (NMRI) / PROCEED-0030 (CMRI); EXP-0032's PROCEED-BOTH is PARTIALLY SUPERSEDED — PROCEED-0031 not confirmed for either attack type (2026-09-13)
+
+- **Pre-registered amendment context:** EXP-0032's `PROCEED-BOTH` verdict was
+  SUSPENDED (not accepted) pending this corrected re-run, per three
+  disclosed flaws in EXP-0032 itself: (1) the VAL/TRAIN decision-rule
+  cohort used a pressure-bounds-only proxy, not the true protocol+pressure+
+  Isolation Forest residual; (2) bootstrap/permutation controls were
+  reduced (60/20 vs the spec's 200/50-200); (3) no leave-one-attack-run-out
+  generalization check existed for the dominant feature
+  `ulp_distance_to_train_normal` (~0.83 importance).
+- **Fix 1 (corrected cohort):** new `FrozenExp0017Detector`
+  (`ml/exp0032b_ceiling_audit_corrected.py`) reproduces EXP-0017's true
+  combined rule (protocol OR pressure-bounds OR Isolation Forest) for
+  TRAIN, VALIDATION, and TEST — not approximated. Reuses every frozen
+  scalar from the EXP-0017 artifact unchanged (mu, sd, threshold,
+  valid_func_codes, valid_addresses, pressure_bounds); only the Isolation
+  Forest is refit in-process (identical hyperparameters/seed), verified by
+  EXACT element-wise agreement with the frozen TEST if_pred/protocol_pred/
+  pressure_pred/comb_pred and the frozen TEST confusion (4767/40/2166/2374)
+  before anything else ran. `run_detector()` itself was NEVER called.
+  Cohort-size effect was small: corrected residual-positive counts were
+  2-14 rows lower than EXP-0032's proxy (≤1.1% of cohort) — a real,
+  disclosed flaw, but not the reason the verdict below changes.
+- **Fix 2 (restored controls):** bootstrap restored to the full spec value
+  (200; cheap, resamples already-computed scores); permutation draws
+  restored to 50 (spec's disclosed 50-200 low end, for session
+  compute-time tractability — full run took ~751s). Reduced (60/20) and
+  restored (200/50) counts were BOTH run on the corrected cohort and
+  agreed on every family's clears/does-not-clear result for both attack
+  types — control strength was NOT the reason the verdict changed either.
+- **Full-strength (200/50) per-family results — NMRI:** F1 49.71%
+  [39.45,61.17]% vs null 1.17% (clears); F2 11.70% [5.71,17.75]% vs null
+  3.30% (clears); F3 3.51% [0.00,8.16]% vs null 1.55% (does NOT clear);
+  combined 78.36% [65.97,89.14]% vs null 1.17% (clears). TEST scored once:
+  combined recall 60.0% (90/150), Normal FPR 0.478%.
+- **CMRI:** F1 77.32% [70.10,84.97]% vs null 4.65% (clears); F2 24.26%
+  [17.14,30.70]% vs null 2.85% (clears); F3 11.11% [3.25,19.42]% vs null
+  2.39% (clears); combined 69.16% [60.17,78.24]% vs null 2.17% (clears).
+  TEST scored once: combined recall 76.47% (416/544), Normal FPR 0.707%.
+  Dominant feature both attacks: `ulp_distance_to_train_normal` (F2),
+  causality audit clean.
+- **Fix 3 (leave-one-attack-run-out) — the check that changed the
+  verdict:** residual-positive rows pooled TRAIN+VAL (disclosed, this
+  sub-check only), grouped into contiguous-window-index attack "runs" (≥3
+  examples), each run held out and its OWN recall measured after retraining
+  without it. F2 (`ulp_distance_to_train_normal`): NMRI 66 runs, mean
+  94.06% recall, std 9.59pp, min 50%, max 100% — **not run-dependent**.
+  CMRI: 107 runs, mean 95.29%, std 8.13pp, min 50%, max 100% — **not
+  run-dependent**. F3 (distribution features): NMRI 66 runs, mean 17.65%,
+  std **26.61pp**, range 0-100% — **run-dependent**. CMRI: 107 runs, mean
+  22.53%, std **34.40pp**, range 0-100% — **run-dependent**. F2 generalizes
+  robustly across dozens of held-out attack episodes; F3 does not — exactly
+  the distinction EXP-0032's own honesty notes flagged as unresolved.
+- **Corrected decision-rule application:** each verdict component (F2 ->
+  PROCEED-0030, F3 -> PROCEED-0031) is gated by ITS OWN family's LORO
+  result, not just whichever family dominates the combined model's
+  importances (an earlier draft of this correction let CMRI's independently
+  F3-clearing PROCEED-0031 ride through ungated on F2's generalization
+  result alone — fixed before this was reported). NMRI: PROCEED-0030
+  clears (F2 generalizes); PROCEED-0031 never cleared the bar in the first
+  place (F3 does not clear permutation null for NMRI) -> **PROCEED-0030**.
+  CMRI: PROCEED-0030 clears (F2 generalizes); PROCEED-0031 clears the
+  permutation-null bar but F3 fails the LORO gate -> PROCEED-0031
+  RETRACTED for CMRI -> **PROCEED-0030**.
+- **FINAL VERDICT: PROCEED-0030 (NMRI) / PROCEED-0030 (CMRI).** This
+  PARTIALLY SUPERSEDES EXP-0032's original `PROCEED-BOTH` finding for both
+  attack types (docs/experiments/EXP-0032_RESULTS.md, entry above,
+  untouched/not edited per this project's append-only discipline): the
+  EXP-0030 (float-provenance / `ulp_distance_to_train_normal`) candidate is
+  CONFIRMED and now more solidly supported than EXP-0032 knew (cohort-
+  corrected, control-restored, generalization-tested across 66-107
+  held-out attack episodes with no run-dependence). The EXP-0031
+  (event-level distribution fingerprint) candidate is **NOT CONFIRMED**
+  for either attack type — it clears the (weak) permutation-null bar
+  exactly as EXP-0032 found, but fails the leave-one-attack-run-out
+  generalization check, meaning it is a real but run-specific effect, not
+  an admissible population-level signal. EXP-0031 should NOT be separately
+  pre-registered as a detector build on EXP-0032's evidence alone. Per the
+  pre-registered amendment this verdict is final for this line: no further
+  amendments.
+- **Honesty notes:** Fix 1 and Fix 2 did not change the outcome (small
+  cohort effect; stable across control strengths) — Fix 3 is what changed
+  it, and it is exactly the check EXP-0032's own write-up flagged as
+  missing. The refit Isolation Forest inside `FrozenExp0017Detector` is not
+  a stored object (none exists in the frozen artifact); its exact TEST
+  element-wise match against the frozen `if_pred` is the strongest
+  available evidence the refit is faithful on TRAIN/VAL too, disclosed as
+  a residual limitation. `run_detector()`, `app.py`, and all protected
+  EXP-0005..0032 files unchanged.
+- **TESTED.** New files only: `ml/exp0032b_ceiling_audit_corrected.py`,
+  `tests/test_exp0032b_ceiling_audit_corrected.py`,
+  `data/experiments/exp0032b_ceiling_audit_corrected.json`,
+  `docs/experiments/EXP-0032b_RESULTS.md`.
+- Saved result:
+  [exp0032b_ceiling_audit_corrected.json](../data/experiments/exp0032b_ceiling_audit_corrected.json),
+  summary [EXP-0032b_RESULTS.md](experiments/EXP-0032b_RESULTS.md).
+
