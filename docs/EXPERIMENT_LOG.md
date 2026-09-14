@@ -4172,3 +4172,97 @@ deployable signal.
   [exp0029_regime_baseline.json](../data/experiments/exp0029_regime_baseline.json),
   summary [EXP-0029_RESULTS.md](experiments/EXP-0029_RESULTS.md).
 
+## EXP-0032 execution outcome — TESTED — PROCEED-BOTH (NMRI) / PROCEED-BOTH (CMRI); admissible-information ceiling audit finds real signal after five prior NO-GOs (2026-09-13)
+
+- **Pre-registration:** diagnostic-only probe (NOT a detector build) asking
+  whether ANY signal recoverable from admissible pressure-byte features
+  exists for the residual NMRI/CMRI false negatives, after EXP-0018 (AR(1)
+  residual energy), EXP-0019 (rate-of-change plausibility), EXP-0020
+  (rate-bound gated on in-bounds predecessor), EXP-0028 (DTW/discord
+  trajectory matching) and EXP-0029 (regime-local median/MAD baseline) were
+  all NO-GO. Three feature families pre-registered: F1 (numeric
+  pressure/derivative, baseline sanity), F2 (IEEE-754 representation —
+  exponent, mantissa bit pattern, ULP distance to nearest TRAIN-normal
+  value, quantization/ADC-lattice distance, local mantissa entropy), F3
+  (event-level trailing-buffer distribution — quantiles, skew/kurtosis,
+  repetition rate, entropy, Wasserstein-1 distance to TRAIN-normal). An
+  `XGBClassifier` was used purely as a flexible information probe, per
+  family and combined, per attack type (NMRI, CMRI), with a fixed decision
+  rule: VAL event-grouped-bootstrap recall-at-<=0.30%-FPR 95% CI lower bound
+  must exceed a label-permutation null's 95th percentile.
+- **Identity gates:** all passed — EXP-0017 artifact checksum-verified,
+  `comb == protocol | pressure | IF` element-wise, whole-TEST confusion
+  4767/40/2166/2374, EXP-0016 bounds `[0.482759, 38.7471]` unchanged, split
+  manifest identity matches. Known TEST false negatives re-derived exactly:
+  pure-NMRI 150, pure-CMRI 544.
+- **Adaptation disclosed (same convention as EXP-0028's dtaidistance
+  substitution):** the frozen EXP-0017 artifact only carries `comb_pred` for
+  TEST. TRAIN/VALIDATION residual cohorts are approximated via the
+  EXP-0016 pressure-bounds component ALONE (the only cheaply, exactly
+  reproducible rule piece outside the frozen TEST artifact), since
+  reproducing the full combined rule for TRAIN/VAL would require calling
+  `run_detector`, forbidden beyond the frozen-artifact identity gate. TEST
+  itself uses the exact frozen `comb_pred`. Documented as a mild
+  over-approximation of the true TRAIN/VAL residual population, a
+  limitation, not a silent shortcut.
+- **Results — NMRI:** VAL recall-at-fixed-FPR (bootstrap 95% CI) vs
+  permutation-null p95: F1 49.13% [38.67,60.23]% vs null 1.24% (clears); F2
+  12.72% [8.57,18.61]% vs null 1.79% (clears); F3 4.62% [1.09,8.07]% vs
+  null 0.58% (clears); combined 71.68% [54.87,80.65]% vs null 0.00%
+  (clears). Combined model dominated by `ulp_distance_to_train_normal`
+  (importance 0.825, F2). TEST scored once (honest, not decision-rule
+  input): combined-model recall 58.0% (87/150), Normal FPR 0.42%
+  (20/4,957).
+- **Results — CMRI:** F1 76.91% [69.64,82.87]% vs null 2.72% (clears); F2
+  14.80% [9.27,20.75]% vs null 1.80% (clears); F3 9.87% [3.96,16.97]% vs
+  null 0.71% (clears); combined 73.77% [65.84,80.37]% vs null 0.72%
+  (clears). Combined model again dominated by `ulp_distance_to_train_normal`
+  (importance 0.828, F2). TEST scored once: combined-model recall 80.5%
+  (438/544), Normal FPR 0.60% (29/5,351).
+- **Feature-causality audit:** every top-10-importance feature in both
+  combined models is derived directly from the decoded egress pressure
+  value (raw or IEEE-754 bit-level), strictly causal (trailing-buffer or
+  predecessor only), and uses no label information indirectly. No
+  `source`, `crc_rate`, or testbed-collection metadata referenced anywhere
+  in the feature code (enforced by an automated forbidden-field test, same
+  as EXP-0028/0029). Audit: **clean** for both attack types.
+- **Decision-rule verdict: NMRI `PROCEED-BOTH`, CMRI `PROCEED-BOTH`** — F2
+  (dominant in the combined model) clears the bar for both attack types
+  with a clean causality audit -> PROCEED-0030 condition satisfied for
+  both; F3-only also independently clears the bar (narrowly) with distinct
+  winning features (quantile/entropy/max-gap statistics) -> PROCEED-0031
+  condition also satisfied for both. Per the fixed pre-registration this
+  is reported as PROCEED-BOTH for both attack types; EXP-0030 and EXP-0031
+  remain separate, later pre-registered detector-build decisions — nothing
+  was wired.
+- **Honesty notes (see EXP-0032_RESULTS.md for full discussion):** F1
+  (raw pressure/derivative, the same feature family EXP-0018/19/20 already
+  tested with single-threshold rules) also clears the bar with a high
+  point estimate — not a contradiction of those NO-GOs, since a
+  gradient-boosted classifier can carve multiple non-monotone regions out
+  of the same raw features, a materially different hypothesis class than
+  a single global threshold. The dominant F2 signal
+  (`ulp_distance_to_train_normal`) is measured against this one testbed's
+  specific attack-generation tooling; whether it generalizes to a
+  different forging method is flagged explicitly as unresolved, not
+  claimed. The TRAIN/VAL residual-cohort proxy (pressure-bounds-alone) is
+  a real limitation whose effect is bounded by comparing against the
+  once-scored, exact-cohort TEST number. F3's clearance is comparatively
+  weak (narrow margins over a small null) and should be treated as a weak
+  positive by whoever pre-registers EXP-0031.
+- **Deliverables note:** the spec's fallback `docs/overview.md` deliverable
+  location does not exist anywhere in this repository (confirmed, same
+  finding as EXP-0028/0029) — flagged rather than invented; this log entry
+  plus `docs/experiments/EXP-0032_RESULTS.md` serve as the record instead.
+- **TESTED.** Full suite **341 → 376 passed** (35 new: 34 fast synthetic
+  units + 1 slow saved-result replay). No raw data read in fast tests.
+  `run_detector`, `app.py` and all protected EXP-0005..0029 files
+  unchanged.
+- New files only: `ml/exp0032_admissible_ceiling_audit.py`,
+  `tests/test_exp0032_admissible_ceiling_audit.py`,
+  `data/experiments/exp0032_admissible_ceiling_audit.json`,
+  `docs/experiments/EXP-0032_RESULTS.md`.
+- Saved result:
+  [exp0032_admissible_ceiling_audit.json](../data/experiments/exp0032_admissible_ceiling_audit.json),
+  summary [EXP-0032_RESULTS.md](experiments/EXP-0032_RESULTS.md).
+

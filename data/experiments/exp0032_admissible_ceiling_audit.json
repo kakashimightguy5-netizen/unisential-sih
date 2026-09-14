@@ -1,0 +1,923 @@
+{
+  "status": "TESTED \u2014 DIAGNOSTIC PROBE; NO DETECTOR BUILT; run_detector NOT modified",
+  "experiment": "EXP-0032",
+  "identity_gates": {
+    "exp0017_artifact_loaded_and_verified": true,
+    "comb_equals_protocol_or_pressure_or_if": true,
+    "whole_test_confusion_matches_exp0017": true,
+    "exp0017_confusion": [
+      4767,
+      40,
+      2166,
+      2374
+    ],
+    "exp0016_bounds": [
+      0.482759,
+      38.7471
+    ],
+    "run_detector_modified": false
+  },
+  "manifest": {
+    "split_id": "verified-egress-5s-exp0008-pretest-v1",
+    "membership_sha256": "0e912e147d088aaed05e95bda04c6a46c72ed4dd16aafb6966c9e2aab26859e6"
+  },
+  "residual_cohort_definition": {
+    "test": "exact frozen comb_pred == 0 (protocol | pressure | IF)",
+    "train_validation": "EXP-0016 pressure-bounds component ALONE, reproduced from the frozen pressure_bounds tuple (protocol rule and Isolation Forest are not reproduced for TRAIN/VAL to avoid calling run_detector; documented over-approximation, see module docstring)"
+  },
+  "n_known_false_negatives_test": {
+    "NMRI": 150,
+    "CMRI": 544
+  },
+  "method": {
+    "trailing_buffer_samples": 30,
+    "mantissa_low_bits": 8,
+    "quantization_steps": [
+      0.001,
+      0.01,
+      0.1,
+      0.5,
+      1.0
+    ],
+    "adc_lattice_steps": [
+      0.0625,
+      0.125,
+      0.25
+    ],
+    "entropy_hist_bins": 10,
+    "wasserstein_ref_max_size": 500,
+    "n_bootstrap": 60,
+    "n_permutations": 20,
+    "max_normal_fpr": 0.003,
+    "xgb_params": {
+      "n_estimators": 150,
+      "max_depth": 4,
+      "learning_rate": 0.1,
+      "subsample": 0.8,
+      "colsample_bytree": 0.8,
+      "reg_lambda": 1.0,
+      "random_state": 0,
+      "n_jobs": -1,
+      "eval_metric": "logloss",
+      "objective": "binary:logistic"
+    },
+    "note_reduced_resample_counts": "spec's illustrative 200 bootstrap / 50-200 permutation counts reduced to 60 / 20 for session compute-time tractability (2 attack types x 4 families x (1 real + 20 permutation) XGBoost fits); disclosed, same convention as EXP-0028's LIBRARY_MAX_SIZE compute cap."
+  },
+  "per_attack": {
+    "NMRI": {
+      "known_false_negatives_test": 150,
+      "families": {
+        "F1": {
+          "n_train": 15509,
+          "n_train_positive": 558,
+          "n_val": 5025,
+          "n_val_positive": 173,
+          "n_test": 4957,
+          "n_test_positive": 150,
+          "threshold": 0.5969164371490479,
+          "val_normal_fpr_achieved": 0.0026793075020610057,
+          "val_recall_point_estimate": 0.4913294797687861,
+          "val_recall_bootstrap_ci95": [
+            0.3866688507086003,
+            0.6023492023928215
+          ],
+          "val_bootstrap_n": 60,
+          "permutation_null_recalls": [
+            0.005780346820809248,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.028901734104046242,
+            0.0,
+            0.0,
+            0.0,
+            0.005780346820809248,
+            0.011560693641618497,
+            0.0,
+            0.0,
+            0.011560693641618497,
+            0.005780346820809248,
+            0.0,
+            0.005780346820809248,
+            0.0,
+            0.011560693641618497,
+            0.0
+          ],
+          "permutation_null_p95": 0.012427745664739896,
+          "clears_permutation_null": true,
+          "test_scored_once": {
+            "normal_fp": 23,
+            "normal_fpr": 0.004784688995215311,
+            "recall": 0.2866666666666667
+          },
+          "feature_names": [
+            "last_pressure",
+            "abs_delta_predecessor",
+            "step_rate"
+          ],
+          "feature_importances": [
+            0.21343812346458435,
+            0.43165192008018494,
+            0.3549099266529083
+          ]
+        },
+        "F2": {
+          "n_train": 15509,
+          "n_train_positive": 558,
+          "n_val": 5025,
+          "n_val_positive": 173,
+          "n_test": 4957,
+          "n_test_positive": 150,
+          "threshold": 0.998988687992096,
+          "val_normal_fpr_achieved": 0.0026793075020610057,
+          "val_recall_point_estimate": 0.12716763005780346,
+          "val_recall_bootstrap_ci95": [
+            0.08568210262828536,
+            0.18605072463768113
+          ],
+          "val_bootstrap_n": 60,
+          "permutation_null_recalls": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.011560693641618497,
+            0.0,
+            0.011560693641618497,
+            0.017341040462427744,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.028901734104046242,
+            0.017341040462427744,
+            0.0,
+            0.005780346820809248
+          ],
+          "permutation_null_p95": 0.017919075144508675,
+          "clears_permutation_null": true,
+          "test_scored_once": {
+            "normal_fp": 11,
+            "normal_fpr": 0.002288329519450801,
+            "recall": 0.10666666666666667
+          },
+          "feature_names": [
+            "exponent",
+            "mantissa_low_bits",
+            "trailing_zero_bits",
+            "ulp_distance_to_train_normal",
+            "quantization_distance",
+            "adc_lattice_distance",
+            "mantissa_entropy_local"
+          ],
+          "feature_importances": [
+            0.0062891156412661076,
+            0.004368961788713932,
+            0.004669219721108675,
+            0.9694732427597046,
+            0.005569851025938988,
+            0.0039565847255289555,
+            0.005673088598996401
+          ]
+        },
+        "F3": {
+          "n_train": 15509,
+          "n_train_positive": 558,
+          "n_val": 5025,
+          "n_val_positive": 173,
+          "n_test": 4957,
+          "n_test_positive": 150,
+          "threshold": 0.6962410807609558,
+          "val_normal_fpr_achieved": 0.0026793075020610057,
+          "val_recall_point_estimate": 0.046242774566473986,
+          "val_recall_bootstrap_ci95": [
+            0.010888607101053454,
+            0.08073069403714565
+          ],
+          "val_bootstrap_n": 60,
+          "permutation_null_recalls": [
+            0.0,
+            0.0,
+            0.005780346820809248,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.005780346820809248,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "permutation_null_p95": 0.005780346820809248,
+          "clears_permutation_null": true,
+          "test_scored_once": {
+            "normal_fp": 22,
+            "normal_fpr": 0.004576659038901602,
+            "recall": 0.07333333333333333
+          },
+          "feature_names": [
+            "q01",
+            "q05",
+            "q10",
+            "q25",
+            "q50",
+            "q75",
+            "q90",
+            "q95",
+            "q99",
+            "iqr_10_90",
+            "iqr_25_75",
+            "skewness",
+            "kurtosis",
+            "unique_count",
+            "repetition_rate",
+            "entropy",
+            "histogram_occupancy",
+            "max_gap",
+            "wasserstein_to_train_normal"
+          ],
+          "feature_importances": [
+            0.03387543559074402,
+            0.05619196593761444,
+            0.030973095446825027,
+            0.030675478279590607,
+            0.02830125205218792,
+            0.03685511276125908,
+            0.06046012416481972,
+            0.0546172671020031,
+            0.06400779634714127,
+            0.02795127034187317,
+            0.028611663728952408,
+            0.027449797838926315,
+            0.051816582679748535,
+            0.07437574863433838,
+            0.05483542010188103,
+            0.05189845710992813,
+            0.18519416451454163,
+            0.07531457394361496,
+            0.026594821363687515
+          ]
+        },
+        "combined": {
+          "n_train": 15509,
+          "n_train_positive": 558,
+          "n_val": 5025,
+          "n_val_positive": 173,
+          "n_test": 4957,
+          "n_test_positive": 150,
+          "threshold": 0.995438277721405,
+          "val_normal_fpr_achieved": 0.0026793075020610057,
+          "val_recall_point_estimate": 0.7167630057803468,
+          "val_recall_bootstrap_ci95": [
+            0.5486571852060982,
+            0.8064608433734939
+          ],
+          "val_bootstrap_n": 60,
+          "permutation_null_recalls": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "permutation_null_p95": 0.0,
+          "clears_permutation_null": true,
+          "test_scored_once": {
+            "normal_fp": 20,
+            "normal_fpr": 0.004160599126274184,
+            "recall": 0.58
+          },
+          "feature_names": [
+            "last_pressure",
+            "abs_delta_predecessor",
+            "step_rate",
+            "exponent",
+            "mantissa_low_bits",
+            "trailing_zero_bits",
+            "ulp_distance_to_train_normal",
+            "quantization_distance",
+            "adc_lattice_distance",
+            "mantissa_entropy_local",
+            "q01",
+            "q05",
+            "q10",
+            "q25",
+            "q50",
+            "q75",
+            "q90",
+            "q95",
+            "q99",
+            "iqr_10_90",
+            "iqr_25_75",
+            "skewness",
+            "kurtosis",
+            "unique_count",
+            "repetition_rate",
+            "entropy",
+            "histogram_occupancy",
+            "max_gap",
+            "wasserstein_to_train_normal"
+          ],
+          "feature_importances": [
+            0.007804030552506447,
+            0.016600115224719048,
+            0.03445315361022949,
+            0.0,
+            0.004001778084784746,
+            0.0035171587951481342,
+            0.825302243232727,
+            0.001953398808836937,
+            0.004031036514788866,
+            0.006681707687675953,
+            0.005207396578043699,
+            0.0018684695241972804,
+            0.004042488522827625,
+            0.0035587134771049023,
+            0.004250618163496256,
+            0.005867805797606707,
+            0.006418989505618811,
+            0.0057762786746025085,
+            0.007121600676327944,
+            0.005621966440230608,
+            0.005342377349734306,
+            0.005839864257723093,
+            0.003078143112361431,
+            0.006897693034261465,
+            0.00438279751688242,
+            0.006353320553898811,
+            0.006763128563761711,
+            0.0042803529649972916,
+            0.002983375685289502
+          ]
+        }
+      },
+      "dominant_feature_family_combined_model": "F2",
+      "causality_audit_combined_model": [
+        {
+          "feature": "ulp_distance_to_train_normal",
+          "family": "F2",
+          "importance": 0.825302243232727,
+          "derived_from_egress_response": true,
+          "uses_future_data": false,
+          "uses_labels_indirectly": false,
+          "keep": true
+        },
+        {
+          "feature": "step_rate",
+          "family": "F1",
+          "importance": 0.03445315361022949,
+          "derived_from_egress_response": true,
+          "uses_future_data": false,
+          "uses_labels_indirectly": false,
+          "keep": true
+        },
+        {
+          "feature": "abs_delta_predecessor",
+          "family": "F1",
+          "importance": 0.016600115224719048,
+          "derived_from_egress_response": true,
+          "uses_future_data": false,
+          "uses_labels_indirectly": false,
+          "keep": true
+        },
+        {
+          "feature": "last_pressure",
+          "family": "F1",
+          "importance": 0.007804030552506447,
+          "derived_from_egress_response": true,
+          "uses_future_data": false,
+          "uses_labels_indirectly": false,
+          "keep": true
+        },
+        {
+          "feature": "q99",
+          "family": "F3",
+          "importance": 0.007121600676327944,
+          "derived_from_egress_response": true,
+          "uses_future_data": false,
+          "uses_labels_indirectly": false,
+          "keep": true
+        },
+        {
+          "feature": "unique_count",
+          "family": "F3",
+          "importance": 0.006897693034261465,
+          "derived_from_egress_response": true,
+          "uses_future_data": false,
+          "uses_labels_indirectly": false,
+          "keep": true
+        },
+        {
+          "feature": "histogram_occupancy",
+          "family": "F3",
+          "importance": 0.006763128563761711,
+          "derived_from_egress_response": true,
+          "uses_future_data": false,
+          "uses_labels_indirectly": false,
+          "keep": true
+        },
+        {
+          "feature": "mantissa_entropy_local",
+          "family": "F2",
+          "importance": 0.006681707687675953,
+          "derived_from_egress_response": true,
+          "uses_future_data": false,
+          "uses_labels_indirectly": false,
+          "keep": true
+        },
+        {
+          "feature": "q90",
+          "family": "F3",
+          "importance": 0.006418989505618811,
+          "derived_from_egress_response": true,
+          "uses_future_data": false,
+          "uses_labels_indirectly": false,
+          "keep": true
+        },
+        {
+          "feature": "entropy",
+          "family": "F3",
+          "importance": 0.006353320553898811,
+          "derived_from_egress_response": true,
+          "uses_future_data": false,
+          "uses_labels_indirectly": false,
+          "keep": true
+        }
+      ],
+      "causality_audit_clean": true,
+      "verdict": "PROCEED-BOTH"
+    },
+    "CMRI": {
+      "known_false_negatives_test": 544,
+      "families": {
+        "F1": {
+          "n_train": 16267,
+          "n_train_positive": 1316,
+          "n_val": 5298,
+          "n_val_positive": 446,
+          "n_test": 5351,
+          "n_test_positive": 544,
+          "threshold": 0.6224174499511719,
+          "val_normal_fpr_achieved": 0.0026793075020610057,
+          "val_recall_point_estimate": 0.7690582959641256,
+          "val_recall_bootstrap_ci95": [
+            0.6963826047232208,
+            0.8287468918803051
+          ],
+          "val_bootstrap_n": 60,
+          "permutation_null_recalls": [
+            0.0,
+            0.011210762331838564,
+            0.0,
+            0.011210762331838564,
+            0.033632286995515695,
+            0.002242152466367713,
+            0.0,
+            0.0,
+            0.011210762331838564,
+            0.002242152466367713,
+            0.004484304932735426,
+            0.0,
+            0.004484304932735426,
+            0.0,
+            0.0,
+            0.01569506726457399,
+            0.0,
+            0.008968609865470852,
+            0.026905829596412557,
+            0.0
+          ],
+          "permutation_null_p95": 0.027242152466367717,
+          "clears_permutation_null": true,
+          "test_scored_once": {
+            "normal_fp": 25,
+            "normal_fpr": 0.00520074890784273,
+            "recall": 0.7720588235294118
+          },
+          "feature_names": [
+            "last_pressure",
+            "abs_delta_predecessor",
+            "step_rate"
+          ],
+          "feature_importances": [
+            0.3026442527770996,
+            0.43376103043556213,
+            0.2635946273803711
+          ]
+        },
+        "F2": {
+          "n_train": 16267,
+          "n_train_positive": 1316,
+          "n_val": 5298,
+          "n_val_positive": 446,
+          "n_test": 5351,
+          "n_test_positive": 544,
+          "threshold": 0.9994959831237793,
+          "val_normal_fpr_achieved": 0.00247320692497939,
+          "val_recall_point_estimate": 0.14798206278026907,
+          "val_recall_bootstrap_ci95": [
+            0.09274394717534849,
+            0.2075185306300414
+          ],
+          "val_bootstrap_n": 60,
+          "permutation_null_recalls": [
+            0.0,
+            0.008968609865470852,
+            0.002242152466367713,
+            0.006726457399103139,
+            0.002242152466367713,
+            0.013452914798206279,
+            0.004484304932735426,
+            0.006726457399103139,
+            0.002242152466367713,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.011210762331838564,
+            0.008968609865470852,
+            0.0,
+            0.0,
+            0.06278026905829596,
+            0.01569506726457399,
+            0.011210762331838564
+          ],
+          "permutation_null_p95": 0.018049327354260125,
+          "clears_permutation_null": true,
+          "test_scored_once": {
+            "normal_fp": 15,
+            "normal_fpr": 0.0031204493447056377,
+            "recall": 0.13786764705882354
+          },
+          "feature_names": [
+            "exponent",
+            "mantissa_low_bits",
+            "trailing_zero_bits",
+            "ulp_distance_to_train_normal",
+            "quantization_distance",
+            "adc_lattice_distance",
+            "mantissa_entropy_local"
+          ],
+          "feature_importances": [
+            0.011380646377801895,
+            0.004099083598703146,
+            0.006242013070732355,
+            0.962883472442627,
+            0.004707404877990484,
+            0.005215981509536505,
+            0.005471378099173307
+          ]
+        },
+        "F3": {
+          "n_train": 16267,
+          "n_train_positive": 1316,
+          "n_val": 5298,
+          "n_val_positive": 446,
+          "n_test": 5351,
+          "n_test_positive": 544,
+          "threshold": 0.6399105787277222,
+          "val_normal_fpr_achieved": 0.00247320692497939,
+          "val_recall_point_estimate": 0.09865470852017937,
+          "val_recall_bootstrap_ci95": [
+            0.03961764042409204,
+            0.16968537414965984
+          ],
+          "val_bootstrap_n": 60,
+          "permutation_null_recalls": [
+            0.002242152466367713,
+            0.0,
+            0.006726457399103139,
+            0.0,
+            0.013452914798206279,
+            0.0,
+            0.002242152466367713,
+            0.004484304932735426,
+            0.0,
+            0.0,
+            0.002242152466367713,
+            0.0,
+            0.002242152466367713,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.002242152466367713,
+            0.0,
+            0.006726457399103139
+          ],
+          "permutation_null_p95": 0.007062780269058301,
+          "clears_permutation_null": true,
+          "test_scored_once": {
+            "normal_fp": 10,
+            "normal_fpr": 0.002080299563137092,
+            "recall": 0.11764705882352941
+          },
+          "feature_names": [
+            "q01",
+            "q05",
+            "q10",
+            "q25",
+            "q50",
+            "q75",
+            "q90",
+            "q95",
+            "q99",
+            "iqr_10_90",
+            "iqr_25_75",
+            "skewness",
+            "kurtosis",
+            "unique_count",
+            "repetition_rate",
+            "entropy",
+            "histogram_occupancy",
+            "max_gap",
+            "wasserstein_to_train_normal"
+          ],
+          "feature_importances": [
+            0.065407395362854,
+            0.06139235571026802,
+            0.03382732719182968,
+            0.038944825530052185,
+            0.039133209735155106,
+            0.03963679075241089,
+            0.04657265543937683,
+            0.053801171481609344,
+            0.06264719367027283,
+            0.0687849223613739,
+            0.03104110062122345,
+            0.025352010503411293,
+            0.04437461495399475,
+            0.04112953320145607,
+            0.04705489054322243,
+            0.07499247789382935,
+            0.05907066911458969,
+            0.1316472589969635,
+            0.035189639776945114
+          ]
+        },
+        "combined": {
+          "n_train": 16267,
+          "n_train_positive": 1316,
+          "n_val": 5298,
+          "n_val_positive": 446,
+          "n_test": 5351,
+          "n_test_positive": 544,
+          "threshold": 0.9972108006477356,
+          "val_normal_fpr_achieved": 0.0026793075020610057,
+          "val_recall_point_estimate": 0.7376681614349776,
+          "val_recall_bootstrap_ci95": [
+            0.6583837300039017,
+            0.8036627906976744
+          ],
+          "val_bootstrap_n": 60,
+          "permutation_null_recalls": [
+            0.01569506726457399,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.002242152466367713,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.006726457399103139,
+            0.006726457399103139,
+            0.0,
+            0.002242152466367713,
+            0.0
+          ],
+          "permutation_null_p95": 0.007174887892376689,
+          "clears_permutation_null": true,
+          "test_scored_once": {
+            "normal_fp": 29,
+            "normal_fpr": 0.006032868733097566,
+            "recall": 0.8051470588235294
+          },
+          "feature_names": [
+            "last_pressure",
+            "abs_delta_predecessor",
+            "step_rate",
+            "exponent",
+            "mantissa_low_bits",
+            "trailing_zero_bits",
+            "ulp_distance_to_train_normal",
+            "quantization_distance",
+            "adc_lattice_distance",
+            "mantissa_entropy_local",
+            "q01",
+            "q05",
+            "q10",
+            "q25",
+            "q50",
+            "q75",
+            "q90",
+            "q95",
+            "q99",
+            "iqr_10_90",
+            "iqr_25_75",
+            "skewness",
+            "kurtosis",
+            "unique_count",
+            "repetition_rate",
+            "entropy",
+            "histogram_occupancy",
+            "max_gap",
+            "wasserstein_to_train_normal"
+          ],
+          "feature_importances": [
+            0.008993961848318577,
+            0.010191882960498333,
+            0.01883235201239586,
+            0.00445935083553195,
+            0.0038528144359588623,
+            0.0033620691392570734,
+            0.8278430104255676,
+            0.005506235174834728,
+            0.004121437668800354,
+            0.004540880210697651,
+            0.009946641512215137,
+            0.007742260582745075,
+            0.003931453451514244,
+            0.005023637320846319,
+            0.005231833551079035,
+            0.004709307104349136,
+            0.0028269155882298946,
+            0.0032572222407907248,
+            0.0073377229273319244,
+            0.004301426466554403,
+            0.004815197084099054,
+            0.004197165369987488,
+            0.003721890039741993,
+            0.003335370682179928,
+            0.002969328546896577,
+            0.005900233518332243,
+            0.0065462179481983185,
+            0.018897008150815964,
+            0.003605153877288103
+          ]
+        }
+      },
+      "dominant_feature_family_combined_model": "F2",
+      "causality_audit_combined_model": [
+        {
+          "feature": "ulp_distance_to_train_normal",
+          "family": "F2",
+          "importance": 0.8278430104255676,
+          "derived_from_egress_response": true,
+          "uses_future_data": false,
+          "uses_labels_indirectly": false,
+          "keep": true
+        },
+        {
+          "feature": "max_gap",
+          "family": "F3",
+          "importance": 0.018897008150815964,
+          "derived_from_egress_response": true,
+          "uses_future_data": false,
+          "uses_labels_indirectly": false,
+          "keep": true
+        },
+        {
+          "feature": "step_rate",
+          "family": "F1",
+          "importance": 0.01883235201239586,
+          "derived_from_egress_response": true,
+          "uses_future_data": false,
+          "uses_labels_indirectly": false,
+          "keep": true
+        },
+        {
+          "feature": "abs_delta_predecessor",
+          "family": "F1",
+          "importance": 0.010191882960498333,
+          "derived_from_egress_response": true,
+          "uses_future_data": false,
+          "uses_labels_indirectly": false,
+          "keep": true
+        },
+        {
+          "feature": "q01",
+          "family": "F3",
+          "importance": 0.009946641512215137,
+          "derived_from_egress_response": true,
+          "uses_future_data": false,
+          "uses_labels_indirectly": false,
+          "keep": true
+        },
+        {
+          "feature": "last_pressure",
+          "family": "F1",
+          "importance": 0.008993961848318577,
+          "derived_from_egress_response": true,
+          "uses_future_data": false,
+          "uses_labels_indirectly": false,
+          "keep": true
+        },
+        {
+          "feature": "q05",
+          "family": "F3",
+          "importance": 0.007742260582745075,
+          "derived_from_egress_response": true,
+          "uses_future_data": false,
+          "uses_labels_indirectly": false,
+          "keep": true
+        },
+        {
+          "feature": "q99",
+          "family": "F3",
+          "importance": 0.0073377229273319244,
+          "derived_from_egress_response": true,
+          "uses_future_data": false,
+          "uses_labels_indirectly": false,
+          "keep": true
+        },
+        {
+          "feature": "histogram_occupancy",
+          "family": "F3",
+          "importance": 0.0065462179481983185,
+          "derived_from_egress_response": true,
+          "uses_future_data": false,
+          "uses_labels_indirectly": false,
+          "keep": true
+        },
+        {
+          "feature": "entropy",
+          "family": "F3",
+          "importance": 0.005900233518332243,
+          "derived_from_egress_response": true,
+          "uses_future_data": false,
+          "uses_labels_indirectly": false,
+          "keep": true
+        }
+      ],
+      "causality_audit_clean": true,
+      "verdict": "PROCEED-BOTH"
+    }
+  },
+  "decision_rule": {
+    "bar": "VAL event-grouped-bootstrap recall-at-<=0.30%-FPR 95% CI lower bound must exceed the label-permutation null distribution's 95th percentile",
+    "proceed_0030_condition": "F2-only OR combined-dominated-by-F2 clears bar AND causality audit clean",
+    "proceed_0031_condition": "F3-only OR combined-dominated-by-F3 clears bar AND causality audit clean",
+    "no_go_ceiling_condition": "no family clears the bar for either attack type",
+    "verdicts": {
+      "NMRI": "PROCEED-BOTH",
+      "CMRI": "PROCEED-BOTH"
+    },
+    "overall": "NMRI: PROCEED-BOTH / CMRI: PROCEED-BOTH",
+    "frozen_ceiling_if_no_go": {
+      "NMRI_pct": 79.02,
+      "CMRI_pct": 54.59
+    }
+  },
+  "software": {
+    "python": "3.12.10",
+    "numpy": "2.5.3",
+    "scipy": "1.18.1",
+    "scikit_learn": "1.9.0",
+    "xgboost": "3.4.1"
+  },
+  "limitations": [
+    "TRAIN/VALIDATION residual cohort uses the pressure-bounds-alone proxy for 'the rule already misses' (see module docstring); TEST uses the exact frozen comb_pred. This may make the TRAIN/VAL positive class a mild over-approximation of the true residual (a few windows the protocol rule or IF would independently catch may be retained).",
+    "Per-window feature row is computed from the LAST pressure sample ending in the window plus a trailing causal buffer, not a max/aggregate over multiple sample endings (simpler than EXP-0019/0028/0029's per-window aggregation convention; a completeness-vs-compute tradeoff for this diagnostic probe).",
+    "Bootstrap/permutation counts reduced from the spec's illustrative upper range for session compute-time tractability (documented above).",
+    "The Wasserstein-1 distance-from-Normal feature uses a capped, deterministic uniform-stride TRAIN-normal reference subsample (WASSERSTEIN_REF_MAX_SIZE), not the full TRAIN-normal population, for the same reason.",
+    "Diagnostic only: no detector was built or wired regardless of the outcome; EXP-0030/EXP-0031 (if triggered by this verdict) are separate, later work.",
+    "Pressure is the ARFF-aligned value, not a live 0x03 byte decode; register map/scale undocumented.",
+    "One testbed; egress-only; measurement only."
+  ]
+}
