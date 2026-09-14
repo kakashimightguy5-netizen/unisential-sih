@@ -4490,3 +4490,94 @@ against a corrected bar. No retraining, no TEST re-scoring, no change to
 - Saved result: no new JSON artifact (this amendment re-analyzes
   `data/experiments/exp0030_float_provenance_detector.json` in place); summary
   [EXP-0030b_RESULTS.md](experiments/EXP-0030b_RESULTS.md).
+
+# EXP-0030c — CMRI-only float-provenance rule: PRODUCTION WIRING (2026-09-14)
+
+**ORDERING IRREGULARITY, disclosed explicitly:** this PLANNED entry is being appended
+RETROACTIVELY, at the point the run was already underway (the task arrived from the
+orchestrator with method/decisions already specified and user-approved) — it should have
+preceded the run per this project's standing "pre-registration first" discipline. Both this
+PLANNED entry and the TESTED entry below are appended together, in the same session, rather
+than smoothed over as if pre-registration had happened on time.
+
+- PLANNED: turn EXP-0030b's CMRI-only paper verdict (isolated marginal ratio worst-case
+  5.33:1, GO; NMRI worst-case 1.19:1, NO-GO, out of scope) into a real production artifact —
+  materialize the F2 (IEEE-754 bit-structure) feature pipeline into `ml/`, retrain + serialize
+  a CMRI-only XGBoost classifier, wire it as a new OR-term in `ml/rules.py` /
+  `ml/iforest_detector.py`, refresh the `exp0017_detector.json` / `exp0025_detector.json`
+  identity-ledger checksums for the two touched source files only (payload/result untouched),
+  leave-one-run-out re-check on the freshly retrained model, score TEST exactly once as a
+  single deliberate exception (a fresh serialization/reproducibility touch on the SAME
+  already-evaluated hypothesis, not a new hypothesis test), CMRI ONLY throughout.
+
+# EXP-0030c — CMRI-only float-provenance rule: PRODUCTION WIRING — GO, wired (2026-09-14)
+
+Precondition 2 (independent confirmation of the previously "known-failing"
+`test_exp0017_operational.py::test_dashboard_uses_saved_result_with_pressure_limitation`)
+came back **contradicting the prior memory note**: the test PASSED on both the reverted
+(`git stash`) state and the current state (400/400 full-suite passing on the reverted state).
+The coordinator confirmed with the user this finding is correct, corrected the stale memory
+note, and set 400/400 as the new "no regressions" baseline for this experiment.
+
+Identity-ledger refresh performed on BOTH `data/experiments/exp0017_detector.json` and
+`data/experiments/exp0025_detector.json` (the latter not named in the original brief but
+structurally required — it independently SHA-256-tracks `ml/rules.py` /
+`ml/iforest_detector.py` too) — `source_sha256` entries for the two touched files updated
+only; `result`/`payload` byte-for-byte unchanged, confirmed by structural diff against the
+pre-refresh git-tracked version.
+
+Retrained a CMRI-only `XGBClassifier` on the TRAIN residual cohort (windows the currently-
+wired protocol|pressure|rate|IF chain already misses, `cmri_pure`, F2 features only),
+threshold fit on VAL (0.268% achieved Normal FPR). Serialized via XGBoost's native JSON
+format to `data/artifacts/exp0030c_cmri_float_provenance_model.json` (fixed a real bug in
+the temp-file rename pattern that silently broke XGBoost's format auto-detection). Built and
+persisted a versioned TRAIN-normal reference set (`data/experiments/
+exp0030c_train_normal_reference.json`, 2387 values), independently re-derived from scratch
+and confirmed identical. Leave-one-attack-run-out on the freshly retrained model: 107 runs,
+mean recall 95.29%, std 8.13%, **not run-dependent** — matches EXP-0030b's cited figures.
+
+**Scored TEST exactly once** (this experiment's own single, deliberate final touch for the
+newly retrained/serialized artifact, per user-approved exception — distinct from EXP-0030/
+0030b's already-spent touches on the earlier unserialized research model):
+
+- Baseline (protocol|pressure|rate|IF, EXP-0025 wired): TN 4767 / FP 40 / FN 2166 / TP 2374
+  (FPR 0.832%, recall 52.29%).
+- Baseline OR CMRI-float rule: TN 4749 / FP 58 / FN 2002 / TP 2538 (FPR 1.207%, recall 55.90%).
+- **Isolated marginal: +164 TP / +18 FP = 9.11:1** — EXACT (not a worst-case bound, unlike
+  EXP-0030b's 5.33:1, because only the CMRI classifier exists in this experiment; no NMRI
+  model to conflate FP with) and clears the 3:1 bar comfortably, beating even the historical
+  bound.
+- CMRI pure-cohort recall: 54.59% -> 63.52% (+8.93pp, n=1198) — smaller than EXP-0030's
+  combined NMRI+CMRI figure (->66.61%) because this rule is CMRI-only; expected, disclosed.
+- Total resulting FPR: 0.832% -> 1.207% with the rule added. Flagged for the human's
+  demo-readiness/precision decision, not auto-decided.
+
+**Decision rule (fixed before running): GO iff isolated ratio >= 3:1 AND leave-one-run-out
+generalizes. Both hold. Verdict: GO — wired into production.** `ml/rules.py`
+(`CmriFloatProvenanceRule`, additive) and `ml/iforest_detector.py` (`DetectorResult
+.cmri_float_pred` field, new OR-term in `run_detector()`'s permanent definition for any
+FUTURE fresh run — NOT called this session) remain wired; no unwind needed.
+
+A real regression was found and fixed: `test_exp0017_operational.py
+::test_synthetic_pipeline_fits_train_normal_only_and_test_changes_do_not_tune` broke because
+the newly-wired CMRI code path inside `run_detector()` tried to read real raw data on a fully
+synthetic fixture; fixed by extending that test's existing monkeypatch pattern to the new
+data sources (`exp0019_pressure_rate_plausibility.align_egress_pressure_timeseries`,
+`float_provenance_features.load_reference`/`load_model`), same lazy-import-driven
+monkeypatch convention already used there for the other rules.
+
+**Full test suite: 400/400 (corrected baseline, confirmed via precondition 2) -> 420/420
+(400 + 20 new tests), zero regressions.**
+
+- **TESTED — GO, wired.** New files: `ml/float_provenance_features.py`,
+  `ml/exp0030c_cmri_production_wiring.py`, `tests/test_float_provenance_features.py`,
+  `tests/test_exp0030c_cmri_production_wiring.py`, `docs/experiments/EXP-0030c_RESULTS.md`.
+  Modified: `ml/rules.py`, `ml/iforest_detector.py` (additive wiring),
+  `tests/test_exp0017_operational.py` (one fixture extended, no assertions weakened),
+  `data/experiments/exp0017_detector.json` + `exp0025_detector.json` (identity-ledger
+  checksum refresh only). `overview.md` was searched for and does not exist in this
+  repository — the requested proposed-update deliverable could not be produced for that
+  reason (flagged, not guessed).
+- Saved result: [exp0030c_cmri_production_wiring.json](../data/experiments/exp0030c_cmri_production_wiring.json),
+  summary [EXP-0030c_RESULTS.md](experiments/EXP-0030c_RESULTS.md).
+- **No git commit or push performed in this session**, per instruction.

@@ -1,17 +1,27 @@
 #!/usr/bin/env python3
-"""Operational egress detector: protocol OR pressure OR rate OR Isolation Forest.
+"""Operational egress detector: protocol OR pressure OR rate OR IF OR CMRI-float.
 
 EXP-0017 (protocol OR pressure OR IF) superseded EXP-0004 and scored the one
 guarded TEST evaluation on 2026-09-11 (`data/experiments/exp0017_detector.json`).
-EXP-0025 (2026-09-12) adds the `rate` (Type 2 egress-flood DoS) term to this
-function permanently, for any FUTURE fresh run — but does NOT call
-`run_detector()` again itself: TEST must only ever be scored once, and that
-budget is already spent. EXP-0025's actual reported numbers are a closed-form
-derivation from the frozen EXP-0017 arrays plus the new deterministic rate term
-(a function of the already-recorded `packets_per_sec` feature); see
-`ml/exp0025_dos_rate_rule.py`. Calling `run_detector()` again will still raise
-`FileExistsError` via `exp0017_operational.begin_evaluation`, by design — this
-function's code is the correct permanent definition, not a live re-run.
+EXP-0025 (2026-09-12) added the `rate` (Type 2 egress-flood DoS) term. EXP-0030c
+(2026-09-14) adds a CMRI-ONLY IEEE-754 float-provenance term (`cmri_float_pred`,
+`rules.CmriFloatProvenanceRule`, loaded from the serialized production artifact
+in `ml/float_provenance_features.py`) — NMRI is explicitly out of scope (EXP-
+0030b: NMRI's isolated marginal ratio did not clear the pre-registered 3:1 bar)
+and this function must never OR in an NMRI float term without a separate
+pre-registered decision.
+
+None of these additions call `run_detector()` again themselves: TEST must only
+ever be scored once, and that budget is already spent (EXP-0017's one guarded
+evaluation). Every later addition's actual reported numbers are a closed-form
+derivation from the frozen EXP-0017 arrays plus the new deterministic rule term
+(EXP-0025: a function of the already-recorded `packets_per_sec` feature;
+EXP-0030c: the CMRI-only classifier scored on the already-recorded TEST
+windows' F2 features) — see `ml/exp0025_dos_rate_rule.py` and
+`ml/exp0030c_cmri_production_wiring.py`. Calling `run_detector()` again will
+still raise `FileExistsError` via `exp0017_operational.begin_evaluation`, by
+design — this function's code is the correct permanent definition for any
+FUTURE fresh run, not a live re-run of any of the above.
 
 Pressure is ARFF-row-aligned, NOT live packet-byte decoding. The rate rule
 targets Type 2 (egress-channel flood) DoS only — Type 1 (external inbound-flood)
@@ -28,7 +38,8 @@ from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
 
 from features_windowed import (CATEGORY_NAMES, IF_FEATURES,
                                WINDOW_FEATURES, build_windows)
-from rules import DeterministicRuleLayer, PressureBoundsRule, RateFloodRule, RuleHit
+from rules import (CmriFloatProvenanceRule, DeterministicRuleLayer,
+                   PressureBoundsRule, RateFloodRule, RuleHit)
 
 
 TRAIN_FRAC, VAL_FRAC = 0.60, 0.20
@@ -102,6 +113,7 @@ class DetectorResult:
     split_sha256: str = ""
     rate_pred: np.ndarray = field(default_factory=lambda: np.array([], dtype=int))  # EXP-0025, Type 2 DoS
     rate_threshold: float = 0.0                                                     # TRAIN-normal packets_per_sec max
+    cmri_float_pred: np.ndarray = field(default_factory=lambda: np.array([], dtype=int))  # EXP-0030c, CMRI-only
 
     def metrics(self, pred: np.ndarray) -> dict:
         return binmetrics(self.y_test, pred)
@@ -126,6 +138,9 @@ def run_detector(windows=None, target_fpr: float = TARGET_FPR,
     """
     from exp0017_operational import begin_evaluation, manifest_indices, save_result
     from exp0016_pressure_bounds_rule import align_egress_pressure, window_pressure_min_max
+    from exp0019_pressure_rate_plausibility import align_egress_pressure_timeseries
+    from float_provenance_features import SeriesIndex as FloatSeriesIndex
+    from float_provenance_features import f2_row, load_reference
     if windows is not None or target_fpr != TARGET_FPR or seed != SEED:
         raise ValueError("EXP-0017 requires the verified dataset and frozen configuration")
     begin_evaluation(confirmation)
@@ -159,11 +174,28 @@ def run_detector(windows=None, target_fpr: float = TARGET_FPR,
         for i in te
     ]
     rate_hits = [rate.evaluate(wins[i].features["packets_per_sec"]) for i in te]
+
+    # ---- CMRI-only float-provenance rule (EXP-0030c) ----
+    # Loads the TRAIN-normal reference set + serialized CMRI classifier as
+    # production artifacts (not refit here) — see
+    # ml/float_provenance_features.py and ml/exp0030c_cmri_production_wiring.py
+    # for how they are trained/frozen. NMRI is explicitly out of scope.
+    cmri_series = align_egress_pressure_timeseries()
+    cmri_si = FloatSeriesIndex(cmri_series)
+    cmri_train_normal_sorted = load_reference()
+    cmri_rule = CmriFloatProvenanceRule().load_from_artifact()
+    cmri_float_hits = [
+        cmri_rule.evaluate(f2_row(cmri_si, wins[i].w_index, cmri_train_normal_sorted))
+        for i in te
+    ]
+
     rule_hits_te = [
-        RuleHit(bool(a.fired or b.fired or c.fired), a.reasons + b.reasons + c.reasons)
-        for a, b, c in zip(protocol_hits, pressure_hits, rate_hits)
+        RuleHit(bool(a.fired or b.fired or c.fired or d.fired),
+               a.reasons + b.reasons + c.reasons + d.reasons)
+        for a, b, c, d in zip(protocol_hits, pressure_hits, rate_hits, cmri_float_hits)
     ]
     rule_pred_te = np.array([h.fired for h in rule_hits_te], dtype=int)
+    cmri_float_pred_te = np.array([h.fired for h in cmri_float_hits], dtype=int)
 
     # ---- Stage 1 Isolation Forest (headline: IF_FEATURES, entropy included) ----
     clf = IsolationForest(n_estimators=300, max_samples="auto",
@@ -202,6 +234,7 @@ def run_detector(windows=None, target_fpr: float = TARGET_FPR,
         split_id=split.split_id, split_sha256=split.membership_sha256,
         rate_pred=np.array([h.fired for h in rate_hits], dtype=int),
         rate_threshold=rate.bound.max_packets_per_sec,
+        cmri_float_pred=cmri_float_pred_te,
     )
     # Persist every scored outcome, including a failed identity gate, without rerun.
     save_result(result)

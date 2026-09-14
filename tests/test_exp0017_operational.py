@@ -99,6 +99,20 @@ def test_synthetic_pipeline_fits_train_normal_only_and_test_changes_do_not_tune(
     monkeypatch.setattr(exp, "load_pretest_split", lambda: split)
     monkeypatch.setattr(detector, "build_windows", lambda: wins)
     monkeypatch.setattr(pressure_source, "align_egress_pressure", lambda: pressures)
+    # EXP-0030c's CMRI-only float-provenance rule reads real egress-pressure
+    # timeseries + serialized production artifacts inside run_detector(); on
+    # this synthetic fixture there is no matching real data, so its data
+    # sources are monkeypatched the same way the other rules' sources above
+    # are (lazy `from X import Y` inside run_detector() picks up patched
+    # module attributes at call time). With an empty series every synthetic
+    # window has no "own sample", so f2_row returns None and the CMRI rule
+    # fires False everywhere -- it must not otherwise perturb this test.
+    import exp0019_pressure_rate_plausibility as pressure_series_source
+    import float_provenance_features as float_provenance_source
+    from exp0032_admissible_ceiling_audit import F2_NAMES
+    monkeypatch.setattr(pressure_series_source, "align_egress_pressure_timeseries", lambda: [])
+    monkeypatch.setattr(float_provenance_source, "load_reference", lambda: np.array([]))
+    monkeypatch.setattr(float_provenance_source, "load_model", lambda: (None, 0.0, list(F2_NAMES)))
     first = detector.run_detector()
     assert first.pressure_bounds == (1., 10.)
     assert first.pressure_pred.tolist() == [1, 0]

@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "artifact": "exp0030c_cmri_float_provenance_model",
+  "description": "CMRI-only XGBoost classifier over F2 (IEEE-754 bit-structure) features, fit on the TRAIN residual cohort missed by the currently-wired combined detector (protocol OR pressure OR rate OR IF), threshold fit on VAL to keep Normal FPR <= MAX_NORMAL_FPR.",
+  "provenance": "egress traffic extracted from Mississippi State ICS testbed dataset, used as a simulated diode-observer view \u2014 never real diode capture data",
+  "model_path": "data\\artifacts\\exp0030c_cmri_float_provenance_model.json",
+  "threshold": 0.9993237257003784,
+  "feature_names": [
+    "exponent",
+    "mantissa_low_bits",
+    "trailing_zero_bits",
+    "ulp_distance_to_train_normal",
+    "quantization_distance",
+    "adc_lattice_distance",
+    "mantissa_entropy_local"
+  ],
+  "xgboost_version": "3.4.1",
+  "python": "3.12.10",
+  "model_sha256": "56a022ec2cb683ded950dd556f2ba1bd8b6c51ca1a7ab8af485fe98f9bf23974"
+}

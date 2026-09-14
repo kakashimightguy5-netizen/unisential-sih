@@ -1,0 +1,898 @@
+{
+  "status": "TESTED \u2014 production wiring, TEST scored once (retrained/serialized artifact)",
+  "experiment": "EXP-0030c",
+  "scope": "CMRI ONLY. NMRI explicitly out of scope (EXP-0030b NO-GO); not built here.",
+  "framing": "float/representation-provenance detection, NOT physical-anomaly detection (unchanged framing from EXP-0030/0030b).",
+  "identity_gates": {
+    "fix1_style_gate_vs_exp0025": {
+      "protocol_pred_matches": true,
+      "pressure_pred_matches": true,
+      "rate_pred_matches": true,
+      "if_pred_matches": true,
+      "comb_pred_matches": true
+    },
+    "run_detector_modified": true,
+    "run_detector_called_this_session": false,
+    "reference_reproducible_from_scratch": true,
+    "round_trip_checks_after_serialize_reload": {
+      "threshold_matches": true,
+      "feature_names_match": true,
+      "reference_matches": true
+    },
+    "evaluate_path_matches_batch_scoring_sample": true
+  },
+  "manifest": {
+    "split_id": "verified-egress-5s-exp0008-pretest-v1",
+    "membership_sha256": "0e912e147d088aaed05e95bda04c6a46c72ed4dd16aafb6966c9e2aab26859e6"
+  },
+  "reference_artifact": {
+    "path": "C:\\workspace-backup\\Projects\\unisential-sih-main\\data\\experiments\\exp0030c_train_normal_reference.json",
+    "n_values": 2387,
+    "split_id": "verified-egress-5s-exp0008-pretest-v1",
+    "split_sha256": "0e912e147d088aaed05e95bda04c6a46c72ed4dd16aafb6966c9e2aab26859e6"
+  },
+  "model_artifact": {
+    "schema_version": 1,
+    "artifact": "exp0030c_cmri_float_provenance_model",
+    "description": "CMRI-only XGBoost classifier over F2 (IEEE-754 bit-structure) features, fit on the TRAIN residual cohort missed by the currently-wired combined detector (protocol OR pressure OR rate OR IF), threshold fit on VAL to keep Normal FPR <= MAX_NORMAL_FPR.",
+    "provenance": "egress traffic extracted from Mississippi State ICS testbed dataset, used as a simulated diode-observer view \u2014 never real diode capture data",
+    "model_path": "data\\artifacts\\exp0030c_cmri_float_provenance_model.json",
+    "threshold": 0.9993237257003784,
+    "xgboost_version": "3.4.1",
+    "python": "3.12.10",
+    "model_sha256": "56a022ec2cb683ded950dd556f2ba1bd8b6c51ca1a7ab8af485fe98f9bf23974"
+  },
+  "feature_set": [
+    "exponent",
+    "mantissa_low_bits",
+    "trailing_zero_bits",
+    "ulp_distance_to_train_normal",
+    "quantization_distance",
+    "adc_lattice_distance",
+    "mantissa_entropy_local"
+  ],
+  "xgb_params": {
+    "n_estimators": 150,
+    "max_depth": 4,
+    "learning_rate": 0.1,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "reg_lambda": 1.0,
+    "random_state": 0,
+    "n_jobs": -1,
+    "eval_metric": "logloss",
+    "objective": "binary:logistic"
+  },
+  "max_normal_fpr_threshold_fit": 0.003,
+  "train_val": {
+    "n_train": 16253,
+    "n_train_positive": 1302,
+    "n_val": 5293,
+    "n_val_positive": 441,
+    "threshold": 0.9993237257003784,
+    "val_normal_fpr_achieved": 0.0026793075020610057,
+    "val_recall_point_estimate": 0.24263038548752835
+  },
+  "leave_one_run_out_fitted_model": {
+    "family": "F2",
+    "cohort": "cmri_pure",
+    "n_runs_evaluated": 107,
+    "per_run": [
+      {
+        "run_start_w_index": 283737156,
+        "run_end_w_index": 283737158,
+        "n_examples": 3,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283737164,
+        "run_end_w_index": 283737172,
+        "n_examples": 9,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283737434,
+        "run_end_w_index": 283737437,
+        "n_examples": 4,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283737914,
+        "run_end_w_index": 283737923,
+        "n_examples": 10,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283738442,
+        "run_end_w_index": 283738446,
+        "n_examples": 5,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283738619,
+        "run_end_w_index": 283738629,
+        "n_examples": 11,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283738868,
+        "run_end_w_index": 283738877,
+        "n_examples": 10,
+        "held_out_recall": 0.8,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283739983,
+        "run_end_w_index": 283739987,
+        "n_examples": 5,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283740012,
+        "run_end_w_index": 283740019,
+        "n_examples": 8,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283740021,
+        "run_end_w_index": 283740030,
+        "n_examples": 10,
+        "held_out_recall": 0.9,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283740689,
+        "run_end_w_index": 283740699,
+        "n_examples": 11,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.002827854365500177
+      },
+      {
+        "run_start_w_index": 283741020,
+        "run_end_w_index": 283741025,
+        "n_examples": 6,
+        "held_out_recall": 0.5,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283741457,
+        "run_end_w_index": 283741474,
+        "n_examples": 18,
+        "held_out_recall": 0.7777777777777778,
+        "threshold_normal_fpr_achieved": 0.0028783517648841087
+      },
+      {
+        "run_start_w_index": 283742493,
+        "run_end_w_index": 283742508,
+        "n_examples": 16,
+        "held_out_recall": 0.9375,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283742920,
+        "run_end_w_index": 283742932,
+        "n_examples": 13,
+        "held_out_recall": 0.9230769230769231,
+        "threshold_normal_fpr_achieved": 0.002827854365500177
+      },
+      {
+        "run_start_w_index": 283743519,
+        "run_end_w_index": 283743533,
+        "n_examples": 15,
+        "held_out_recall": 0.9333333333333333,
+        "threshold_normal_fpr_achieved": 0.0028783517648841087
+      },
+      {
+        "run_start_w_index": 283743783,
+        "run_end_w_index": 283743790,
+        "n_examples": 8,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283743792,
+        "run_end_w_index": 283743802,
+        "n_examples": 11,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283744204,
+        "run_end_w_index": 283744229,
+        "n_examples": 26,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283745681,
+        "run_end_w_index": 283745692,
+        "n_examples": 12,
+        "held_out_recall": 0.9166666666666666,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283746603,
+        "run_end_w_index": 283746617,
+        "n_examples": 15,
+        "held_out_recall": 0.9333333333333333,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283746701,
+        "run_end_w_index": 283746714,
+        "n_examples": 14,
+        "held_out_recall": 0.8571428571428571,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283747035,
+        "run_end_w_index": 283747040,
+        "n_examples": 6,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283747042,
+        "run_end_w_index": 283747044,
+        "n_examples": 3,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283747705,
+        "run_end_w_index": 283747718,
+        "n_examples": 14,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283747720,
+        "run_end_w_index": 283747724,
+        "n_examples": 5,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283747726,
+        "run_end_w_index": 283747728,
+        "n_examples": 3,
+        "held_out_recall": 0.6666666666666666,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283747730,
+        "run_end_w_index": 283747733,
+        "n_examples": 4,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283748617,
+        "run_end_w_index": 283748632,
+        "n_examples": 16,
+        "held_out_recall": 0.9375,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283748878,
+        "run_end_w_index": 283748893,
+        "n_examples": 16,
+        "held_out_recall": 0.9375,
+        "threshold_normal_fpr_achieved": 0.0028783517648841087
+      },
+      {
+        "run_start_w_index": 283749899,
+        "run_end_w_index": 283749909,
+        "n_examples": 11,
+        "held_out_recall": 0.9090909090909091,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283750332,
+        "run_end_w_index": 283750345,
+        "n_examples": 14,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283752508,
+        "run_end_w_index": 283752519,
+        "n_examples": 12,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283752766,
+        "run_end_w_index": 283752772,
+        "n_examples": 7,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283753356,
+        "run_end_w_index": 283753374,
+        "n_examples": 19,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283753498,
+        "run_end_w_index": 283753506,
+        "n_examples": 9,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.002827854365500177
+      },
+      {
+        "run_start_w_index": 283754319,
+        "run_end_w_index": 283754327,
+        "n_examples": 9,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283754510,
+        "run_end_w_index": 283754535,
+        "n_examples": 26,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283754901,
+        "run_end_w_index": 283754915,
+        "n_examples": 15,
+        "held_out_recall": 0.8,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283755142,
+        "run_end_w_index": 283755147,
+        "n_examples": 6,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283755258,
+        "run_end_w_index": 283755270,
+        "n_examples": 13,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283755972,
+        "run_end_w_index": 283755984,
+        "n_examples": 13,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283757521,
+        "run_end_w_index": 283757540,
+        "n_examples": 20,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283758073,
+        "run_end_w_index": 283758094,
+        "n_examples": 22,
+        "held_out_recall": 0.7727272727272727,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283758343,
+        "run_end_w_index": 283758346,
+        "n_examples": 4,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283759095,
+        "run_end_w_index": 283759101,
+        "n_examples": 7,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283759175,
+        "run_end_w_index": 283759184,
+        "n_examples": 10,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283759738,
+        "run_end_w_index": 283759743,
+        "n_examples": 6,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283760006,
+        "run_end_w_index": 283760033,
+        "n_examples": 28,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283760979,
+        "run_end_w_index": 283760986,
+        "n_examples": 8,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283761476,
+        "run_end_w_index": 283761494,
+        "n_examples": 19,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283761890,
+        "run_end_w_index": 283761902,
+        "n_examples": 13,
+        "held_out_recall": 0.9230769230769231,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283762016,
+        "run_end_w_index": 283762024,
+        "n_examples": 9,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283762284,
+        "run_end_w_index": 283762302,
+        "n_examples": 19,
+        "held_out_recall": 0.8947368421052632,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283762451,
+        "run_end_w_index": 283762461,
+        "n_examples": 11,
+        "held_out_recall": 0.9090909090909091,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283762700,
+        "run_end_w_index": 283762712,
+        "n_examples": 13,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283762977,
+        "run_end_w_index": 283762994,
+        "n_examples": 18,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283763259,
+        "run_end_w_index": 283763271,
+        "n_examples": 13,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283763378,
+        "run_end_w_index": 283763399,
+        "n_examples": 22,
+        "held_out_recall": 0.8181818181818182,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283764424,
+        "run_end_w_index": 283764437,
+        "n_examples": 14,
+        "held_out_recall": 0.9285714285714286,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283764632,
+        "run_end_w_index": 283764644,
+        "n_examples": 13,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283764700,
+        "run_end_w_index": 283764708,
+        "n_examples": 9,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283765077,
+        "run_end_w_index": 283765086,
+        "n_examples": 10,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.002827854365500177
+      },
+      {
+        "run_start_w_index": 283765447,
+        "run_end_w_index": 283765458,
+        "n_examples": 12,
+        "held_out_recall": 0.8333333333333334,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283765675,
+        "run_end_w_index": 283765695,
+        "n_examples": 21,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283765814,
+        "run_end_w_index": 283765833,
+        "n_examples": 20,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283766011,
+        "run_end_w_index": 283766023,
+        "n_examples": 13,
+        "held_out_recall": 0.9230769230769231,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283766878,
+        "run_end_w_index": 283766886,
+        "n_examples": 9,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283766907,
+        "run_end_w_index": 283766913,
+        "n_examples": 7,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283766928,
+        "run_end_w_index": 283766944,
+        "n_examples": 17,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283767613,
+        "run_end_w_index": 283767626,
+        "n_examples": 14,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283768013,
+        "run_end_w_index": 283768027,
+        "n_examples": 15,
+        "held_out_recall": 0.8,
+        "threshold_normal_fpr_achieved": 0.0028783517648841087
+      },
+      {
+        "run_start_w_index": 283768185,
+        "run_end_w_index": 283768204,
+        "n_examples": 20,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.0028783517648841087
+      },
+      {
+        "run_start_w_index": 283768516,
+        "run_end_w_index": 283768531,
+        "n_examples": 16,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283768646,
+        "run_end_w_index": 283768656,
+        "n_examples": 11,
+        "held_out_recall": 0.9090909090909091,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283768951,
+        "run_end_w_index": 283768961,
+        "n_examples": 11,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283769057,
+        "run_end_w_index": 283769066,
+        "n_examples": 10,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283769091,
+        "run_end_w_index": 283769106,
+        "n_examples": 16,
+        "held_out_recall": 0.9375,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283769582,
+        "run_end_w_index": 283769596,
+        "n_examples": 15,
+        "held_out_recall": 0.9333333333333333,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283769801,
+        "run_end_w_index": 283769820,
+        "n_examples": 20,
+        "held_out_recall": 0.95,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283769929,
+        "run_end_w_index": 283769935,
+        "n_examples": 7,
+        "held_out_recall": 0.8571428571428571,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283770042,
+        "run_end_w_index": 283770051,
+        "n_examples": 10,
+        "held_out_recall": 0.9,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283770257,
+        "run_end_w_index": 283770276,
+        "n_examples": 20,
+        "held_out_recall": 0.95,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283770409,
+        "run_end_w_index": 283770423,
+        "n_examples": 15,
+        "held_out_recall": 0.9333333333333333,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283770748,
+        "run_end_w_index": 283770752,
+        "n_examples": 5,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283771164,
+        "run_end_w_index": 283771173,
+        "n_examples": 10,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283771495,
+        "run_end_w_index": 283771504,
+        "n_examples": 10,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283771775,
+        "run_end_w_index": 283771778,
+        "n_examples": 4,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283772360,
+        "run_end_w_index": 283772364,
+        "n_examples": 5,
+        "held_out_recall": 0.8,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283772676,
+        "run_end_w_index": 283772684,
+        "n_examples": 9,
+        "held_out_recall": 0.8888888888888888,
+        "threshold_normal_fpr_achieved": 0.0028783517648841087
+      },
+      {
+        "run_start_w_index": 283772730,
+        "run_end_w_index": 283772744,
+        "n_examples": 15,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283772959,
+        "run_end_w_index": 283772974,
+        "n_examples": 16,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283773145,
+        "run_end_w_index": 283773155,
+        "n_examples": 11,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283773251,
+        "run_end_w_index": 283773258,
+        "n_examples": 8,
+        "held_out_recall": 0.875,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283774056,
+        "run_end_w_index": 283774066,
+        "n_examples": 11,
+        "held_out_recall": 0.9090909090909091,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283775201,
+        "run_end_w_index": 283775214,
+        "n_examples": 14,
+        "held_out_recall": 0.7857142857142857,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283775396,
+        "run_end_w_index": 283775403,
+        "n_examples": 8,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283776159,
+        "run_end_w_index": 283776171,
+        "n_examples": 13,
+        "held_out_recall": 0.9230769230769231,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283776276,
+        "run_end_w_index": 283776280,
+        "n_examples": 5,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283776332,
+        "run_end_w_index": 283776344,
+        "n_examples": 13,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.0028783517648841087
+      },
+      {
+        "run_start_w_index": 283776916,
+        "run_end_w_index": 283776935,
+        "n_examples": 20,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283777001,
+        "run_end_w_index": 283777007,
+        "n_examples": 7,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283777188,
+        "run_end_w_index": 283777196,
+        "n_examples": 9,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283777536,
+        "run_end_w_index": 283777538,
+        "n_examples": 3,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283778266,
+        "run_end_w_index": 283778279,
+        "n_examples": 14,
+        "held_out_recall": 0.9285714285714286,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283778719,
+        "run_end_w_index": 283778738,
+        "n_examples": 20,
+        "held_out_recall": 1.0,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      },
+      {
+        "run_start_w_index": 283778946,
+        "run_end_w_index": 283778965,
+        "n_examples": 20,
+        "held_out_recall": 0.95,
+        "threshold_normal_fpr_achieved": 0.00292884916426804
+      }
+    ],
+    "mean_recall": 0.9529264185560301,
+    "std_recall": 0.08125431328316193,
+    "min_recall": 0.5,
+    "max_recall": 1.0,
+    "run_dependent": false,
+    "note": "TRAIN+VAL pooled for this generalization sub-check only (disclosed); main VAL-bootstrap decision-rule numbers above never train on VAL."
+  },
+  "generalizes": true,
+  "test_scored_once": {
+    "baseline_confusion_exp0025_wired": {
+      "tn": 4767,
+      "fp": 40,
+      "fn": 2166,
+      "tp": 2374,
+      "fpr": 0.008321198252548368,
+      "recall": 0.5229074889867842
+    },
+    "new_confusion_with_cmri_float_rule": {
+      "tn": 4749,
+      "fp": 58,
+      "fn": 2002,
+      "tp": 2538,
+      "fpr": 0.012065737466195133,
+      "recall": 0.5590308370044053
+    },
+    "isolated_marginal": {
+      "tp_gain": 164,
+      "fp_gain": 18,
+      "isolated_ratio": 9.11111111111111,
+      "note": "EXACT isolated ratio for THIS experiment (single CMRI-only classifier, no NMRI term to conflate FP with) \u2014 compare against EXP-0030b's worst-case bound below."
+    },
+    "pure_cohort_recall": {
+      "CMRI": {
+        "n": 1198,
+        "baseline_recall": 0.5459098497495827,
+        "new_recall": 0.6352253756260434,
+        "recall_gain": 0.08931552587646077,
+        "historical_pressure_only_ceiling_pct_legibility_anchor": 54.59
+      }
+    },
+    "total_fpr": {
+      "baseline": 0.008321198252548368,
+      "with_cmri_float_rule": 0.012065737466195133
+    }
+  },
+  "comparison_to_exp0030b_historical_anchor": {
+    "exp0030b_cmri_worst_case_isolated_ratio": 5.33,
+    "this_experiment_exact_isolated_ratio": 9.11111111111111,
+    "note": "EXP-0030b's 5.33:1 was a WORST-CASE bound (charging the full combined +27 FP, shared with an NMRI classifier that does not exist in this experiment, entirely to CMRI). This experiment's ratio is EXACT, not a bound, because only the CMRI classifier is built/scored here."
+  },
+  "decision_rule": {
+    "go_bar": "isolated ratio >= 3.0:1 AND leave-one-run-out generalizes",
+    "isolated_ratio": 9.11111111111111,
+    "generalizes": true,
+    "overall_verdict": "GO \u2014 CMRI-only float-provenance rule wired into production"
+  },
+  "software": {
+    "python": "3.12.10",
+    "numpy": "2.5.3",
+    "xgboost": "3.4.1"
+  },
+  "limitations": [
+    "TEST-touch accounting: this is a fresh, singular, final TEST touch for the newly retrained/serialized production artifact, distinct from EXP-0030/0030b's already-spent TEST touches on the earlier (unserialized) research model \u2014 see module docstring for the full disclosure of this exception.",
+    "The rate rule and the rest of the wired chain are reproduced in-process inside FrozenCombinedWithRateDetector (imported unchanged from EXP-0030), not loaded from a serialized object; its TEST element-wise match against the frozen EXP-0025 arrays is the evidence this reproduction is faithful.",
+    "Two separate feature-computation call paths were cross-checked on a 50-window sample (batch matrix scoring vs. the production evaluate()-per-window path) but not on the full TEST set, for session compute-time tractability.",
+    "Pressure is the ARFF-aligned value, not a live 0x03 byte decode; register map/scale undocumented. One testbed; egress-only; measurement only."
+  ]
+}

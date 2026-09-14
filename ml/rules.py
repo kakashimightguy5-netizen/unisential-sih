@@ -176,3 +176,67 @@ class RateFloodRule:
 
     def predict(self, packets_per_sec_values) -> list[int]:
         return [int(self.evaluate(v).fired) for v in packets_per_sec_values]
+
+
+class CmriFloatProvenanceRule:
+    """Additive CMRI-ONLY float/representation-provenance rule (EXP-0030c).
+
+    Independent of the other rules; OR-ed into the operational verdict the
+    same way. Fires when a fitted XGBoost classifier's score over F2
+    (IEEE-754 bit-structure) features of the window's decoded `0x03`
+    pressure value exceeds a TRAIN/VAL-fit threshold. Unlike the other rules
+    in this file, the "fit" step is NOT a simple TRAIN-normal statistic
+    computed inline — it is a full supervised classifier trained on the
+    CMRI residual cohort (windows the rest of the wired chain — protocol OR
+    pressure OR rate OR IF — already misses) versus Normal, in
+    `ml/exp0030c_cmri_production_wiring.py`. This class only WRAPS an
+    already-fitted model + threshold (`fit_from_trained`) or loads one from
+    the serialized production artifact (`ml/float_provenance_features.py`).
+
+    Framing (repeated per EXP-0030's pre-registration): this rule most
+    likely reflects that a forged pressure value was produced by a
+    DIFFERENT quantization/generation pipeline than the real sensor, not a
+    property of the physical process the sensor measures — float/
+    representation-provenance detection, not physical-anomaly detection.
+
+    CMRI ONLY, by explicit pre-registered decision (EXP-0030b: CMRI's
+    isolated marginal trade ratio cleared the >=3:1 bar — worst-case
+    5.33:1 — GO; NMRI's did not — worst-case 1.19:1 — NO-GO; NMRI is
+    explicitly OUT of scope and must never be wired via this class without
+    a separate pre-registered decision).
+    """
+
+    def __init__(self) -> None:
+        self.model = None
+        self.threshold: float | None = None
+        self.feature_names: list[str] | None = None
+        self._fitted = False
+
+    def fit_from_trained(self, model, threshold: float, feature_names) -> "CmriFloatProvenanceRule":
+        self.model = model
+        self.threshold = float(threshold)
+        self.feature_names = list(feature_names)
+        self._fitted = True
+        return self
+
+    def load_from_artifact(self) -> "CmriFloatProvenanceRule":
+        from float_provenance_features import load_model
+        model, threshold, feature_names = load_model()
+        return self.fit_from_trained(model, threshold, feature_names)
+
+    def evaluate(self, feature_row: dict | None) -> RuleHit:
+        if not self._fitted:
+            raise RuntimeError("fit_from_trained()/load_from_artifact() CmriFloatProvenanceRule first")
+        if feature_row is None:
+            return RuleHit(fired=False, reasons=[])
+        import numpy as np
+        x = np.array([[feature_row[n] for n in self.feature_names]], dtype=float)
+        score = float(self.model.predict_proba(x)[0, 1])
+        fired = score > self.threshold
+        reasons = (
+            [f"cmri_float_provenance_score={score:.6g}>{self.threshold:.6g}"] if fired else []
+        )
+        return RuleHit(fired=fired, reasons=reasons)
+
+    def predict(self, feature_rows) -> list[int]:
+        return [int(self.evaluate(r).fired) for r in feature_rows]
