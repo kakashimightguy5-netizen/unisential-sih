@@ -4363,3 +4363,130 @@ deployable signal.
   [exp0032b_ceiling_audit_corrected.json](../data/experiments/exp0032b_ceiling_audit_corrected.json),
   summary [EXP-0032b_RESULTS.md](experiments/EXP-0032b_RESULTS.md).
 
+### EXP-0030
+- Experiment ID: EXP-0030
+- Date: 2026-09-13
+- Dataset: egress traffic extracted from Mississippi State ICS testbed dataset, used as a
+  simulated diode-observer view (never real diode capture data); same frozen manifest as
+  EXP-0017/EXP-0025/EXP-0032/EXP-0032b.
+- Framing (repeated intentionally): this is **float/representation-provenance detection**,
+  NOT physical-anomaly detection — the signal most likely reflects a forged pressure value
+  being produced by a different quantization/generation pipeline than the real sensor.
+- What this is: the first ACTUAL DETECTOR BUILD (not a diagnostic probe) for the
+  `ulp_distance_to_train_normal` IEEE-754 float-representation signal EXP-0032 discovered
+  and EXP-0032b confirmed (run-independent, leave-one-attack-run-out recall never below
+  50%, mean ~94-95%, across 66 NMRI / 107 CMRI held-out episodes).
+- Method: `ml/exp0030_float_provenance_detector.py`. `FrozenCombinedWithRateDetector`
+  extends EXP-0032b's `FrozenExp0017Detector` with EXP-0025's `RateFloodRule` term,
+  reproducing the CURRENTLY WIRED combined detector (protocol OR pressure-bounds OR rate
+  OR Isolation Forest — `data/experiments/exp0025_detector.json`), verified element-wise
+  against that frozen artifact before anything else was trusted. F2-only feature set
+  (IEEE-754 bit-structure features), one `XGBClassifier` per attack type (NMRI, CMRI),
+  threshold fit on VAL to keep VAL Normal FPR ≤ 0.30%. `F2_NAMES`, `SeriesIndex`,
+  `build_cohort_frame`, `nearest_reference_distance` reused unchanged from EXP-0032;
+  `_dataset_for`, `_run_family`, `leave_one_run_out` reused unchanged from EXP-0032b.
+- Results: VAL clears the permutation-null bar for both attacks (NMRI 11.70%
+  [5.40%,17.50%] CI; CMRI 24.26% [16.78%,30.51%] CI). Leave-one-attack-run-out on the
+  FINAL FITTED model matches EXP-0032b's raw-feature finding almost exactly (NMRI: 66
+  runs, mean 94.06%, no run-dependence; CMRI: 107 runs, mean 95.29%, no run-dependence).
+  TEST (scored once): baseline (currently wired) confusion (4767, 40, 2166, 2374), FPR
+  0.832%. Adding the float-provenance rule: (4740, 67, 1923, 2617), FPR 1.394% — marginal
+  contribution +243 TP / +27 FP. Pure-cohort TEST recall: NMRI 79.02% → 83.50% (+4.48pp),
+  CMRI 54.59% → 66.61% (+12.02pp).
+- Decision: **NO-GO for both NMRI and CMRI.** Per the pre-registered decision rule
+  (system-wide combined-detector Normal FPR must stay ≤ 0.30% after adding this rule), the
+  resulting absolute FPR (1.394%) exceeds the bar — but honestly, the bar was ALREADY
+  broken by the currently-wired baseline (0.832%) before this rule was ever added; this is
+  a disclosed specification gap discovered during execution, not a flaw in the
+  float-provenance signal itself, which passed every other gate (recall improvement, VAL
+  permutation-null bar, leave-one-run-out generalization on the fitted model) cleanly for
+  both attack types. Per "no amendments after seeing TEST results," this is scored NO-GO
+  as literally specified. **No production code was modified** — `ml/rules.py` and
+  `ml/iforest_detector.py` are untouched.
+- Full test suite: 399/400 passing before and after (the 1 failure is a pre-existing,
+  unrelated environment issue — a `pyarrow` DLL blocked by a local Windows Application
+  Control policy in `test_exp0017_operational.py`'s dashboard test — confirmed unrelated
+  since no file it depends on was touched this session).
+- **TESTED.** New files only: `ml/exp0030_float_provenance_detector.py`,
+  `tests/test_exp0030_float_provenance_detector.py`,
+  `data/experiments/exp0030_float_provenance_detector.json`,
+  `docs/experiments/EXP-0030_RESULTS.md`.
+- Saved result:
+  [exp0030_float_provenance_detector.json](../data/experiments/exp0030_float_provenance_detector.json),
+  summary [EXP-0030_RESULTS.md](experiments/EXP-0030_RESULTS.md).
+
+# RETRACTION — EXP-0030's original FPR bar was a spec error (2026-09-13)
+
+EXP-0030's original decision rule required the FULL combined-detector Normal FPR to stay
+≤ 0.30% after adding the float-provenance rule. That bar was copied from EXP-0032/0032b's
+per-classifier VAL-threshold-fitting convention (a diagnostic-probe threshold, not a
+system-wide SLA) and misapplied as an absolute ceiling on the production combined detector.
+The production baseline (protocol OR pressure OR rate OR IF, EXP-0025) already runs at
+0.832% FPR — already 2.8x over that bar before EXP-0030's rule was ever added — so no
+detector could ever have passed under the literal bar. EXP-0030's NO-GO verdict, scored
+under that literal (broken) bar per this project's "no amendments after seeing TEST
+results" discipline, is **retracted for that specific reason: corrected FPR bar spec
+error, see EXP-0030b.** The original EXP-0030 entry above is kept, unedited, for the
+historical record — this is an append-only correction, not a rewrite.
+
+# EXP-0030b — Corrected re-score of EXP-0030 against a proper isolated-marginal bar —
+# PARTIAL-GO (CMRI), NO-GO (NMRI, different reason) (2026-09-13)
+
+Pre-registered AMENDMENT (not a new experiment, not a retrain): re-evaluates EXP-0030's
+already-obtained TEST predictions (`data/experiments/exp0030_float_provenance_detector.json`)
+against a corrected bar. No retraining, no TEST re-scoring, no change to
+`exp0030_float_provenance_detector.py` or its saved JSON artifact.
+
+- Corrected decision rule: no fixed absolute ceiling on total combined FPR (reported
+  plainly, flagged for human demo-readiness decision instead). Gate that applies: the float
+  rule's ISOLATED marginal trade ratio (marginal TP / marginal FP, isolated from the other
+  rules' overlap the same way EXP-0017 isolates a rule's own marginal contribution) must be
+  ≥ 3:1, independently per category (NMRI, CMRI).
+- Isolation methodology: reproduced EXP-0017's own attribution style (before/after OR-ing
+  a term onto the rest of the already-wired chain, in wiring order) on EXP-0017's frozen
+  TEST arrays for the IF term specifically (protocol OR pressure, then adding IF):
+  protocol|pressure = (4803, 4, 2192, 2348); protocol|pressure|IF (comb) = (4767, 40, 2166,
+  2374). **EXP-0017's own IF isolated marginal: +26 TP / +36 FP = 0.72:1** — worse than
+  break-even, disclosed explicitly as the historical comparison point (not assumed to
+  already meet 3:1).
+- For a monotonic two-term OR, "isolated marginal restricted to windows the rest of the
+  chain misses" is mathematically identical to the plain before/after delta (no possible
+  overlap-inflation for a two-way union) — so EXP-0030's already-reported combined delta
+  (+243 TP / +27 FP) IS the correctly isolated combined marginal. **Combined isolated
+  ratio: 243/27 = 9.00:1** — clears 3:1 and beats EXP-0017's own accepted 0.72:1 IF ratio.
+- Per-category isolated TP splits exactly from the saved pure-cohort recall-gain figures:
+  NMRI +32 TP (n=715 pure), CMRI +144 TP (n=1198 pure), remaining +67 TP from
+  mixed-category (non-pure) windows unattributed to either. FP cannot be split per category
+  from the saved artifact (per-classifier fire arrays were never serialized; Normal windows
+  carry no NMRI/CMRI label) — disclosed as a genuine limitation, not resolved by
+  re-scoring (out of this amendment's scope). Conservative worst-case bound (charging the
+  full +27 FP to each category independently, a valid upper bound on each category's true
+  FP cost): **NMRI 32/27 = 1.19:1 (fails 3:1); CMRI 144/27 = 5.33:1 (clears 3:1)**.
+- Leave-one-run-out re-confirmed unchanged and independent of the FPR question (NMRI 66
+  runs mean 94.06% std 9.59% not run-dependent; CMRI 107 runs mean 95.29% std 8.13% not
+  run-dependent) — no double-counting interaction found between the two checks.
+- **Verdict: PARTIAL-GO (CMRI only).** CMRI — GO, reason "corrected FPR bar spec error,
+  see EXP-0030b," supersedes EXP-0030's original NO-GO for CMRI. NMRI — NO-GO, reason
+  "isolated trade-quality shortfall" (a DIFFERENT, now-correct reason than EXP-0030's
+  original spec-bug NO-GO); NMRI's true ratio is unresolved (bounded between 1.19:1 worst
+  case and unbounded best case) without re-scoring, and per pre-registered discipline
+  ambiguity is not resolved in the category's favor.
+- Total resulting FPR with the rule added, as originally scored in EXP-0030 (both
+  NMRI+CMRI models): 1.394% (TN 4740 / FP 67), up from the 0.832% wired baseline. **Flagged
+  plainly for Navin's demo-readiness/precision trade-off decision — not auto-decided here.**
+- Wiring: **NOT performed.** The float-provenance rule is a fitted XGBClassifier over 7
+  IEEE-754 bit-structure features not currently computed anywhere in the production
+  feature pipeline, and the fitted CMRI classifier itself was never serialized to disk
+  (only aggregate stats were saved) — reconstructing it requires re-running the
+  deterministic fit, which is confirmed bit-identical but still falls under "do not
+  re-run the model" for this amendment's scope. This is surfaced as a genuine architectural
+  gap: `ml/rules.py` and `ml/iforest_detector.py` are UNCHANGED. Recommended follow-up:
+  a separate pre-registered "EXP-0030c — CMRI float-provenance rule production wiring."
+- Full test suite: 399/400 passing, unchanged (only docs touched this session; confirmed
+  by direct re-run, same pre-existing pyarrow/DLL failure in
+  `test_exp0017_operational.py::test_dashboard_uses_saved_result_with_pressure_limitation`).
+- **TESTED (re-analysis of an existing frozen artifact; no new run).** New file:
+  `docs/experiments/EXP-0030b_RESULTS.md`. No source or data files modified.
+- Saved result: no new JSON artifact (this amendment re-analyzes
+  `data/experiments/exp0030_float_provenance_detector.json` in place); summary
+  [EXP-0030b_RESULTS.md](experiments/EXP-0030b_RESULTS.md).
