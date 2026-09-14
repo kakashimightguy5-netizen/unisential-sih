@@ -1,0 +1,81 @@
+{
+  "status": "TESTED \u2014 DIAGNOSTIC FAILURE; NO DETECTOR BUILT",
+  "experiment": "EXP-0029",
+  "identity_gates": {
+    "exp0017_artifact_loaded_and_verified": true,
+    "comb_equals_protocol_or_pressure_or_if": true,
+    "whole_test_confusion_matches_exp0017": true,
+    "exp0017_confusion": [
+      4767,
+      40,
+      2166,
+      2374
+    ],
+    "exp0016_bounds": [
+      0.482759,
+      38.7471
+    ],
+    "run_detector_modified": false
+  },
+  "manifest": {
+    "split_id": "verified-egress-5s-exp0008-pretest-v1",
+    "membership_sha256": "0e912e147d088aaed05e95bda04c6a46c72ed4dd16aafb6966c9e2aab26859e6"
+  },
+  "known_false_negatives": {
+    "cohort": "pure-NMRI TEST windows with EXP-0017 comb_pred == 0",
+    "n": 150,
+    "expected_n": 150,
+    "matches_expected": true
+  },
+  "method": {
+    "feature": "z_t = (P_t - median(P[t-k:t-1])) / (MAD(P[t-k:t-1]) + epsilon); causal, sample-count window, NOT a rate-of-change feature",
+    "epsilon": 1e-06,
+    "k_candidates_samples": [
+      5,
+      10,
+      20
+    ],
+    "per_window_score": "max |z_t| over samples ending in the window"
+  },
+  "diagnostic": {
+    "cohort": "150 known pure-NMRI EXP-0017 false negatives vs pure-Normal TEST, |z_t| magnitude, per candidate k",
+    "per_k": {
+      "5": {
+        "n_missed_nmri_defined": 150,
+        "n_normal_defined": 4807,
+        "median_missed_nmri_abs_z": 2.6496195136089673,
+        "median_normal_abs_z": 2.099983364578575,
+        "cohens_d": 0.07537000239721776,
+        "mannwhitney_u": 364828.0,
+        "mannwhitney_p": 0.8028757016608684
+      },
+      "10": {
+        "n_missed_nmri_defined": 150,
+        "n_normal_defined": 4807,
+        "median_missed_nmri_abs_z": 2.198571607992184,
+        "median_normal_abs_z": 1.9996520528879609,
+        "cohens_d": 0.05200974663568553,
+        "mannwhitney_u": 394910.0,
+        "mannwhitney_p": 0.04627512620303957
+      },
+      "20": {
+        "n_missed_nmri_defined": 150,
+        "n_normal_defined": 4807,
+        "median_missed_nmri_abs_z": 2.886898704759454,
+        "median_normal_abs_z": 1.799588864499409,
+        "cohens_d": 0.04032226719780991,
+        "mannwhitney_u": 454542.5,
+        "mannwhitney_p": 5.0653719988987184e-08
+      }
+    },
+    "best_k": 5,
+    "best_cohens_d": 0.07537000239721776,
+    "min_required_abs_d": 0.5,
+    "diagnostic_supported": false
+  },
+  "decision_rule": {
+    "verdict_nmri": "NO-GO",
+    "verdict_cmri_secondary": "NO-GO (not evaluated; diagnostic failed for the shared feature)",
+    "reason": "best Cohen's d over k in (5, 10, 20) is 0.075 (k=5), below the 0.5 pre-registered bar. Per the pre-registration, window size k is NOT iterated further as a post-hoc rescue after seeing this diagnostic."
+  }
+}

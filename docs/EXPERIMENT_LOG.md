@@ -4122,3 +4122,53 @@ deployable signal.
   [exp0028_cmri_trajectory.json](../data/experiments/exp0028_cmri_trajectory.json),
   summary [EXP-0028_RESULTS.md](experiments/EXP-0028_RESULTS.md).
 
+## EXP-0029 execution outcome — TESTED — NO-GO; regime-aware rolling baseline fails the mandatory diagnostic for NMRI (2026-09-13)
+
+- **Pre-registration:** causal rolling median/MAD relative-deviation z-score
+  `z_t = (P_t - median(P[t-k:t-1])) / (MAD(P[t-k:t-1]) + epsilon)` over
+  decoded pressure, candidate window sizes k = 5, 10, 20 samples fixed before
+  any VAL/TEST score, targeting the 150/715 (23.4%) pure-NMRI TEST windows
+  EXP-0017 misses despite being inside the EXP-0016 global pressure bounds.
+  Explicitly a different baseline model from EXP-0019/0020's rate-of-change
+  framing (no elapsed-time division). Secondary generalization check
+  pre-registered for CMRI, same rule, same EXP-0028 bar (54.59% pure-CMRI
+  recall / 0.30% FPR).
+- **Identity gates:** all passed — EXP-0017 artifact checksum-verified,
+  `comb == protocol | pressure | IF` element-wise, whole-TEST confusion
+  4767/40/2166/2374, EXP-0016 bounds `[0.482759, 38.7471]` unchanged, split
+  manifest identity matches. The 150 known pure-NMRI false negatives were
+  re-derived directly from the artifact (`comb_pred == 0` on the pure-NMRI
+  TEST cohort) and matched the pre-registered figure exactly (150/150) — no
+  ambiguity, EXP-0017's combined result was reproducible.
+- **Step 2 mandatory diagnostic (before any detector built) — FAILED:**
+  Cohen's d between `|z_t|` for the 150 known false negatives and pure-Normal
+  TEST windows was negligible for every candidate: k=5 d=+0.075 (p=0.80),
+  k=10 d=+0.052 (p=0.046), k=20 d=+0.040 (p=5.07e-08). Best candidate (k=5,
+  by effect size) is far below the pre-registered `d >= 0.5` bar. Two
+  candidates reach statistical significance at the repo's large TEST sample
+  size despite a negligible effect size — reported honestly per the EXP-0014
+  standard rather than treated as support.
+- **Steps 3-5 (VAL threshold fit, artifact check, CMRI generalization) were
+  NOT performed** — per the pre-registered decision rule, a diagnostic
+  effect size below 0.5 is a NO-GO that closes the line before any detector
+  is built; window size k was **not** iterated further as a post-hoc rescue.
+- **Decision-rule verdict: NMRI `NO-GO`, CMRI (secondary) `NO-GO`** — the
+  CMRI check was not independently run because it depends on the same z_t
+  feature that already failed the mandatory diagnostic for its primary
+  (NMRI) target, per the fixed decision rule. No amendment to the decision
+  rule after seeing results.
+- **Deliverables note:** the spec's fallback `docs/overview.md` deliverable
+  location does not exist anywhere in this repository (confirmed, same
+  finding as EXP-0028) — flagged rather than invented; this log entry plus
+  `docs/experiments/EXP-0029_RESULTS.md` serve as the record instead.
+- **TESTED.** Full suite **322 → 341 passed** (19 new: 18 fast synthetic
+  units + 1 slow saved-result replay). No raw data read in fast tests.
+  `run_detector`, `app.py` and all protected EXP-0005..0028 files unchanged.
+- New files only: `ml/exp0029_regime_baseline.py`,
+  `tests/test_exp0029_regime_baseline.py`,
+  `data/experiments/exp0029_regime_baseline.json`,
+  `docs/experiments/EXP-0029_RESULTS.md`.
+- Saved result:
+  [exp0029_regime_baseline.json](../data/experiments/exp0029_regime_baseline.json),
+  summary [EXP-0029_RESULTS.md](experiments/EXP-0029_RESULTS.md).
+
