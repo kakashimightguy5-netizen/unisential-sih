@@ -73,6 +73,20 @@ Prevent:
 - attack leakage into normal-only training data
 - feature leakage
 
+## Reproducibility Rule
+
+Any scored result's scoring code must be committed/saved as a repo artifact
+at the time of the run — never left as a one-off script or notebook scan
+that only produces a number without a durable, reproducible record.
+
+This is a standing rule, not a suggestion: two separate incidents in this
+project's history needed a full re-derivation to catch a problem that
+committed scoring code would have caught immediately — a DoS source-oracle
+bug in this repo's own detector line, and (in the sibling ProvICS repo,
+`multimodal-ICS-provenance-v2`) a LOCO attribution number ("10/11" / 90.9%
+recall) that could not be verified because its scoring code was never
+saved, only run once informally.
+
 ## Security Boundary
 
 Development and testing are restricted to:
