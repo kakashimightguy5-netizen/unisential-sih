@@ -1,0 +1,150 @@
+{
+  "status": "VALIDATED \u2014 TEST SCORED ONCE; run_detector NOT modified",
+  "experiment": "EXP-0028",
+  "identity_gates": {
+    "exp0017_artifact_loaded_and_verified": true,
+    "comb_equals_protocol_or_pressure_or_if": true,
+    "whole_test_confusion_matches_exp0017": true,
+    "exp0017_confusion": [
+      4767,
+      40,
+      2166,
+      2374
+    ],
+    "exp0016_bounds": [
+      0.482759,
+      38.7471
+    ],
+    "run_detector_modified": false
+  },
+  "manifest": {
+    "split_id": "verified-egress-5s-exp0008-pretest-v1",
+    "membership_sha256": "0e912e147d088aaed05e95bda04c6a46c72ed4dd16aafb6966c9e2aab26859e6"
+  },
+  "distance_library_note": "dtaidistance/stumpy pip installs did not finish inside the session's time budget; DTW is a hand-written O(n*m) dynamic program (batched with numpy over the reference library); the discord score is a z-normalized Euclidean nearest-neighbor distance to the same library, which equals the matrix-profile distance for the fixed-length, non-warped case used here.",
+  "method": {
+    "window_length_samples": 15,
+    "train_normal_median_0x03_step_seconds": 3.521090030670166,
+    "gap_tolerance_seconds": 5.281635046005249,
+    "gap_tolerance_factor": 1.5,
+    "library_size_after_dedup": 300,
+    "dedup_round_decimals": 4,
+    "per_window_score": "max nearest-neighbor DTW / discord distance over sub-sequences ending on a sample inside the window; undefined if no full-length contiguous (no-gap) sub-sequence ends there"
+  },
+  "artifact_check": {
+    "definition": "group A: pure-Normal window whose immediate predecessor window (w_index - 1) is attack-labelled. group B: pure-Normal window whose immediate predecessor's last observed pressure sample is within the EXP-0016 TRAIN-normal bounds. Pooled over VAL+TEST, descriptive only.",
+    "per_metric": {
+      "dtw": {
+        "n_group_a_post_attack_normal": 316,
+        "n_group_b_in_bounds_predecessor_normal": 9113,
+        "median_group_a": 6.047565099912572,
+        "median_group_b": 5.995283605722421,
+        "cohens_d": 0.12757870124642032,
+        "mannwhitney_u": 1554731.0,
+        "mannwhitney_p": 0.015741308222572102,
+        "inflated_relative_to_group_b": false
+      },
+      "discord": {
+        "n_group_a_post_attack_normal": 316,
+        "n_group_b_in_bounds_predecessor_normal": 9113,
+        "median_group_a": 2.998386449916037,
+        "median_group_b": 2.9476168588233675,
+        "cohens_d": 0.010061836436867358,
+        "mannwhitney_u": 1464800.0,
+        "mannwhitney_p": 0.6000086698443883,
+        "inflated_relative_to_group_b": false
+      }
+    },
+    "artifact_present": false,
+    "gate_applied": false,
+    "gate_rule": "only if artifact_present: restrict scoring (threshold fit AND TEST scoring) to windows whose predecessor's last pressure sample is within the EXP-0016 bounds, as EXP-0020 did for the rate rule"
+  },
+  "val_threshold_selection": {
+    "dtw": {
+      "threshold": 8.328267587918809,
+      "val_normal_n": 4657,
+      "val_normal_fpr_achieved": 0.002576766158471119,
+      "val_pure_cmri_hits": 50,
+      "val_pure_cmri_n": 1086,
+      "val_pure_cmri_recall": 0.04604051565377532
+    },
+    "discord": {
+      "threshold": 3.8894524580419048,
+      "val_normal_n": 4657,
+      "val_normal_fpr_achieved": 0.002576766158471119,
+      "val_pure_cmri_hits": 0,
+      "val_pure_cmri_n": 1086,
+      "val_pure_cmri_recall": 0.0
+    }
+  },
+  "primary_metric": "dtw",
+  "test_scoring": {
+    "dtw": {
+      "threshold": 8.328267587918809,
+      "test_normal_n": 4536,
+      "test_normal_fp": 21,
+      "test_normal_fpr": 0.004629629629629629,
+      "pure_cmri": {
+        "hits": 92,
+        "n": 1198,
+        "recall": 0.07679465776293823
+      },
+      "dominant_cmri": {
+        "hits": 123,
+        "n": 1812,
+        "recall": 0.06788079470198675
+      },
+      "containing_cmri": {
+        "hits": 126,
+        "n": 1826,
+        "recall": 0.06900328587075576
+      }
+    },
+    "discord": {
+      "threshold": 3.8894524580419048,
+      "test_normal_n": 4536,
+      "test_normal_fp": 9,
+      "test_normal_fpr": 0.001984126984126984,
+      "pure_cmri": {
+        "hits": 1,
+        "n": 1198,
+        "recall": 0.0008347245409015025
+      },
+      "dominant_cmri": {
+        "hits": 3,
+        "n": 1812,
+        "recall": 0.0016556291390728477
+      },
+      "containing_cmri": {
+        "hits": 3,
+        "n": 1826,
+        "recall": 0.0016429353778751369
+      }
+    }
+  },
+  "decision_rule": {
+    "baseline_pure_cmri_recall": 0.5459098497495827,
+    "baseline_pure_cmri_recall_pct": 54.59,
+    "max_normal_fpr": 0.003,
+    "primary_metric_test_pure_cmri_recall": 0.07679465776293823,
+    "primary_metric_test_normal_fpr": 0.004629629629629629,
+    "passes_recall_bar": false,
+    "passes_fpr_bar": false,
+    "artifact_check_clean_or_gated": true,
+    "verdict": "NO-GO"
+  },
+  "software": {
+    "python": "3.12.10",
+    "numpy": "2.5.3",
+    "scipy": "1.18.1",
+    "scikit_learn": "1.9.0"
+  },
+  "limitations": [
+    "Pressure is the ARFF-aligned value, not a live 0x03 byte decode; register map/scale undocumented.",
+    "dtaidistance/stumpy unavailable within the session time budget; DTW and the discord score are hand-written, not library-verified against a reference implementation.",
+    "The Normal reference library is built once from TRAIN and never refit on VAL/TEST; sub-sequences overlap heavily (stride 1) before dedup, so library diversity is bounded by how much the TRAIN-normal process moves.",
+    "Per-window score is a max over sub-sequence endings inside the window, matching EXP-0019/0020's aggregation style, not an average.",
+    "EXP-0018/0019/0020 have each scored the frozen TEST set once against a pressure hypothesis about the missed CMRI; this is the fourth \u2014 a garden-of-forking-paths risk disclosed across the whole line.",
+    "One testbed; egress-only; measurement only, nothing wired in."
+  ]
+}

@@ -4065,3 +4065,60 @@ deployable signal.
 - Saved result:
   [exp0027_msci_realistic_population.json](../data/experiments/exp0027_msci_realistic_population.json),
   summary [EXP0027_RESULTS.md](EXP0027_RESULTS.md).
+
+## EXP-0028 execution outcome — TESTED — NO-GO; trajectory-matching (DTW/discord) fails both bars, fourth and closing CMRI angle (2026-09-13)
+
+- **Pre-registration:** DTW / matrix-profile-style discord distance from a
+  candidate window's trailing pressure sub-sequence to a Normal reference
+  library built from TRAIN only, as a shape-based alternative to the
+  single-point / single-derivative CMRI angles EXP-0018/0019/0020 already
+  closed. Reused the frozen manifest and EXP-0017's window definition (no
+  rederivation); threshold fit on VAL only; TEST scored exactly once.
+- **Library implementation:** `dtaidistance`/`stumpy` pip installs did not
+  finish inside the session's time budget (slow network). DTW is a
+  hand-written, numpy-batched O(n·m) dynamic program; discord is a
+  z-normalized Euclidean nearest-neighbor distance to the same library
+  (equals the matrix-profile distance for fixed-length, non-warped
+  sub-sequences). Both spot-checked against hand-computed small cases.
+- **Compute-tractability cap, fixed before any VAL/TEST score:** the raw
+  Normal library (14,148 length-15 sub-sequences from TRAIN-normal
+  contiguous runs, after dedup) made an unbounded batched DTW against
+  ~10k+ VAL/TEST candidates intractable (an earlier unbounded run was
+  killed after >10 minutes, >2 GB RSS, no output). Deterministically
+  subsampled to 300 library rows (fixed seed) before any score was computed.
+- **Step 3 artifact check — clean, no gate needed:** pure-Normal windows
+  following an attack-labelled predecessor vs pure-Normal windows with an
+  in-bounds predecessor showed no meaningful DTW/discord inflation (DTW
+  d=+0.128, discord d=+0.010; discord p=0.60). The EXP-0019 "returning to
+  normal" artifact does NOT reappear here; VAL/TEST scored ungated.
+- **VAL threshold selection:** DTW threshold 8.3283 (VAL Normal FPR 0.2577%,
+  VAL pure-CMRI recall 4.60%); discord threshold 3.8895 (same FPR, 0.00%
+  recall). DTW selected as primary (higher VAL recall), fixed before TEST.
+- **TEST scored once:** DTW (primary) — Normal FPR 0.4630%, pure-CMRI recall
+  7.68% (92/1198), dominant 6.79%, containing 6.90%. discord — FPR 0.1984%,
+  pure-CMRI recall 0.08% (1/1198).
+- **Decision-rule verdict: `NO-GO`** — fails BOTH pre-registered bars: TEST
+  pure-CMRI recall (7.68%) does not beat the 54.59% PressureBoundsRule
+  baseline, and Normal FPR (0.4630%) exceeds the 0.30% bar. No amendment to
+  the decision rule after seeing TEST results. Per the pre-registration,
+  window length / distance metric / library size were NOT iterated as a
+  post-hoc rescue.
+- **This closes the CMRI missed-detection line** (fourth angle after
+  EXP-0018 residual smoothness, EXP-0019 raw rate-of-change, EXP-0020 gated
+  rate-of-change — all CLOSED / negative or marginal). `run_detector`,
+  `app.py` and all protected EXP-0005..0027 files unchanged.
+- **Deliverables note:** the spec asked for a NO-GO summary to be appended to
+  a "Major saga #3: CMRI" section of `docs/overview.md`. Neither that file
+  nor any "Major saga" text exists anywhere in this repository (searched
+  recursively) — flagged rather than invented; this log entry plus
+  `docs/experiments/EXP-0028_RESULTS.md` serve as the record instead.
+- **TESTED.** Full suite **303 → 322 passed** (19 new: 18 fast synthetic
+  units + 1 slow saved-result replay). No raw data read in fast tests.
+- New files only: `ml/exp0028_cmri_trajectory.py`,
+  `tests/test_exp0028_cmri_trajectory.py`,
+  `data/experiments/exp0028_cmri_trajectory.json`,
+  `docs/experiments/EXP-0028_RESULTS.md`.
+- Saved result:
+  [exp0028_cmri_trajectory.json](../data/experiments/exp0028_cmri_trajectory.json),
+  summary [EXP-0028_RESULTS.md](experiments/EXP-0028_RESULTS.md).
+
